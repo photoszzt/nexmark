@@ -1,43 +1,38 @@
-CREATE TABLE data_gen (
+CREATE stream data_gen (
     event_type int,
-    person (
+    person STRUCT<
         id BIGINT,
         name VARCHAR,
         emailAddress VARCHAR,
         creditCard  VARCHAR,
         city  VARCHAR,
         state  VARCHAR,
-        dateTime TIMESTAMP(3),
-        extra  VARCHAR,
-    ),
-    auction (
+        dateTime VARCHAR,
+        extra  VARCHAR
+    >,
+    auction STRUCT<
         id BIGINT,
         itemName  VARCHAR,
         description  VARCHAR,
         initialBid  BIGINT,
         reserve  BIGINT,
-        dateTime  TIMESTAMP(3),
+        dateTime  VARCHAR,
         expires  TIMESTAMP(3),
         seller  BIGINT,
         category  BIGINT,
         extra  VARCHAR
-    ),
-    bid (
+    >,
+    bid STRUCT<
         auction  BIGINT,
         bidder  BIGINT,
         price  BIGINT,
         channel  VARCHAR,
         url  VARCHAR,
-        dateTime  TIMESTAMP(3),
+        dateTime  VARCHAR,
         extra  VARCHAR
-    ),
-    dateTime AS
-        CASE
-            WHEN event_type = 0 THEN person.dateTime
-            WHEN event_type = 1 THEN auction.dateTime
-            ELSE bid.dateTime
-        END
+    >
 ) WITH (
     KAFKA_TOPIC = 'nexmark',
     VALUE_FORMAT = 'JSON',
+    partitions = 1
 )
