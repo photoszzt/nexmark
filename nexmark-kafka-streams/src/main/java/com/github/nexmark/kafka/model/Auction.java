@@ -1,0 +1,104 @@
+package com.github.nexmark.kafka.model;
+
+import java.io.Serializable;
+import java.time.Instant;
+
+import com.github.nexmark.kafka.queries.JSONSerdeCompatible;
+import com.google.common.base.Objects;
+
+public class Auction implements Serializable, JSONSerdeCompatible {
+    /** Id of auction. */
+	public long id; // primary key
+
+	/** Extra auction properties. */
+	public String itemName;
+
+	public String description;
+
+	/** Initial bid price, in cents. */
+	public long initialBid;
+
+	/** Reserve price, in cents. */
+	public long reserve;
+
+	public Instant dateTime;
+
+	/** When does auction expire? (ms since epoch). Bids at or after this time are ignored. */
+	public Instant expires;
+
+	/** Id of person who instigated auction. */
+	public long seller; // foreign key: Person.id
+
+	/** Id of category auction is listed under. */
+	public long category; // foreign key: Category.id
+
+	/** Additional arbitrary payload for performance testing. */
+	public String extra;
+
+	public Auction(
+			long id,
+			String itemName,
+			String description,
+			long initialBid,
+			long reserve,
+			Instant dateTime,
+			Instant expires,
+			long seller,
+			long category,
+			String extra) {
+		this.id = id;
+		this.itemName = itemName;
+		this.description = description;
+		this.initialBid = initialBid;
+		this.reserve = reserve;
+		this.dateTime = dateTime;
+		this.expires = expires;
+		this.seller = seller;
+		this.category = category;
+		this.extra = extra;
+	}
+
+	@Override
+	public String toString() {
+		return "Auction{" +
+				"id=" + id +
+				", itemName='" + itemName + '\'' +
+				", description='" + description + '\'' +
+				", initialBid=" + initialBid +
+				", reserve=" + reserve +
+				", dateTime=" + dateTime +
+				", expires=" + expires +
+				", seller=" + seller +
+				", category=" + category +
+				", extra='" + extra + '\'' +
+				'}';
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		Auction auction = (Auction) o;
+		return id == auction.id
+			&& initialBid == auction.initialBid
+			&& reserve == auction.reserve
+			&& Objects.equal(dateTime, auction.dateTime)
+			&& Objects.equal(expires, auction.expires)
+			&& seller == auction.seller
+			&& category == auction.category
+			&& Objects.equal(itemName, auction.itemName)
+			&& Objects.equal(description, auction.description)
+			&& Objects.equal(extra, auction.extra);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hashCode(
+			id, itemName, description, initialBid, reserve, dateTime, expires, seller, category, extra);
+	}
+    
+}
