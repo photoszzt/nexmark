@@ -44,3 +44,6 @@ out/
 *.ipr
 *.iws
 load_*_*.mk
+
+nexmark-kafka-streams/src/main/resources/kafka/kafka_2.13-2.8.0/
+.task

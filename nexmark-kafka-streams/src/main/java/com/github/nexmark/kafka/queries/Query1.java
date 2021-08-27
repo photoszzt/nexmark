@@ -16,6 +16,8 @@ import org.apache.kafka.streams.kstream.KStream;
 
 public class Query1 implements NexmarkQuery {
 
+    public Query1() {}
+
     @Override
     public StreamsBuilder getStreamBuilder() {
         StreamsBuilder builder = new StreamsBuilder();

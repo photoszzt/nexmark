@@ -1,0 +1,24 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  build:
+    desc: "build nexmark kafka implementation"
+    cmds:
+      - mvn package -DskipTests
+    sources:
+      - src/main/java/com/github/nexmark/kafka/**/*.java
+    generates:
+      - target/nexmark-kafka-streams-0.2-SNAPSHOT.jar
+
+  run-query:
+    desc: "run query"
+    deps: [build]
+    dir: ./target
+    cmds:
+      - java -cp kafka-stream.jar:nexmark-kafka-streams-0.2-SNAPSHOT.jar com.github.nexmark.kafka.queries.RunQuery {{.CLI_ARGS}}

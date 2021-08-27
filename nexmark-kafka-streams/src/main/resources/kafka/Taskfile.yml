@@ -1,0 +1,27 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  download-kafka:
+    cmds:
+      - wget -O kafka_2.13-2.8.0.tgz https://dlcdn.apache.org/kafka/2.8.0/kafka_2.13-2.8.0.tgz
+      - tar -xvf kafka_2.13-2.8.0.tgz
+    status:
+      - test -f kafka_2.13-2.8.0.tgz
+      - test -d kafka_2.13-2.8.0
+
+  run-zookeeper:
+    deps: [download-kafka]
+    dir: ./kafka_2.13-2.8.0
+    cmds:
+      - bin/zookeeper-server-start.sh config/zookeeper.properties
+
+  run-kafka:
+    dir: ./kafka_2.13-2.8.0
+    cmds:
+      - bin/kafka-server-start.sh config/server.properties

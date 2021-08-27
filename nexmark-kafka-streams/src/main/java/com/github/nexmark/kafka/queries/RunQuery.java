@@ -22,7 +22,12 @@ public class RunQuery {
             System.err.println("Need to specify query number");
             System.exit(1);
         }
-        int queryNumber = Integer.getInteger(args[1]);
+        System.out.println(args.length);
+        for (int i = 0; i < args.length; i++) {
+            System.out.println(args[i]);
+        }
+        
+        int queryNumber = Integer.parseInt(args[0]);
         NexmarkQuery query = getNexmarkQuery(queryNumber);
         if (query == null) {
             System.exit(1);

@@ -10,8 +10,8 @@ import org.apache.kafka.common.serialization.Serializer;
 import java.io.Serializable;
 import java.util.Map;
 
-public class MsgPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T> {
-    private ObjectMapper objectMapper = new ObjectMapper();
+public class MsgPOJOSerde<T extends JSONSerdeCompatible> implements Deserializer<T>, Serializer<T>, Serde<T> {
+    private ObjectMapper objectMapper = new ObjectMapper(new MessagePackFactory());
 
     public MsgPOJOSerde() {
 
@@ -30,11 +30,10 @@ public class MsgPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T>
 
         T data;
         try {
-            data = objectMapper.readValue(bytes, tClass);
+            return (T) objectMapper.readValue(bytes, JSONSerdeCompatible.class);
         } catch (Exception e) {
             throw new SerializationException(e);
         }
-        return data;
     }
 
     @Override
