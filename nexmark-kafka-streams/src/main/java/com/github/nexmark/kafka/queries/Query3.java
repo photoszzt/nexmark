@@ -1,6 +1,5 @@
 package com.github.nexmark.kafka.queries;
 
-import com.github.nexmark.kafka.model.Bid;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.NameCityStateId;
 import org.apache.kafka.common.serialization.Serdes;
@@ -17,7 +16,7 @@ public class Query3 implements NexmarkQuery {
     @Override
     public StreamsBuilder getStreamBuilder() {
         StreamsBuilder builder = new StreamsBuilder();
-        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), new MsgPOJOSerde<>()));
+        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), new JSONPOJOSerde<>(Event.class)));
         KTable<Long, Event> auctionsBySellerId = inputs.filter((key, value) -> value.type == Event.Type.AUCTION)
                 .filter((key, value) -> value.newAuction.category == 10)
                 .map((key, value) -> KeyValue.pair(value.newAuction.seller, value)).toTable();

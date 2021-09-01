@@ -13,7 +13,7 @@ public class Query2 implements NexmarkQuery {
     @Override
     public StreamsBuilder getStreamBuilder() {
         StreamsBuilder builder = new StreamsBuilder();
-        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), new MsgPOJOSerde<>()));
+        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), new JSONPOJOSerde<>(Event.class)));
         KStream<String, Event> q2Out = inputs.filter((key, value) -> value.type == Event.Type.BID)
                 .filter((key, value) -> value.bid.auction % 123 == 0);
         q2Out.to("nexmark-q2");

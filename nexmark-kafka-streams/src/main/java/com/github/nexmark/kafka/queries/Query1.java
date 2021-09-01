@@ -21,7 +21,7 @@ public class Query1 implements NexmarkQuery {
     @Override
     public StreamsBuilder getStreamBuilder() {
         StreamsBuilder builder = new StreamsBuilder();
-        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), new MsgPOJOSerde<>()));
+        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), new JSONPOJOSerde<>(Event.class)));
         KStream<String, Event> q1Out = inputs.filter((key, value) -> value.type == Event.Type.BID)
                 .mapValues(value -> {
                     Bid b = value.bid;

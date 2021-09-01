@@ -1,6 +1,8 @@
 package com.github.nexmark.kafka.queries;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.nexmark.kafka.model.Event;
+
 import org.apache.kafka.common.errors.SerializationException;
 
 import org.apache.kafka.common.serialization.Deserializer;
@@ -10,11 +12,12 @@ import org.apache.kafka.common.serialization.Serializer;
 import java.io.Serializable;
 import java.util.Map;
 
-public class MsgPOJOSerde<T extends JSONSerdeCompatible> implements Deserializer<T>, Serializer<T>, Serde<T> {
-    private ObjectMapper objectMapper = new ObjectMapper(new MessagePackFactory());
+public class JSONPOJOSerde<T extends JSONSerdeCompatible> implements Deserializer<T>, Serializer<T>, Serde<T> {
+    private ObjectMapper objectMapper = new ObjectMapper();
+    private final Class<T> type;
 
-    public MsgPOJOSerde() {
-
+    public JSONPOJOSerde(Class<T> type) {
+        this.type = type;
     }
 
     @SuppressWarnings("unchecked")
@@ -30,7 +33,9 @@ public class MsgPOJOSerde<T extends JSONSerdeCompatible> implements Deserializer
 
         T data;
         try {
+            System.out.println("Input is " + new String(bytes, "UTF-8"));
             return (T) objectMapper.readValue(bytes, JSONSerdeCompatible.class);
+            
         } catch (Exception e) {
             throw new SerializationException(e);
         }
@@ -43,7 +48,9 @@ public class MsgPOJOSerde<T extends JSONSerdeCompatible> implements Deserializer
         }
 
         try {
-            return objectMapper.writeValueAsBytes(data);
+            byte[] ret =  objectMapper.writeValueAsBytes(data);
+            System.out.println("serial to " + new String(ret, "UTF-8"));
+            return ret;
         } catch (Exception e) {
             throw new SerializationException("Error serializing MSGPACK message", e);
         }
