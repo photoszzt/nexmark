@@ -1,13 +1,12 @@
 package com.github.nexmark.kafka.model;
 
-import com.github.nexmark.kafka.queries.JSONSerdeCompatible;
-
 import javax.annotation.Nullable;
+import java.io.Serializable;
 
 import java.util.Objects;
 
 
-public class Event implements JSONSerdeCompatible {
+public class Event implements Serializable {
     public @Nullable Person newPerson;
 	public @Nullable Auction newAuction;
 	public @Nullable Bid bid;

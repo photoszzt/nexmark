@@ -1,23 +1,29 @@
 package com.github.nexmark.kafka.queries;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.nexmark.kafka.model.Event;
-
 import org.apache.kafka.common.errors.SerializationException;
 
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
 
-import java.io.Serializable;
+import com.github.nexmark.kafka.model.Event;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import org.apache.commons.lang3.reflect.TypeUtils;
+import java.time.Instant;
 import java.util.Map;
 
-public class JSONPOJOSerde<T extends JSONSerdeCompatible> implements Deserializer<T>, Serializer<T>, Serde<T> {
-    private ObjectMapper objectMapper = new ObjectMapper();
-    private final Class<T> type;
+public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T> {
+    private Gson gson;
 
-    public JSONPOJOSerde(Class<T> type) {
-        this.type = type;
+    public JSONPOJOSerde() {
+        InstantTypeConverter serdeInstant = new InstantTypeConverter();
+        EventTypeConverter serdeEventType = new EventTypeConverter();
+        GsonBuilder gsonBuilder = new GsonBuilder();
+        gsonBuilder.registerTypeAdapter(Instant.class, serdeInstant);
+        gsonBuilder.registerTypeAdapter(Event.Type.class, serdeEventType);
+
+        gson = gsonBuilder.create();
     }
 
     @SuppressWarnings("unchecked")
@@ -25,19 +31,25 @@ public class JSONPOJOSerde<T extends JSONSerdeCompatible> implements Deserialize
     public void configure(Map<String, ?> props, boolean isKey) {
     }
 
+    public Class<T> returnedClass() throws ClassNotFoundException {
+        return (Class<T>) TypeUtils.getTypeArguments(getClass(), JSONPOJOSerde.class)
+                .get(JSONPOJOSerde.class.getTypeParameters()[0]);
+    }
+
     @Override
     public T deserialize(String topic, byte[] bytes) {
         if (bytes == null) {
             return null;
         }
-
-        T data;
+        
         try {
-            System.out.println("Input is " + new String(bytes, "UTF-8"));
-            return (T) objectMapper.readValue(bytes, JSONSerdeCompatible.class);
-            
-        } catch (Exception e) {
-            throw new SerializationException(e);
+            String bytes_str = new String(bytes, "UTF-8");
+            // System.out.println("Input is " + bytes_str);
+            T desc = (T)this.gson.fromJson(bytes_str, returnedClass());
+            // System.out.println("desc out is " + desc.toString());
+            return desc;
+        } catch (Exception err) {
+            throw new SerializationException(err);
         }
     }
 
@@ -46,13 +58,12 @@ public class JSONPOJOSerde<T extends JSONSerdeCompatible> implements Deserialize
         if (data == null) {
             return null;
         }
-
+        Event e = (Event)data;
         try {
-            byte[] ret =  objectMapper.writeValueAsBytes(data);
-            System.out.println("serial to " + new String(ret, "UTF-8"));
-            return ret;
-        } catch (Exception e) {
-            throw new SerializationException("Error serializing MSGPACK message", e);
+            String ret = this.gson.toJson(e);
+            return ret.getBytes();
+        } catch (Exception err) {
+            throw new SerializationException("Error serializing MSGPACK message", err);
         }
     }
 

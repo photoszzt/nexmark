@@ -25,3 +25,19 @@ tasks:
     dir: ./kafka_2.13-2.8.0
     cmds:
       - bin/kafka-server-start.sh config/server.properties
+
+  delete-topic:
+    dir: ./kafka_2.13-2.8.0
+    vars:
+      TOPIC: '{{default "nexmark_src" .TOPIC}}'
+    cmds:
+      - ./bin/kafka-topics.sh --zookeeper localhost:2181 --delete --topic {{.TOPIC}}
+
+  print-nexmark-topic:
+    dir: ./kafka_2.13-2.8.0
+    vars:
+      TOPIC: '{{default "nexmark_src" .TOPIC}}'
+    cmds:
+      - ./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092
+        --topic {{.TOPIC}} --from-beginning
+        --formatter kafka.tools.DefaultMessageFormatter

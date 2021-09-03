@@ -9,6 +9,7 @@ import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
+import org.apache.kafka.streams.kstream.Produced;
 
 import java.util.Properties;
 
@@ -16,7 +17,9 @@ public class Query3 implements NexmarkQuery {
     @Override
     public StreamsBuilder getStreamBuilder() {
         StreamsBuilder builder = new StreamsBuilder();
-        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), new JSONPOJOSerde<>(Event.class)));
+
+        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(),
+                new JSONPOJOSerde<Event>()));
         KTable<Long, Event> auctionsBySellerId = inputs.filter((key, value) -> value.type == Event.Type.AUCTION)
                 .filter((key, value) -> value.newAuction.category == 10)
                 .map((key, value) -> KeyValue.pair(value.newAuction.seller, value)).toTable();
@@ -28,14 +31,14 @@ public class Query3 implements NexmarkQuery {
             return new NameCityStateId(rightValue.newPerson.name, rightValue.newPerson.city, rightValue.newPerson.state, rightValue.newPerson.id);
         });
 
-        q3Out.toStream().to("nexmark-q3");
+        q3Out.toStream().to("nexmark-q3", Produced.with(Serdes.Long(), new JSONPOJOSerde<NameCityStateId>() {}));
         return builder;
     }
 
     @Override
     public Properties getProperties() {
         Properties props = StreamsUtils.getStreamsConfig();
-        props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q3");
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q3");
         return props;
     }
 }

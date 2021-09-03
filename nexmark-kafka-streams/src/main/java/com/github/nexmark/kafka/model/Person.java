@@ -1,12 +1,10 @@
 package com.github.nexmark.kafka.model;
 
-import com.github.nexmark.kafka.queries.JSONSerdeCompatible;
-
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
 
-public class Person implements Serializable, JSONSerdeCompatible {
+public class Person implements Serializable {
     /** Id of person. */
     public long id; // primary key
 

@@ -3,17 +3,30 @@ package com.github.nexmark.kafka.queries;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 
-import java.io.IOException;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
 
 public class RunQuery {
     private static NexmarkQuery getNexmarkQuery(int queryNumber) {
-        if (queryNumber == 1) {
-            return new Query1();
-        } else {
-            System.err.println("Wrong query number: " + queryNumber);
-            return null;
+        switch (queryNumber) {
+            case 1:
+                return new Query1();
+            case 2:
+                return new Query2();
+            case 3:
+                return new Query3();
+            case 4:
+                return new Query4();
+            case 5:
+                return new Query5();
+            case 6:
+                return new Query6();
+            case 7:
+                return new Query7();
+            case 8:
+                return new Query8();
+            default:
+                System.err.println("Wrong query number: " + queryNumber);
+                return null;
         }
     }
 
@@ -36,24 +49,9 @@ public class RunQuery {
         Properties props = query.getProperties();
 
         final KafkaStreams streams = new KafkaStreams(builder.build(), props);
-        final CountDownLatch latch = new CountDownLatch(1);
 
-        // attach shutdown handler to catch control-c
-        Runtime.getRuntime().addShutdownHook(new Thread("streams-pipe-shutdown-hook") {
-            @Override
-            public void run() {
-                streams.close();
-                latch.countDown();
-            }
-        });
+        Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
 
-        try {
-            streams.start();
-            latch.await();
-        } catch (final Throwable e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
-        System.exit(0);
+        streams.start();
     }
 }

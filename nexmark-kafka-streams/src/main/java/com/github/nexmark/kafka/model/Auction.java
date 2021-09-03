@@ -3,10 +3,9 @@ package com.github.nexmark.kafka.model;
 import java.io.Serializable;
 import java.time.Instant;
 
-import com.github.nexmark.kafka.queries.JSONSerdeCompatible;
 import com.google.common.base.Objects;
 
-public class Auction implements Serializable, JSONSerdeCompatible {
+public class Auction implements Serializable {
     /** Id of auction. */
 	public long id; // primary key
 

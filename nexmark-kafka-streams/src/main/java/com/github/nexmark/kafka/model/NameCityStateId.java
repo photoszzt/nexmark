@@ -1,11 +1,10 @@
 package com.github.nexmark.kafka.model;
-import com.github.nexmark.kafka.queries.JSONSerdeCompatible;
 import com.google.common.base.Objects;
 
 import java.io.Serializable;
 import javax.annotation.Nullable;
 
-public class NameCityStateId implements Serializable, JSONSerdeCompatible {
+public class NameCityStateId implements Serializable {
     public String name;
     public String city;
     public String state;
