@@ -8,21 +8,25 @@
 -- To make things a bit more dynamic and easier to test we use much shorter windows (10 seconds).
 -- -------------------------------------------------------------------------------------------------
 
-CREATE TABLE discard_sink AS
-  SELECT P.id, P.name, P.starttime
-  FROM (
+create table person_just_enter as
     SELECT P.id, P.name, 
-    WINDOWSTART as starttime, WINDOWEND as endtime
-    FROM person P
-    WINDOW TUMBLING (SIZE 10 SECONDS) 
-    GROUP BY P.id, P.name
-  ) P
-  JOIN (
+        WINDOWSTART as starttime, WINDOWEND as endtime
+        FROM person P
+        WINDOW TUMBLING (SIZE 10 SECONDS) 
+        GROUP BY P.id, P.name
+        emit changes;
+
+create table recent_auction as 
     SELECT A.seller, WINDOWSTART AS starttime,
-    WINDOWEND AS endtime
-    FROM auction A
-    WINDOW TUMBLING (SIZE 10 SECONDS)
-    GROUP BY A.seller
-  ) A
-  ON P.id = A.seller AND P.starttime = A.starttime AND P.endtime = A.endtime
-  EMIT CHANGES;
+        WINDOWEND AS endtime
+        FROM auction A
+        WINDOW TUMBLING (SIZE 10 SECONDS)
+        GROUP BY A.seller
+        emit changes;
+
+CREATE TABLE sink_q8 AS
+    SELECT P.id, P.name, P.starttime
+        FROM person_just_enter P
+        JOIN recent_auction A
+        ON P.id = A.seller AND P.starttime = A.starttime AND P.endtime = A.endtime
+        EMIT CHANGES;

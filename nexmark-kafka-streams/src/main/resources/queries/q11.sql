@@ -7,7 +7,7 @@
 -- Emit the number of bids per session.
 -- -------------------------------------------------------------------------------------------------
 
-CREATE TABLE discard_sink AS
+CREATE TABLE sink_q11 AS
   SELECT
     B.bidder,
     count(*) as bid_count,

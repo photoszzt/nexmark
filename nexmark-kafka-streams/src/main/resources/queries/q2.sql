@@ -13,7 +13,10 @@
 -- To make it more interesting we instead choose bids for every 123'th auction.
 -- -------------------------------------------------------------------------------------------------
 
-CREATE TABLE discard_sink AS
-    SELECT auction, price
-    FROM bid WHERE MOD(auction, 123) = 0
+CREATE STREAM sink_q2 AS
+    SELECT 
+        data_gen.bid->auction, 
+        data_gen.bid->price
+    FROM data_gen 
+    WHERE data_gen.type = 2 and data_gen.bid->auction % 123 = 0
     EMIT CHANGES;

@@ -4,12 +4,14 @@
 -- Select the average of the wining bid prices for all auctions in each category.
 -- Illustrates complex join and aggregation.
 -- -------------------------------------------------------------------------------------------------
-CREATE TABLE discard_sink AS
+
+create table Q as 
+    SELECT A.id as id, MAX(B.price) AS final, A.category as category
+        FROM auction A inner join bid B on A.id = B.auction
+        WHERE B.dateTime BETWEEN A.dateTime AND A.expires
+        GROUP BY A.id, A.category;
+
+CREATE TABLE sink_q4 AS
     SELECT Q.category, AVG(Q.final)
-    FROM (
-        SELECT MAX(B.price) AS final, A.category
-        FROM auction A, bid B
-        WHERE A.id = B.auction AND B.dateTime BETWEEN A.dateTime AND A.expires
-        GROUP BY A.id, A.category
-    ) Q
+    FROM Q
     GROUP BY Q.category EMIT CHANGES;

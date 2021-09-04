@@ -1,0 +1,17 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  launch-ksqldb:
+    cmds:
+      - docker-compose up -d
+
+  launch-cli:
+    cmds:
+      - docker exec -it ksqldb-cli ksql http://ksqldb-server:8088
+

@@ -8,14 +8,16 @@
 -- We will use a shorter window (10 seconds) to help make testing easier.
 -- -------------------------------------------------------------------------------------------------
 
-CREATE TABLE discard_sink AS
-  SELECT B.auction, B.price, B.bidder, B.dateTime, B.extra
-  from bid B
-  JOIN (
+create table B1 as
     SELECT MAX(B1.price) AS maxprice, ROWTIME as dateTime
     FROM bid B1
     GROUP BY WINDOW TUMBLING (SIZE 10 SECONDS)
-  ) B1
+    emit changes;
+
+CREATE TABLE sink_q7 AS
+  SELECT B.auction, B.price, B.bidder, B.dateTime, B.extra
+  from bid B
+  JOIN B1
   ON B.price = B1.maxprice
   WHERE B.dateTime BETWEEN TIMESTAMPSUB(B1.dateTime, 10 SECONDS) and B1.dateTime
   EMIT CHANGES; 
