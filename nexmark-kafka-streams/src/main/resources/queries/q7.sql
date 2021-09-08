@@ -11,7 +11,7 @@
 create table B1 as
     SELECT MAX(B1.price) AS maxprice, ROWTIME as dateTime
     FROM bid B1
-    GROUP BY WINDOW TUMBLING (SIZE 10 SECONDS)
+    WINDOW TUMBLING (SIZE 10 SECONDS)
     emit changes;
 
 CREATE TABLE sink_q7 AS

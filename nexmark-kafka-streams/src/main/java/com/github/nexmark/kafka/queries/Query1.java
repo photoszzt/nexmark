@@ -4,6 +4,7 @@ import java.util.Properties;
 
 import com.github.nexmark.kafka.model.Bid;
 import com.github.nexmark.kafka.model.Event;
+import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Consumed;
@@ -19,8 +20,8 @@ public class Query1 implements NexmarkQuery {
     public StreamsBuilder getStreamBuilder() {
         StreamsBuilder builder = new StreamsBuilder();
         final KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(null, new JSONPOJOSerde<Event>() {
-                }));
+                Consumed.with(Serdes.String(), new JSONPOJOSerde<Event>(){})
+                        .withTimestampExtractor(new JSONTimestampExtractor()));
         final KStream<String, Event> q1Out = inputs.filter((key, value) -> {
             return value.type == Event.Type.BID;
         }).mapValues(value -> {

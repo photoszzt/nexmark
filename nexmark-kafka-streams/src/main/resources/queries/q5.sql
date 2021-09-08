@@ -28,12 +28,13 @@ create stream MaxBids as
 
 create stream AuctionBids as
     SELECT
-        B1.auction, count(*) AS num,
+        B1.auction,
+        count(*) AS num,
         WINDOWSTART AS starttime,
         WINDOWEND AS endtime
     FROM bid B1
     WINDOW HOPPING (SIZE 10 SECONDS, ADVANCE BY 2 SECONDS)
-    GROUP BY B1.auction
+    GROUP BY B1.auction;
 
 CREATE TABLE discard_sink AS
   SELECT AuctionBids.auction, AuctionBids.num

@@ -19,7 +19,7 @@ public class Query3 implements NexmarkQuery {
         StreamsBuilder builder = new StreamsBuilder();
 
         KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(),
-                new JSONPOJOSerde<Event>()));
+                new JSONPOJOSerde<Event>(){}).withTimestampExtractor(new JSONTimestampExtractor()));
         KTable<Long, Event> auctionsBySellerId = inputs.filter((key, value) -> value.type == Event.Type.AUCTION)
                 .filter((key, value) -> value.newAuction.category == 10)
                 .map((key, value) -> KeyValue.pair(value.newAuction.seller, value)).toTable();

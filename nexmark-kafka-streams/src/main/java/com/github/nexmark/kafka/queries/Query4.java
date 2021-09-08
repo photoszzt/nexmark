@@ -17,16 +17,19 @@ public class Query4 implements NexmarkQuery {
     @Override
     public StreamsBuilder getStreamBuilder() {
         StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
-        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), serde));
+        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
+        };
+        KStream<String, Event> inputs = builder.stream("nexmark-input",
+                Consumed.with(Serdes.String(), serde).withTimestampExtractor(new JSONTimestampExtractor()));
         KTable<Long, Event> bid = inputs.filter((key, value) -> value.type == Event.Type.BID)
                 .map((key, value) -> KeyValue.pair(value.bid.auction, value)).toTable();
         KTable<Long, Event> auction = inputs.filter((key, value) -> value.type == Event.Type.AUCTION)
                 .map((key, value) -> KeyValue.pair(value.newAuction.id, value)).toTable();
-        auction.join(bid, (leftValue, rightValue) -> {
-            return new AuctionBid(rightValue.bid.dateTime, leftValue.newAuction.dateTime, 
-            leftValue.newAuction.expires, rightValue.bid.price, leftValue.newAuction.category);
-        }).groupBy((key, value) -> KeyValue.pair(new AucIdCategory(key, value.aucCategory), value));
+        auction.join(bid, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime, leftValue.newAuction.dateTime, leftValue.newAuction.expires,
+                rightValue.bid.price, leftValue.newAuction.category)
+        ).filter((key, value) -> value.bidDateTime.compareTo(value.aucDateTime) >= 0
+                && value.bidDateTime.compareTo(value.aucExpires) <= 0
+        ).groupBy((key, value) -> KeyValue.pair(new AucIdCategory(key, value.aucCategory), value));
         return builder;
     }
 
