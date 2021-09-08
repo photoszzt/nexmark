@@ -76,3 +76,4 @@ buildNumber.properties
 nexmark-flink/bin
 nexmark-kafka-streams/bin
 gradle
+.metals
