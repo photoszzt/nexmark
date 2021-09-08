@@ -22,11 +22,11 @@ public class Query3 implements NexmarkQuery {
                 new JSONPOJOSerde<Event>(){}).withTimestampExtractor(new JSONTimestampExtractor()));
         KTable<Long, Event> auctionsBySellerId = inputs.filter((key, value) -> value.type == Event.Type.AUCTION)
                 .filter((key, value) -> value.newAuction.category == 10)
-                .map((key, value) -> KeyValue.pair(value.newAuction.seller, value)).toTable();
+                .selectKey((key, value) -> value.newAuction.seller).toTable();
         KTable<Long, Event> personsById = inputs.filter((key, value) -> value.type == Event.Type.PERSON)
                 .filter((key, value) -> value.newPerson.state.equals("OR") || value.newPerson.state.equals("ID") ||
                         value.newPerson.state.equals("CA"))
-                .map((key, value) -> KeyValue.pair(value.newPerson.id, value)).toTable();
+                .selectKey((key, value) -> value.newPerson.id).toTable();
         KTable<Long, NameCityStateId> q3Out = auctionsBySellerId.join(personsById, (leftValue, rightValue) -> {
             return new NameCityStateId(rightValue.newPerson.name, rightValue.newPerson.city, rightValue.newPerson.state, rightValue.newPerson.id);
         });

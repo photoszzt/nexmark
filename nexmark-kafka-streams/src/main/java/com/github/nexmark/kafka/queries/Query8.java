@@ -3,6 +3,7 @@ package com.github.nexmark.kafka.queries;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.Person;
 import com.github.nexmark.kafka.model.PersonIdName;
+import com.github.nexmark.kafka.model.PersonTime;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -20,13 +21,16 @@ public class Query8 implements NexmarkQuery {
         };
         KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
-        KStream<PersonIdName, Event> person = inputs
+        KStream<Long, Event> person = inputs
                 .filter((key, value) -> value.type == Event.Type.PERSON)
                 .selectKey((key, value) ->
-                        new PersonIdName(value.newPerson.id,
-                                value.newPerson.name));
+                        value.newPerson.id
+                );
         KStream<Long, Event> auction = inputs.filter((key, value) -> value.type == Event.Type.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller);
+        auction.join(person,
+                (leftValue, rightValue) -> new PersonTime(rightValue.newPerson.id, rightValue.newPerson.name, 0)
+        , JoinWindows.of(Duration.ofSeconds(10)));
         return builder;
     }
 

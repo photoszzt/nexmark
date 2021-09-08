@@ -22,7 +22,7 @@ public class Query7 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
         KStream<Long, Event> bid = inputs.filter((key, value) -> value.type == Event.Type.BID)
-                .map((key, value) -> KeyValue.pair(value.bid.price, value));
+                .selectKey((key, value) -> value.bid.price);
         KTable<Windowed<Long>, PriceTime> maxBid = bid.groupByKey()
                 .windowedBy(TimeWindows.of(Duration.ofSeconds(10)))
                 .aggregate(

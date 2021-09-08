@@ -22,9 +22,9 @@ public class Query4 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark-input",
                 Consumed.with(Serdes.String(), serde).withTimestampExtractor(new JSONTimestampExtractor()));
         KTable<Long, Event> bid = inputs.filter((key, value) -> value.type == Event.Type.BID)
-                .map((key, value) -> KeyValue.pair(value.bid.auction, value)).toTable();
+                .selectKey((key, value) -> value.bid.auction).toTable();
         KTable<Long, Event> auction = inputs.filter((key, value) -> value.type == Event.Type.AUCTION)
-                .map((key, value) -> KeyValue.pair(value.newAuction.id, value)).toTable();
+                .selectKey((key, value) -> value.newAuction.id).toTable();
         auction.join(bid, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime, leftValue.newAuction.dateTime, leftValue.newAuction.expires,
                 rightValue.bid.price, leftValue.newAuction.category)
         ).filter((key, value) -> value.bidDateTime.compareTo(value.aucDateTime) >= 0

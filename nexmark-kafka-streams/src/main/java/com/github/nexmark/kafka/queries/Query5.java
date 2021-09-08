@@ -25,7 +25,7 @@ public class Query5 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
         KStream<Long, Event> bid = inputs.filter((key, value) -> value.type == Event.Type.BID)
-                .map((key, value) -> KeyValue.pair(value.bid.auction, value));
+                .selectKey((key, value) -> value.bid.auction);
         KStream<StartEndTime, AuctionIdCount> auctionBids = bid.groupByKey()
                 .windowedBy(TimeWindows.of(Duration.ofSeconds(10)).advanceBy(Duration.ofSeconds(2)))
                 .count().toStream().map((key, value) -> {
