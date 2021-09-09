@@ -30,7 +30,8 @@ public class Query8 implements NexmarkQuery {
                 .selectKey((key, value) -> value.newAuction.seller);
         auction.join(person,
                 (leftValue, rightValue) -> new PersonTime(rightValue.newPerson.id, rightValue.newPerson.name, 0)
-        , JoinWindows.of(Duration.ofSeconds(10)));
+        , JoinWindows.of(Duration.ofSeconds(10)))
+        .to("nexmark-q8", Produced.with(Serdes.Long(), new JSONPOJOSerde<PersonTime>(){}));
         return builder;
     }
 

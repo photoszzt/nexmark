@@ -48,7 +48,7 @@ public class Query5 implements NexmarkQuery {
                     }
                 }
         );
-        KTable<StartEndTime, AuctionIdCntMax> q5 = auctionBids.toTable()
+        auctionBids.toTable()
                 .join(maxBids, (leftValue, rightValue) ->
                         new AuctionIdCntMax(leftValue.aucId, leftValue.count, (long) rightValue)
         ).filter((key, value) -> value.count >= value.maxCnt);

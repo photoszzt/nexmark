@@ -27,11 +27,14 @@ public class Query3 implements NexmarkQuery {
                 .filter((key, value) -> value.newPerson.state.equals("OR") || value.newPerson.state.equals("ID") ||
                         value.newPerson.state.equals("CA"))
                 .selectKey((key, value) -> value.newPerson.id).toTable();
-        KTable<Long, NameCityStateId> q3Out = auctionsBySellerId.join(personsById, (leftValue, rightValue) -> {
-            return new NameCityStateId(rightValue.newPerson.name, rightValue.newPerson.city, rightValue.newPerson.state, rightValue.newPerson.id);
-        });
-
-        q3Out.toStream().to("nexmark-q3", Produced.with(Serdes.Long(), new JSONPOJOSerde<NameCityStateId>() {}));
+        auctionsBySellerId
+                .join(personsById, (leftValue, rightValue) -> new NameCityStateId(rightValue.newPerson.name,
+                        rightValue.newPerson.city,
+                        rightValue.newPerson.state,
+                        rightValue.newPerson.id))
+                .toStream()
+                .to("nexmark-q3", Produced.with(Serdes.Long(),
+                        new JSONPOJOSerde<NameCityStateId>() {}));
         return builder;
     }
 

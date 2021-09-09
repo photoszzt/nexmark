@@ -20,16 +20,22 @@ public class Query4 implements NexmarkQuery {
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
         };
         KStream<String, Event> inputs = builder.stream("nexmark-input",
-                Consumed.with(Serdes.String(), serde).withTimestampExtractor(new JSONTimestampExtractor()));
-        KTable<Long, Event> bid = inputs.filter((key, value) -> value.type == Event.Type.BID)
+                Consumed.with(Serdes.String(), serde)
+                        .withTimestampExtractor(new JSONTimestampExtractor()));
+        KTable<Long, Event> bid = inputs
+                .filter((key, value) -> value.type == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.auction).toTable();
-        KTable<Long, Event> auction = inputs.filter((key, value) -> value.type == Event.Type.AUCTION)
+        KTable<Long, Event> auction = inputs
+                .filter((key, value) -> value.type == Event.Type.AUCTION)
                 .selectKey((key, value) -> value.newAuction.id).toTable();
-        auction.join(bid, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime, leftValue.newAuction.dateTime, leftValue.newAuction.expires,
-                rightValue.bid.price, leftValue.newAuction.category)
-        ).filter((key, value) -> value.bidDateTime.compareTo(value.aucDateTime) >= 0
-                && value.bidDateTime.compareTo(value.aucExpires) <= 0
-        ).groupBy((key, value) -> KeyValue.pair(new AucIdCategory(key, value.aucCategory), value));
+        auction.join(bid, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime,
+                leftValue.newAuction.dateTime, leftValue.newAuction.expires,
+                rightValue.bid.price, leftValue.newAuction.category))
+                .filter((key, value) -> value.bidDateTime.compareTo(value.aucDateTime) >= 0
+                        && value.bidDateTime.compareTo(value.aucExpires) <= 0
+                )
+                .groupBy((key, value) -> KeyValue.pair(new AucIdCategory(key, value.aucCategory), value));
+        // TODO: aggregate is not done
         return builder;
     }
 
