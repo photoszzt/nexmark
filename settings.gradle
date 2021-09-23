@@ -6,3 +6,4 @@ rootProject.name = 'nexmark'
 include(':nexmark-flink')
 include(':nexmark-spark')
 include(':nexmark-kafka-streams')
+include(':test')
