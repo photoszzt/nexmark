@@ -1,0 +1,28 @@
+Topologies:
+   Sub-topology: 0
+    Source: KSTREAM-SOURCE-0000000000 (topics: [nexmark-input])
+      --> KSTREAM-FILTER-0000000001
+    Processor: KSTREAM-FILTER-0000000001 (stores: [])
+      --> KSTREAM-KEY-SELECT-0000000002
+      <-- KSTREAM-SOURCE-0000000000
+    Processor: KSTREAM-KEY-SELECT-0000000002 (stores: [])
+      --> KSTREAM-TRANSFORMVALUES-0000000007, max-bid-repartition-filter
+      <-- KSTREAM-FILTER-0000000001
+    Processor: KSTREAM-TRANSFORMVALUES-0000000007 (stores: [max-bid])
+      --> KSTREAM-FILTER-0000000008
+      <-- KSTREAM-KEY-SELECT-0000000002
+    Processor: KSTREAM-FILTER-0000000008 (stores: [])
+      --> KSTREAM-SINK-0000000009
+      <-- KSTREAM-TRANSFORMVALUES-0000000007
+    Processor: max-bid-repartition-filter (stores: [])
+      --> max-bid-repartition-sink
+      <-- KSTREAM-KEY-SELECT-0000000002
+    Source: max-bid-repartition-source (topics: [max-bid-repartition])
+      --> KSTREAM-AGGREGATE-0000000003
+    Processor: KSTREAM-AGGREGATE-0000000003 (stores: [max-bid])
+      --> none
+      <-- max-bid-repartition-source
+    Sink: KSTREAM-SINK-0000000009 (topic: nexmark-q7)
+      <-- KSTREAM-FILTER-0000000008
+    Sink: max-bid-repartition-sink (topic: max-bid-repartition)
+      <-- max-bid-repartition-filter
