@@ -34,17 +34,17 @@ public class Query7 implements NexmarkQuery {
                     }
                 }, Materialized.as("max-bid"));
         bid.transformValues(new ValueTransformerWithKeySupplier<Long, Event, BidAndMax>() {
-            public ValueTransformerWithKey get() {
-                return new ValueTransformerWithKey() {
-                    private KeyValueStore stateStore;
+            public ValueTransformerWithKey<Long, Event, BidAndMax> get() {
+                return new ValueTransformerWithKey<Long, Event, BidAndMax>() {
+                    private KeyValueStore<Long, PriceTime> stateStore;
 
                     @Override
                     public void init(ProcessorContext context) {
-                        this.stateStore = (KeyValueStore) context.getStateStore("max-bid");
+                        this.stateStore = (KeyValueStore<Long, PriceTime>) context.getStateStore("max-bid");
                     }
 
                     @Override
-                    public Object transform(Object readOnlyKey, Object value) {
+                    public BidAndMax transform(Long readOnlyKey, Event value) {
                         Event event = (Event) value;
                         PriceTime pt = (PriceTime) this.stateStore.get(readOnlyKey);
                         if (pt != null) {

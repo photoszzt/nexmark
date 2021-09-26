@@ -48,7 +48,7 @@ public class Query5 implements NexmarkQuery {
                     }
                 }
         );
-        auctionBids.toTable()
+        auctionBids
                 .join(maxBids, (leftValue, rightValue) ->
                         new AuctionIdCntMax(leftValue.aucId, leftValue.count, (long) rightValue)
         ).filter((key, value) -> value.count >= value.maxCnt);
