@@ -2,6 +2,7 @@ package com.github.nexmark.kafka.queries;
 
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.Topology;
 
 import java.util.Properties;
 
@@ -24,6 +25,8 @@ public class RunQuery {
                 return new Query7();
             case 8:
                 return new Query8();
+            case 9:
+                return new WindowedAvg();
             default:
                 System.err.println("Wrong query number: " + queryNumber);
                 return null;
@@ -47,11 +50,10 @@ public class RunQuery {
         }
         StreamsBuilder builder = query.getStreamBuilder();
         Properties props = query.getProperties();
-
-        final KafkaStreams streams = new KafkaStreams(builder.build(), props);
-
+        Topology tp = builder.build();
+        System.out.println(tp.describe());
+        final KafkaStreams streams = new KafkaStreams(tp, props);
         Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
-
         streams.start();
     }
 }
