@@ -3,8 +3,6 @@
  */
 
 allprojects {
-    apply plugin: 'maven'
-
     group = 'com.github.nexmark'
     version = '0.2-SNAPSHOT'
 }
