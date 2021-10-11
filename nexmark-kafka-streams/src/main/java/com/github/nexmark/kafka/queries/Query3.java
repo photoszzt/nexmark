@@ -39,8 +39,8 @@ public class Query3 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getProperties() {
-        Properties props = StreamsUtils.getStreamsConfig();
+    public Properties getProperties(String bootstrapServer) {
+        Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q3");
         return props;
     }

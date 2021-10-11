@@ -63,7 +63,7 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
             String ret = this.gson.toJson(e);
             return ret.getBytes();
         } catch (Exception err) {
-            throw new SerializationException("Error serializing MSGPACK message", err);
+            throw new SerializationException("Error serializing JSON message", err);
         }
     }
 

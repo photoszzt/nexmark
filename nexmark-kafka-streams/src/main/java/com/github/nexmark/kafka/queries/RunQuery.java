@@ -42,10 +42,36 @@ public class RunQuery {
       System.out.println(args[i]);
     }
 
-    int queryNumber = Integer.parseInt(args[0]);
-    NexmarkQuery query = getNexmarkQuery(queryNumber);
-    if (query == null) {
-      System.exit(1);
+    public static String getEnvValue(String envKey, String defaultVal) {
+        String envValue = System.getenv(envKey);
+        if(envValue != null && !envValue.isEmpty()) {
+            return envValue;
+        }
+        return defaultVal;
+    }
+
+    public static void main(final String[] args) {
+        if (args.length != 1) {
+            System.err.println("Need to specify query number");
+            System.exit(1);
+        }
+        final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
+        for (int i = 0; i < args.length; i++) {
+            System.out.println(args[i]);
+        }
+        
+        int queryNumber = Integer.parseInt(args[0]);
+        NexmarkQuery query = getNexmarkQuery(queryNumber);
+        if (query == null) {
+            System.exit(1);
+        }
+        StreamsBuilder builder = query.getStreamBuilder();
+        Properties props = query.getProperties(bootstrapServers);
+        Topology tp = builder.build();
+        System.out.println(tp.describe());
+        final KafkaStreams streams = new KafkaStreams(tp, props);
+        Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
+        streams.start();
     }
     StreamsBuilder builder = query.getStreamBuilder();
     Properties props = query.getProperties();

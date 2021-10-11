@@ -56,8 +56,8 @@ public class Query5 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getProperties() {
-        Properties props = StreamsUtils.getStreamsConfig();
+    public Properties getProperties(String bootstrapServer) {
+        Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q5");
         return props;
     }
