@@ -3,6 +3,7 @@ package com.github.nexmark.kafka.queries;
 import com.github.nexmark.kafka.model.BidAndMax;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.PriceTime;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
@@ -13,15 +14,20 @@ import org.apache.kafka.streams.state.KeyValueStore;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Properties;
 
 public class Query7 implements NexmarkQuery {
     @Override
-    public StreamsBuilder getStreamBuilder() {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+        NewTopic q7 = new NewTopic("nexmark-q7", 1, (short)1);
+        StreamsUtils.createTopic(bootstrapServer, Collections.singleton(q7));
+
         StreamsBuilder builder = new StreamsBuilder();
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
         };
-        KStream<String, Event> inputs = builder.stream("nexmark-input",
+        KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), serde).withTimestampExtractor(new JSONTimestampExtractor()));
         KStream<Long, Event> bid = inputs.filter((key, value) -> value.type == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.price);

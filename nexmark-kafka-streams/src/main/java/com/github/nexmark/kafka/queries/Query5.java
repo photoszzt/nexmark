@@ -18,11 +18,11 @@ import java.util.Properties;
 
 public class Query5 implements NexmarkQuery {
     @Override
-    public StreamsBuilder getStreamBuilder() {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
         StreamsBuilder builder = new StreamsBuilder();
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
         };
-        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), serde)
+        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
         KStream<Long, Event> bid = inputs.filter((key, value) -> value.type == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.auction);

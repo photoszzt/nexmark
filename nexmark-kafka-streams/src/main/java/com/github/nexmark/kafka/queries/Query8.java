@@ -4,6 +4,7 @@ import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.Person;
 import com.github.nexmark.kafka.model.PersonIdName;
 import com.github.nexmark.kafka.model.PersonTime;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -11,15 +12,19 @@ import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Properties;
 
 public class Query8 implements NexmarkQuery {
     @Override
-    public StreamsBuilder getStreamBuilder() {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+        NewTopic q8 = new NewTopic("nexmark-q7", 1, (short)1);
+        StreamsUtils.createTopic(bootstrapServer, Collections.singleton(q8));
+
         StreamsBuilder builder = new StreamsBuilder();
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
         };
-        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), serde)
+        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
         KStream<Long, Event> person = inputs
                 .filter((key, value) -> value.type == Event.Type.PERSON)

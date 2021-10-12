@@ -2,6 +2,7 @@ package com.github.nexmark.kafka.queries;
 
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.SumAndCount;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
@@ -9,12 +10,16 @@ import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
 
+import java.util.Collections;
 import java.util.Properties;
 
 public class WindowedAvg implements NexmarkQuery {
 
     @Override
-    public StreamsBuilder getStreamBuilder() {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+        NewTopic out = new NewTopic("windowedavg-out", 1, (short)1);
+        StreamsUtils.createTopic(bootstrapServer, Collections.singleton(out));
+
         StreamsBuilder builder = new StreamsBuilder();
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>(){};
         KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), serde)

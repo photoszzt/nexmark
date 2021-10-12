@@ -7,7 +7,7 @@ import java.util.Properties;
 
 public class Query6 implements NexmarkQuery {
     @Override
-    public StreamsBuilder getStreamBuilder() {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
         return null;
     }
 

@@ -3,6 +3,7 @@ package com.github.nexmark.kafka.queries;
 import com.github.nexmark.kafka.model.AucIdCategory;
 import com.github.nexmark.kafka.model.AuctionBid;
 import com.github.nexmark.kafka.model.Event;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
@@ -11,15 +12,16 @@ import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.KeyValue;
 
+import java.util.Collections;
 import java.util.Properties;
 
 public class Query4 implements NexmarkQuery {
     @Override
-    public StreamsBuilder getStreamBuilder() {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
         StreamsBuilder builder = new StreamsBuilder();
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
         };
-        KStream<String, Event> inputs = builder.stream("nexmark-input",
+        KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), serde)
                         .withTimestampExtractor(new JSONTimestampExtractor()));
         KTable<Long, Event> bid = inputs

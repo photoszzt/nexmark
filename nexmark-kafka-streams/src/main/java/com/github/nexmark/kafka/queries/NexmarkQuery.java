@@ -5,6 +5,6 @@ import org.apache.kafka.streams.StreamsBuilder;
 import java.util.Properties;
 
 public interface NexmarkQuery {
-    StreamsBuilder getStreamBuilder();
+    StreamsBuilder getStreamBuilder(String bootstrapServer);
     Properties getProperties(String bootstrapServer);
 }

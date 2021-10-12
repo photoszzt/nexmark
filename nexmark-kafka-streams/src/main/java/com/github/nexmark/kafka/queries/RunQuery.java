@@ -65,7 +65,7 @@ public class RunQuery {
         if (query == null) {
             System.exit(1);
         }
-        StreamsBuilder builder = query.getStreamBuilder();
+        StreamsBuilder builder = query.getStreamBuilder(bootstrapServers);
         Properties props = query.getProperties(bootstrapServers);
         Topology tp = builder.build();
         System.out.println(tp.describe());
