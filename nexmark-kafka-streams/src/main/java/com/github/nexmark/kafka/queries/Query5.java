@@ -1,7 +1,6 @@
 package com.github.nexmark.kafka.queries;
 
 import com.github.nexmark.kafka.model.*;
-import com.sun.tools.javadoc.Start;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
