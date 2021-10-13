@@ -1,8 +1,5 @@
 package com.github.nexmark.kafka.queries;
 
-import java.util.Collections;
-import java.util.Properties;
-
 import com.github.nexmark.kafka.model.Bid;
 import com.github.nexmark.kafka.model.Event;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -13,30 +10,36 @@ import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
 
+import java.util.Collections;
+import java.util.Properties;
+
 public class Query1 implements NexmarkQuery {
+    public CountAction<String, Event> caInput;
+    public CountAction<String, Event> caOutput;
 
     public Query1() {
     }
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
-        NewTopic np = new NewTopic("nexmark-q1", 1, (short)3);
+        NewTopic np = new NewTopic("nexmark-q1", 1, (short) 3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
 
         StreamsBuilder builder = new StreamsBuilder();
-        final KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(Serdes.String(), new JSONPOJOSerde<Event>(){})
-                        .withTimestampExtractor(new JSONTimestampExtractor()));
-        final KStream<String, Event> q1Out = inputs.filter((key, value) -> {
-            return value.type == Event.Type.BID;
-        }).mapValues(value -> {
-            Bid b = value.bid;
-            Event e = new Event(
-                    new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra));
-            return e;
-        });
-        q1Out.to("nexmark-q1", Produced.valueSerde(new JSONPOJOSerde<Event>() {
-        }));
+        final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), new JSONPOJOSerde<Event>() {
+                })
+                .withTimestampExtractor(new JSONTimestampExtractor()));
+        caInput = new CountAction<>();
+        caOutput = new CountAction<>();
+
+        inputs.peek(caInput).filter((key, value) -> value.type == Event.Type.BID)
+                .mapValues(value -> {
+                    Bid b = value.bid;
+                    Event e = new Event(
+                            new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra));
+                    return e;
+                }).peek(caOutput).to("nexmark-q1", Produced.valueSerde(new JSONPOJOSerde<Event>() {
+                }));
         return builder;
     }
 

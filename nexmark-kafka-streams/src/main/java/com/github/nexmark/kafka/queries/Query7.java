@@ -19,17 +19,23 @@ import java.util.Collections;
 import java.util.Properties;
 
 public class Query7 implements NexmarkQuery {
+    public CountAction<String, Event> caInput;
+    public CountAction<Long, BidAndMax> caOutput;
+
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
         NewTopic q7 = new NewTopic("nexmark-q7", 1, (short)3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(q7));
+
+        caInput = new CountAction<>();
+        caOutput = new CountAction<>();
 
         StreamsBuilder builder = new StreamsBuilder();
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
         };
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), serde).withTimestampExtractor(new JSONTimestampExtractor()));
-        KStream<Long, Event> bid = inputs.filter((key, value) -> value.type == Event.Type.BID)
+        KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.type == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.price);
         bid.groupByKey().windowedBy(TimeWindows.of(Duration.ofSeconds(10)))
                 .aggregate(() -> new PriceTime(0, Instant.MIN), (key, value, aggregate) -> {
@@ -70,7 +76,7 @@ public class Query7 implements NexmarkQuery {
         }, "max-bid").filter((key, value) -> {
             Instant lb = value.maxDateTime.minus(10, ChronoUnit.SECONDS);
             return value.dateTime.compareTo(lb) >= 0 && value.dateTime.compareTo(value.maxDateTime) <= 0;
-        }).to("nexmark-q7", Produced.with(Serdes.Long(), new JSONPOJOSerde<BidAndMax>() {
+        }).peek(caOutput).to("nexmark-q7", Produced.with(Serdes.Long(), new JSONPOJOSerde<BidAndMax>() {
         }));
         return builder;
     }

@@ -1,30 +1,37 @@
 package com.github.nexmark.kafka.queries;
 
-import com.github.nexmark.kafka.model.AuctionIdCntMax;
-import com.github.nexmark.kafka.model.AuctionIdCount;
-import com.github.nexmark.kafka.model.StartEndTime;
+import com.github.nexmark.kafka.model.*;
+import com.sun.tools.javadoc.Start;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.kstream.KStream;
-import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.KeyValue;
-import org.apache.kafka.streams.kstream.TimeWindows;
-import com.github.nexmark.kafka.model.Event;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Properties;
 
 public class Query5 implements NexmarkQuery {
+    public CountAction<String, Event> caInput;
+    public CountAction<StartEndTime, AuctionIdCntMax> caOutput;
+
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+
+        NewTopic np = new NewTopic("nexmark-q5", 1, (short)3);
+        StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
+
+        caInput = new CountAction();
+        caOutput = new CountAction();
+
         StreamsBuilder builder = new StreamsBuilder();
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
         };
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
-        KStream<Long, Event> bid = inputs.filter((key, value) -> value.type == Event.Type.BID)
+        KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.type == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.auction);
         KStream<StartEndTime, AuctionIdCount> auctionBids = bid.groupByKey()
                 .windowedBy(TimeWindows.of(Duration.ofSeconds(10)).advanceBy(Duration.ofSeconds(2)))
@@ -50,8 +57,10 @@ public class Query5 implements NexmarkQuery {
         );
         auctionBids
                 .join(maxBids, (leftValue, rightValue) ->
-                        new AuctionIdCntMax(leftValue.aucId, leftValue.count, (long) rightValue)
-        ).filter((key, value) -> value.count >= value.maxCnt);
+                        new AuctionIdCntMax(leftValue.aucId, leftValue.count, (long) rightValue))
+                .filter((key, value) -> value.count >= value.maxCnt)
+                .peek(caOutput)
+                .to("nexmark-q5", Produced.with(new JSONPOJOSerde<StartEndTime>() {}, new JSONPOJOSerde<AuctionIdCntMax>(){}));
         return builder;
     }
 

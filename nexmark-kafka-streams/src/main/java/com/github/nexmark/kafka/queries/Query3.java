@@ -16,6 +16,9 @@ import java.util.Collections;
 import java.util.Properties;
 
 public class Query3 implements NexmarkQuery {
+    public CountAction<String, Event> caInput;
+    public CountAction<Long, NameCityStateId> caOutput;
+
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
         NewTopic np = new NewTopic("nexmark-q3", 1, (short)3);
@@ -23,9 +26,12 @@ public class Query3 implements NexmarkQuery {
 
         StreamsBuilder builder = new StreamsBuilder();
 
+        caInput = new CountAction<>();
+        caOutput = new CountAction<>();
+
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(),
                 new JSONPOJOSerde<Event>(){}).withTimestampExtractor(new JSONTimestampExtractor()));
-        KTable<Long, Event> auctionsBySellerId = inputs.filter((key, value) -> value.type == Event.Type.AUCTION)
+        KTable<Long, Event> auctionsBySellerId = inputs.peek(caInput).filter((key, value) -> value.type == Event.Type.AUCTION)
                 .filter((key, value) -> value.newAuction.category == 10)
                 .selectKey((key, value) -> value.newAuction.seller).toTable();
         KTable<Long, Event> personsById = inputs.filter((key, value) -> value.type == Event.Type.PERSON)
@@ -38,6 +44,7 @@ public class Query3 implements NexmarkQuery {
                         rightValue.newPerson.state,
                         rightValue.newPerson.id))
                 .toStream()
+                .peek(caOutput)
                 .to("nexmark-q3", Produced.with(Serdes.Long(),
                         new JSONPOJOSerde<NameCityStateId>() {}));
         return builder;

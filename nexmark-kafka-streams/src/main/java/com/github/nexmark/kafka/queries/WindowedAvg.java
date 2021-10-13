@@ -14,6 +14,8 @@ import java.util.Collections;
 import java.util.Properties;
 
 public class WindowedAvg implements NexmarkQuery {
+    public CountAction<String, Event> caInput;
+    public CountAction<Long, Double> caOutput;
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
@@ -24,7 +26,9 @@ public class WindowedAvg implements NexmarkQuery {
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>(){};
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
-        inputs.filter((key, value) -> value.type == Event.Type.BID)
+        caInput = new CountAction<>();
+        caOutput = new CountAction<>();
+        inputs.peek(caInput).filter((key, value) -> value.type == Event.Type.BID)
                 .groupBy((key, value) -> value.bid.auction)
                 .aggregate(
                         ()->new SumAndCount(0, 0),
@@ -32,6 +36,7 @@ public class WindowedAvg implements NexmarkQuery {
                 )
                 .mapValues((value) -> (double)value.sum / (double)value.count)
                 .toStream()
+                .peek(caOutput)
                 .to("windowedavg-out", Produced.with(Serdes.Long(), Serdes.Double()));
         return builder;
     }
