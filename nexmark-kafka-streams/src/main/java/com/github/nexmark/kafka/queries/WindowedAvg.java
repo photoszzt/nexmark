@@ -9,7 +9,6 @@ import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Properties;
 
 public class WindowedAvg implements NexmarkQuery {
@@ -31,7 +30,7 @@ public class WindowedAvg implements NexmarkQuery {
                 .withTimestampExtractor(new JSONTimestampExtractor()));
         caInput = new CountAction<>();
         caOutput = new CountAction<>();
-        inputs.peek(caInput).filter((key, value) -> value.type == Event.Type.BID)
+        inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .groupBy((key, value) -> value.bid.auction)
                 .aggregate(
                         ()->new SumAndCount(0, 0),

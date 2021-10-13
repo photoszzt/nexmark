@@ -14,7 +14,6 @@ import org.apache.kafka.streams.state.KeyValueStore;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -35,7 +34,7 @@ public class Query7 implements NexmarkQuery {
         };
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), serde).withTimestampExtractor(new JSONTimestampExtractor()));
-        KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.type == Event.Type.BID)
+        KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.price);
         bid.groupByKey().windowedBy(TimeWindows.of(Duration.ofSeconds(10)))
                 .aggregate(() -> new PriceTime(0, Instant.MIN), (key, value, aggregate) -> {

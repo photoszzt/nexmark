@@ -32,7 +32,7 @@ public class Query1 implements NexmarkQuery {
         caInput = new CountAction<>();
         caOutput = new CountAction<>();
 
-        inputs.peek(caInput).filter((key, value) -> value.type == Event.Type.BID)
+        inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .mapValues(value -> {
                     Bid b = value.bid;
                     Event e = new Event(

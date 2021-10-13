@@ -3,7 +3,6 @@ package com.github.nexmark.kafka.queries;
 import com.github.nexmark.kafka.model.AucIdCategory;
 import com.github.nexmark.kafka.model.AuctionBid;
 import com.github.nexmark.kafka.model.Event;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
@@ -12,7 +11,6 @@ import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.KeyValue;
 
-import java.util.Collections;
 import java.util.Properties;
 
 public class Query4 implements NexmarkQuery {
@@ -25,10 +23,10 @@ public class Query4 implements NexmarkQuery {
                 Consumed.with(Serdes.String(), serde)
                         .withTimestampExtractor(new JSONTimestampExtractor()));
         KTable<Long, Event> bid = inputs
-                .filter((key, value) -> value.type == Event.Type.BID)
+                .filter((key, value) -> value.etype == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.auction).toTable();
         KTable<Long, Event> auction = inputs
-                .filter((key, value) -> value.type == Event.Type.AUCTION)
+                .filter((key, value) -> value.etype == Event.Type.AUCTION)
                 .selectKey((key, value) -> value.newAuction.id).toTable();
         auction.join(bid, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime,
                 leftValue.newAuction.dateTime, leftValue.newAuction.expires,

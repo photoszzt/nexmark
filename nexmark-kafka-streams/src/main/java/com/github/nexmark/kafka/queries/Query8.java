@@ -1,12 +1,9 @@
 package com.github.nexmark.kafka.queries;
 
 import com.github.nexmark.kafka.model.Event;
-import com.github.nexmark.kafka.model.Person;
-import com.github.nexmark.kafka.model.PersonIdName;
 import com.github.nexmark.kafka.model.PersonTime;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
@@ -34,11 +31,11 @@ public class Query8 implements NexmarkQuery {
                 .withTimestampExtractor(new JSONTimestampExtractor()));
         KStream<Long, Event> person = inputs
                 .peek(caInput)
-                .filter((key, value) -> value.type == Event.Type.PERSON)
+                .filter((key, value) -> value.etype == Event.Type.PERSON)
                 .selectKey((key, value) ->
                         value.newPerson.id
                 );
-        KStream<Long, Event> auction = inputs.filter((key, value) -> value.type == Event.Type.AUCTION)
+        KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.Type.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller);
         auction.join(person,
                 (leftValue, rightValue) -> new PersonTime(rightValue.newPerson.id, rightValue.newPerson.name, 0), JoinWindows.of(Duration.ofSeconds(10)))

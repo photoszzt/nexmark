@@ -4,7 +4,6 @@ import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.NameCityStateId;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Consumed;
@@ -31,10 +30,10 @@ public class Query3 implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(),
                 new JSONPOJOSerde<Event>(){}).withTimestampExtractor(new JSONTimestampExtractor()));
-        KTable<Long, Event> auctionsBySellerId = inputs.peek(caInput).filter((key, value) -> value.type == Event.Type.AUCTION)
+        KTable<Long, Event> auctionsBySellerId = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.AUCTION)
                 .filter((key, value) -> value.newAuction.category == 10)
                 .selectKey((key, value) -> value.newAuction.seller).toTable();
-        KTable<Long, Event> personsById = inputs.filter((key, value) -> value.type == Event.Type.PERSON)
+        KTable<Long, Event> personsById = inputs.filter((key, value) -> value.etype == Event.Type.PERSON)
                 .filter((key, value) -> value.newPerson.state.equals("OR") || value.newPerson.state.equals("ID") ||
                         value.newPerson.state.equals("CA"))
                 .selectKey((key, value) -> value.newPerson.id).toTable();

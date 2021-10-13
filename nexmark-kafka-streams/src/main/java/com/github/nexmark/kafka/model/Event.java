@@ -10,7 +10,7 @@ public class Event implements Serializable {
     public @Nullable Person newPerson;
 	public @Nullable Auction newAuction;
 	public @Nullable Bid bid;
-	public Type type;
+	public Type etype;
 
 	/** The type of object stored in this event. * */
 	public enum Type {
@@ -29,21 +29,21 @@ public class Event implements Serializable {
 		this.newPerson = newPerson;
 		newAuction = null;
 		bid = null;
-		type = Type.PERSON;
+		etype = Type.PERSON;
 	}
 
 	public Event(Auction newAuction) {
 		newPerson = null;
 		this.newAuction = newAuction;
 		bid = null;
-		type = Type.AUCTION;
+		etype = Type.AUCTION;
 	}
 
 	public Event(Bid bid) {
 		newPerson = null;
 		newAuction = null;
 		this.bid = bid;
-		type = Type.BID;
+		etype = Type.BID;
 	}
 
 	@Override

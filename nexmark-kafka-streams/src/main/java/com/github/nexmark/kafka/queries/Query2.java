@@ -28,7 +28,7 @@ public class Query2 implements NexmarkQuery {
                 Consumed.with(Serdes.String(), new JSONPOJOSerde<Event>() {
                         })
                         .withTimestampExtractor(new JSONTimestampExtractor()));
-        KStream<String, Event> q2Out = inputs.peek(caInput).filter((key, value) -> value.type == Event.Type.BID)
+        KStream<String, Event> q2Out = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .filter((key, value) -> value.bid.auction % 123 == 0);
         q2Out.peek(caOutput).to("nexmark-q2", Produced.valueSerde(new JSONPOJOSerde<Event>() {
         }));
