@@ -17,12 +17,12 @@ public class WindowedAvg implements NexmarkQuery {
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
-        NewTopic out = new NewTopic("windowedavg-out", 1, (short)1);
+        NewTopic out = new NewTopic("windowedavg-out", 1, (short)3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(out));
 
         StreamsBuilder builder = new StreamsBuilder();
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>(){};
-        KStream<String, Event> inputs = builder.stream("nexmark-input", Consumed.with(Serdes.String(), serde)
+        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
         inputs.filter((key, value) -> value.type == Event.Type.BID)
                 .groupBy((key, value) -> value.bid.auction)

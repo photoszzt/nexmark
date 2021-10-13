@@ -18,7 +18,7 @@ import java.util.Properties;
 public class Query8 implements NexmarkQuery {
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
-        NewTopic q8 = new NewTopic("nexmark-q7", 1, (short)1);
+        NewTopic q8 = new NewTopic("nexmark-q8", 1, (short)3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(q8));
 
         StreamsBuilder builder = new StreamsBuilder();
