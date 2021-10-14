@@ -58,9 +58,8 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
         if (data == null) {
             return null;
         }
-        Event e = (Event)data;
         try {
-            String ret = this.gson.toJson(e);
+            String ret = this.gson.toJson(data);
             return ret.getBytes();
         } catch (Exception err) {
             throw new SerializationException("Error serializing JSON message", err);
