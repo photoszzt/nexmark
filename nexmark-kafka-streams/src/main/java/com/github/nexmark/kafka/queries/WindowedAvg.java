@@ -12,6 +12,8 @@ import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Properties;
 
 public class WindowedAvg implements NexmarkQuery {
@@ -36,6 +38,7 @@ public class WindowedAvg implements NexmarkQuery {
         TimeWindows tw = TimeWindows.of(Duration.ofSeconds(10));
         WindowBytesStoreSupplier storeSupplier = Stores.inMemoryWindowStore("windowedavg-agg-store",
                 Duration.ofMillis(tw.gracePeriodMs()+tw.size()), Duration.ofMillis(tw.size()), false);
+        
         inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .groupBy((key, value) -> value.bid.auction)
                 .windowedBy(TimeWindows.of(Duration.ofSeconds(10)))
@@ -45,6 +48,8 @@ public class WindowedAvg implements NexmarkQuery {
                         Named.as("windowedavg-agg"), Materialized.<Long, SumAndCount>as(storeSupplier)
                                 .withKeySerde(Serdes.Long())
                                 .withValueSerde(new JSONPOJOSerde<SumAndCount>(){})
+                                .withCachingEnabled()
+                                .withLoggingEnabled(new HashMap<>())
                 )
                 .mapValues((value) -> (double)value.sum / (double)value.count)
                 .toStream()
