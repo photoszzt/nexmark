@@ -7,16 +7,16 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
-import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
-import org.apache.kafka.streams.state.internals.KeyValueStoreBuilder;
+import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Properties;
 
 public class WindowedAvg implements NexmarkQuery {
     public CountAction<String, Event> caInput;
-    public CountAction<Long, Double> caOutput;
+    public CountAction<Windowed<Long>, Double> caOutput;
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
@@ -33,9 +33,12 @@ public class WindowedAvg implements NexmarkQuery {
                 .withTimestampExtractor(new JSONTimestampExtractor()));
         caInput = new CountAction<>();
         caOutput = new CountAction<>();
-        KeyValueBytesStoreSupplier storeSupplier = Stores.inMemoryKeyValueStore("windowedavg-agg-store");
+        TimeWindows tw = TimeWindows.of(Duration.ofSeconds(10));
+        WindowBytesStoreSupplier storeSupplier = Stores.inMemoryWindowStore("windowedavg-agg-store",
+                Duration.ofMillis(tw.gracePeriodMs()+tw.size()), Duration.ofMillis(tw.size()), false);
         inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .groupBy((key, value) -> value.bid.auction)
+                .windowedBy(TimeWindows.of(Duration.ofSeconds(10)))
                 .aggregate(
                         ()->new SumAndCount(0, 0),
                         (key, value, aggregate) -> new SumAndCount(aggregate.sum + value.bid.price, aggregate.count+1),
@@ -46,7 +49,7 @@ public class WindowedAvg implements NexmarkQuery {
                 .mapValues((value) -> (double)value.sum / (double)value.count)
                 .toStream()
                 .peek(caOutput)
-                .to("windowedavg-out", Produced.with(Serdes.Long(), Serdes.Double()));
+                .to("windowedavg-out", Produced.with(new JSONPOJOSerde<>(), Serdes.Double()));
         return builder;
     }
 
