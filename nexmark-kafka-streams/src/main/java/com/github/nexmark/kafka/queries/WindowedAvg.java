@@ -18,7 +18,7 @@ public class WindowedAvg implements NexmarkQuery {
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
         NewTopic out = new NewTopic("windowedavg-out", 1, (short)3);
-        NewTopic storeTp = new NewTopic("windowedavg-agg-storename", 1, (short)3);
+        NewTopic storeTp = new NewTopic("windowedavg-agg-store", 1, (short)3);
         ArrayList<NewTopic> newTps = new ArrayList<>(2);
         newTps.add(out);
         newTps.add(storeTp);
@@ -35,7 +35,7 @@ public class WindowedAvg implements NexmarkQuery {
                 .aggregate(
                         ()->new SumAndCount(0, 0),
                         (key, value, aggregate) -> new SumAndCount(aggregate.sum + value.bid.price, aggregate.count+1),
-                        Named.as("windowedavg-agg"), Materialized.as("windowedavg-agg-storename")
+                        Named.as("windowedavg-agg"), Materialized.as("windowedavg-agg-store").with(Serdes.Long(), new JSONPOJOSerde<SumAndCount>(){})
                 )
                 .mapValues((value) -> (double)value.sum / (double)value.count)
                 .toStream()
