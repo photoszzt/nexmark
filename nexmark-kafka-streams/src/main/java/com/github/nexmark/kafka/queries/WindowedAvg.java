@@ -7,6 +7,9 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
+import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
+import org.apache.kafka.streams.state.Stores;
+import org.apache.kafka.streams.state.internals.KeyValueStoreBuilder;
 
 import java.util.ArrayList;
 import java.util.Properties;
@@ -30,12 +33,15 @@ public class WindowedAvg implements NexmarkQuery {
                 .withTimestampExtractor(new JSONTimestampExtractor()));
         caInput = new CountAction<>();
         caOutput = new CountAction<>();
+        KeyValueBytesStoreSupplier storeSupplier = Stores.inMemoryKeyValueStore("windowedavg-agg-store");
         inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .groupBy((key, value) -> value.bid.auction)
                 .aggregate(
                         ()->new SumAndCount(0, 0),
                         (key, value, aggregate) -> new SumAndCount(aggregate.sum + value.bid.price, aggregate.count+1),
-                        Named.as("windowedavg-agg"), Materialized.as("windowedavg-agg-store").with(Serdes.Long(), new JSONPOJOSerde<SumAndCount>(){})
+                        Named.as("windowedavg-agg"), Materialized.<Long, SumAndCount>as(storeSupplier)
+                                .withKeySerde(Serdes.Long())
+                                .withValueSerde(new JSONPOJOSerde<SumAndCount>(){})
                 )
                 .mapValues((value) -> (double)value.sum / (double)value.count)
                 .toStream()
