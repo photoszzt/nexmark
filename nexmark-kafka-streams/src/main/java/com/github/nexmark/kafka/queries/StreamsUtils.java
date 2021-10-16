@@ -24,7 +24,7 @@ public class StreamsUtils {
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JSONPOJOSerde.class);
         props.put(StreamsConfig.DEFAULT_WINDOWED_VALUE_SERDE_INNER_CLASS, JSONPOJOSerde.class);
 
-        props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, "EXACTLY_ONCE_V2");
+        props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, "exactly_once_beta");
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, "all");
 
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
