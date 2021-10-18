@@ -9,11 +9,8 @@ import org.apache.kafka.common.serialization.Serializer;
 import com.github.nexmark.kafka.model.Event;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.apache.commons.lang3.reflect.TypeUtils;
 import java.time.Instant;
 import java.util.Map;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 
 public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T> {
     private Gson gson;
@@ -29,16 +26,8 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
         gson = gsonBuilder.create();
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void configure(Map<String, ?> props, boolean isKey) {
-    }
-
-    public Class<T> returnedClass() throws ClassNotFoundException {
-        // System.out.println("########## class is: " + getClass());
-        // System.out.println("########## type arguments: " + TypeUtils.getTypeArguments(getClass(), JSONPOJOSerde.class).toString());
-        return (Class<T>) TypeUtils.getTypeArguments(getClass(), JSONPOJOSerde.class)
-                .get(JSONPOJOSerde.class.getTypeParameters()[0]);
     }
 
     public void setClass(Class<T> cls) {
@@ -55,8 +44,7 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
             String bytes_str = new String(bytes, "UTF-8");
             // System.out.println("########## Input is " + bytes_str);
             if (this.cls == null) {
-                T desc = (T)this.gson.fromJson(bytes_str, returnedClass());
-                return desc;
+                throw new SerializationException("need to call setClass to pass the type to JSONPOJOSerde");
             }
             T desc = (T) this.gson.fromJson(bytes_str, this.cls);
             // System.out.println("########### Desc out is " + desc.toString());

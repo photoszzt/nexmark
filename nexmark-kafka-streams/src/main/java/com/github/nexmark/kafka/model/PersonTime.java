@@ -1,7 +1,5 @@
 package com.github.nexmark.kafka.model;
 
-import java.time.Instant;
-
 public class PersonTime {
     public long id;
     public String name;

@@ -24,14 +24,15 @@ public class Query2 implements NexmarkQuery {
 
         caInput = new CountAction<>();
         caOutput = new CountAction<>();
+        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<>();
+        serde.setClass(Event.class);
+
         KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(Serdes.String(), new JSONPOJOSerde<Event>() {
-                        })
+                Consumed.with(Serdes.String(), serde)
                         .withTimestampExtractor(new JSONTimestampExtractor()));
         KStream<String, Event> q2Out = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .filter((key, value) -> value.bid.auction % 123 == 0);
-        q2Out.peek(caOutput).to("nexmark-q2", Produced.valueSerde(new JSONPOJOSerde<Event>() {
-        }));
+        q2Out.peek(caOutput).to("nexmark-q2-out", Produced.valueSerde(serde));
         return builder;
     }
 

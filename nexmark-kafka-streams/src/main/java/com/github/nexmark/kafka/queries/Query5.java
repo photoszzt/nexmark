@@ -26,20 +26,23 @@ public class Query5 implements NexmarkQuery {
         NewTopic np = new NewTopic("nexmark-q5", 1, (short)3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
 
-        caInput = new CountAction();
-        caOutput = new CountAction();
+        caInput = new CountAction<String, Event>();
+        caOutput = new CountAction<StartEndTime, AuctionIdCntMax>();
 
         StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
-        };
+        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {};
+        serde.setClass(Event.class);
+
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
         KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.auction);
+
         TimeWindows ts = TimeWindows.of(Duration.ofSeconds(10)).advanceBy(Duration.ofSeconds(2));
         WindowBytesStoreSupplier auctionBidsWSSupplier = Stores.inMemoryWindowStore("auctionBidsCountStore",
                 Duration.ofMillis(ts.gracePeriodMs()+ts.size()), Duration.ofMillis(ts.size()), true);
-        KStream<StartEndTime, AuctionIdCount> auctionBids = bid.groupByKey()
+
+        KStream<StartEndTime, AuctionIdCount> auctionBids = bid.groupByKey(Grouped.with(Serdes.Long(), serde))
                 .windowedBy(ts)
                 .count(Named.as("auctionBidsCount"),
                         Materialized.<Long, Long>as(auctionBidsWSSupplier)
@@ -60,8 +63,15 @@ public class Query5 implements NexmarkQuery {
                 });
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
+        JSONPOJOSerde<StartEndTime> seSerde = new JSONPOJOSerde<StartEndTime>();
+        seSerde.setClass(StartEndTime.class);
+        JSONPOJOSerde<AuctionIdCount> aicSerde = new JSONPOJOSerde<AuctionIdCount>();
+        aicSerde.setClass(AuctionIdCount.class);
+        JSONPOJOSerde<AuctionIdCntMax> aicmSerde = new JSONPOJOSerde<AuctionIdCntMax>();
+        aicmSerde.setClass(AuctionIdCntMax.class);
+
         KTable<StartEndTime, Long> maxBids = auctionBids
-                .groupByKey()
+                .groupByKey(Grouped.with(seSerde, aicSerde))
                 .aggregate(() -> 0L,
                 (key, value, aggregate) -> {
                     if (value.count > aggregate) {
@@ -73,7 +83,7 @@ public class Query5 implements NexmarkQuery {
                         Materialized.<StartEndTime, Long>as(maxBidsKV)
                                 .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>())
-                                .withKeySerde(new JSONPOJOSerde<>())
+                                .withKeySerde(seSerde)
                                 .withValueSerde(Serdes.Long())
         );
         auctionBids
@@ -81,7 +91,7 @@ public class Query5 implements NexmarkQuery {
                         new AuctionIdCntMax(leftValue.aucId, leftValue.count, (long) rightValue))
                 .filter((key, value) -> value.count >= value.maxCnt)
                 .peek(caOutput)
-                .to("nexmark-q5", Produced.with(new JSONPOJOSerde<StartEndTime>() {}, new JSONPOJOSerde<AuctionIdCntMax>(){}));
+                .to("nexmark-q5-out", Produced.with(seSerde, aicmSerde));
         return builder;
     }
 

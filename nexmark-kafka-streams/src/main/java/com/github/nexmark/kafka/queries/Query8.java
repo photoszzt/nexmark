@@ -25,22 +25,28 @@ public class Query8 implements NexmarkQuery {
         caOutput = new CountAction<>();
 
         StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
-        };
+        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
+        serde.setClass(Event.class);
+        JSONPOJOSerde<PersonTime> ptSerde = new JSONPOJOSerde<>();
+        ptSerde.setClass(PersonTime.class);
+
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
+
         KStream<Long, Event> person = inputs
                 .peek(caInput)
                 .filter((key, value) -> value.etype == Event.Type.PERSON)
                 .selectKey((key, value) ->
                         value.newPerson.id
                 );
+
         KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.Type.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller);
+
         auction.join(person,
                 (leftValue, rightValue) -> new PersonTime(rightValue.newPerson.id, rightValue.newPerson.name, 0), JoinWindows.of(Duration.ofSeconds(10)))
                 .peek(caOutput)
-                .to("nexmark-q8", Produced.with(Serdes.Long(), new JSONPOJOSerde<PersonTime>(){}));
+                .to("nexmark-q8", Produced.with(Serdes.Long(), ptSerde));
         return builder;
     }
 

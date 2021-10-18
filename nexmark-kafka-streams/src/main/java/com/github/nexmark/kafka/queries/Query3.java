@@ -28,22 +28,28 @@ public class Query3 implements NexmarkQuery {
         caInput = new CountAction<>();
         caOutput = new CountAction<>();
 
-        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(),
-                new JSONPOJOSerde<Event>(){}).withTimestampExtractor(new JSONTimestampExtractor()));
+        JSONPOJOSerde<Event> eSerde = new JSONPOJOSerde<>();
+        eSerde.setClass(Event.class);
+        JSONPOJOSerde<NameCityStateId> ncsiSerde = new JSONPOJOSerde<>();
+        ncsiSerde.setClass(NameCityStateId.class);
+
+        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
+                .withTimestampExtractor(new JSONTimestampExtractor()));
 
         KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores.inMemoryKeyValueStore("auctionBySellerIdKV");
-        KTable<Long, Event> auctionsBySellerId = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.AUCTION)
-                .filter((key, value) -> value.newAuction.category == 10)
+        KTable<Long, Event> auctionsBySellerId = inputs.peek(caInput)
+                .filter((key, value) -> value.etype == Event.Type.AUCTION && value.newAuction.category == 10)
                 .selectKey((key, value) -> value.newAuction.seller)
                 .toTable(Named.as("auctionBySellerIdTab"),
                         Materialized.<Long, Event>as(auctionsBySellerIdKVStoreSupplier)
                                 .withLoggingEnabled(new HashMap<>())
                                 .withCachingEnabled()
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(new JSONPOJOSerde<Event>(){}));
+                                .withValueSerde(eSerde));
 
         KeyValueBytesStoreSupplier personsByIdKVStoreSupplier = Stores.inMemoryKeyValueStore("personsByIdKV");
-        KTable<Long, Event> personsById = inputs.filter((key, value) -> value.etype == Event.Type.PERSON)
+        KTable<Long, Event> personsById = inputs
+                .filter((key, value) -> value.etype == Event.Type.PERSON)
                 .filter((key, value) -> value.newPerson.state.equals("OR") || value.newPerson.state.equals("ID") ||
                         value.newPerson.state.equals("CA"))
                 .selectKey((key, value) -> value.newPerson.id)
@@ -52,7 +58,7 @@ public class Query3 implements NexmarkQuery {
                                 .withLoggingEnabled(new HashMap<>())
                                 .withCachingEnabled()
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(new JSONPOJOSerde<Event>(){}));
+                                .withValueSerde(eSerde));
 
         auctionsBySellerId
                 .join(personsById, (leftValue, rightValue) -> new NameCityStateId(rightValue.newPerson.name,
@@ -61,8 +67,7 @@ public class Query3 implements NexmarkQuery {
                         rightValue.newPerson.id))
                 .toStream()
                 .peek(caOutput)
-                .to("nexmark-q3", Produced.with(Serdes.Long(),
-                        new JSONPOJOSerde<NameCityStateId>() {}));
+                .to("nexmark-q3-out", Produced.with(Serdes.Long(), ncsiSerde));
         return builder;
     }
 

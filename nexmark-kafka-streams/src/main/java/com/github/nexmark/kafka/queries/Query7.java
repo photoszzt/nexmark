@@ -10,11 +10,14 @@ import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueStore;
+import org.apache.kafka.streams.state.Stores;
+import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Properties;
 
 public class Query7 implements NexmarkQuery {
@@ -30,20 +33,38 @@ public class Query7 implements NexmarkQuery {
         caOutput = new CountAction<>();
 
         StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {
-        };
+        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
+        serde.setClass(Event.class);
+
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), serde).withTimestampExtractor(new JSONTimestampExtractor()));
+
         KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.price);
-        bid.groupByKey().windowedBy(TimeWindows.of(Duration.ofSeconds(10)))
+
+        TimeWindows tw = TimeWindows.of(Duration.ofSeconds(10));
+        WindowBytesStoreSupplier maxBidWinStoreSupplier = Stores.inMemoryWindowStore(
+            "max-bid-tab", Duration.ofMillis(tw.size()+tw.gracePeriodMs()), Duration.ofMillis(tw.size()), true);
+        JSONPOJOSerde<PriceTime> ptSerde = new JSONPOJOSerde<>();
+        ptSerde.setClass(PriceTime.class);
+
+        bid.groupByKey(Grouped.with(Serdes.Long(), serde))
+                .windowedBy(tw)
                 .aggregate(() -> new PriceTime(0, Instant.MIN), (key, value, aggregate) -> {
                     if (value.bid.price > aggregate.price) {
                         return new PriceTime(value.bid.price, value.bid.dateTime);
                     } else {
                         return aggregate;
                     }
-                }, Materialized.as("max-bid"));
+                }, Materialized.<Long, PriceTime>as(maxBidWinStoreSupplier)
+                    .withCachingEnabled()
+                    .withLoggingEnabled(new HashMap<>())
+                    .withKeySerde(Serdes.Long())
+                    .withValueSerde(ptSerde));
+
+        JSONPOJOSerde<BidAndMax> bmSerde = new JSONPOJOSerde<>();
+        bmSerde.setClass(BidAndMax.class);
+
         bid.transformValues(new ValueTransformerWithKeySupplier<Long, Event, BidAndMax>() {
             public ValueTransformerWithKey<Long, Event, BidAndMax> get() {
                 return new ValueTransformerWithKey<Long, Event, BidAndMax>() {
@@ -72,11 +93,11 @@ public class Query7 implements NexmarkQuery {
                     }
                 };
             }
-        }, "max-bid").filter((key, value) -> {
-            Instant lb = value.maxDateTime.minus(10, ChronoUnit.SECONDS);
-            return value.dateTime.compareTo(lb) >= 0 && value.dateTime.compareTo(value.maxDateTime) <= 0;
-        }).peek(caOutput).to("nexmark-q7", Produced.with(Serdes.Long(), new JSONPOJOSerde<BidAndMax>() {
-        }));
+        }, "max-bid-tab")
+            .filter((key, value) -> {
+                Instant lb = value.maxDateTime.minus(10, ChronoUnit.SECONDS);
+                return value.dateTime.compareTo(lb) >= 0 && value.dateTime.compareTo(value.maxDateTime) <= 0;
+            }).peek(caOutput).to("nexmark-q7", Produced.with(Serdes.Long(), bmSerde));
         return builder;
     }
 
