@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.Properties;
 
 public class Query2 implements NexmarkQuery {
-    public Map<String, CountAction> caMap;
+    private Map<String, CountAction> caMap;
 
     public Query2() {
         caMap = new HashMap<>();

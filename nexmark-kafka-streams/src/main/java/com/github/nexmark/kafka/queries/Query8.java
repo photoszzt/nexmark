@@ -46,9 +46,7 @@ public class Query8 implements NexmarkQuery {
         KStream<Long, Event> person = inputs
                 .peek(caInput)
                 .filter((key, value) -> value.etype == Event.Type.PERSON)
-                .selectKey((key, value) ->
-                        value.newPerson.id
-                );
+                .selectKey((key, value) -> value.newPerson.id);
 
         KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.Type.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller);

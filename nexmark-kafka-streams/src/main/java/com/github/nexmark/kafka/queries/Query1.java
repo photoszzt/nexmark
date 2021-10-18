@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Properties;
 
 public class Query1 implements NexmarkQuery {
-    public Map<String, CountAction> caMap;
+    private Map<String, CountAction> caMap;
 
     public Query1() {
         caMap = new HashMap<>();
@@ -35,7 +35,7 @@ public class Query1 implements NexmarkQuery {
 
         final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
-        CountAction<String, Event> caInput = caMap.get("caInput");
+        CountAction<String, Event> caInput = caMap.<String, Event>get("caInput");
         CountAction<String, Event> caOutput = caMap.get("caOutput");
 
         inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)

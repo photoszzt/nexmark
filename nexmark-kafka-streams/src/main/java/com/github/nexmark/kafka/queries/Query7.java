@@ -23,8 +23,6 @@ import java.util.Properties;
 
 public class Query7 implements NexmarkQuery {
     private Map<String, CountAction> caMap;
-    public CountAction<String, Event> caInput;
-    public CountAction<Long, BidAndMax> caOutput;
 
     public Query7() {
         caMap = new HashMap<>();
@@ -47,16 +45,22 @@ public class Query7 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), serde).withTimestampExtractor(new JSONTimestampExtractor()));
 
+        int numberOfPartition = 5;
         KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
-                .selectKey((key, value) -> value.bid.price);
+                .selectKey((key, value) -> value.bid.price)
+                .repartition(Repartitioned.with(Serdes.Long(), serde)
+                        .withName("bid-repartition")
+                        .withNumberOfPartitions(numberOfPartition));
 
         TimeWindows tw = TimeWindows.of(Duration.ofSeconds(10));
         WindowBytesStoreSupplier maxBidWinStoreSupplier = Stores.inMemoryWindowStore(
-                "max-bid-tab", Duration.ofMillis(tw.size() + tw.gracePeriodMs()), Duration.ofMillis(tw.size()), true);
+                "max-bid-tab", Duration.ofMillis(tw.size() + tw.gracePeriodMs()), Duration.ofMillis(tw.size()), false);
         JSONPOJOSerde<PriceTime> ptSerde = new JSONPOJOSerde<>();
         ptSerde.setClass(PriceTime.class);
 
-        bid.groupByKey(Grouped.with(Serdes.Long(), serde))
+
+        bid
+                .groupByKey(Grouped.with(Serdes.Long(), serde))
                 .windowedBy(tw)
                 .aggregate(() -> new PriceTime(0, Instant.MIN), (key, value, aggregate) -> {
                     if (value.bid.price > aggregate.price) {
@@ -80,7 +84,7 @@ public class Query7 implements NexmarkQuery {
 
                             @Override
                             public void init(ProcessorContext context) {
-                                this.stateStore = (KeyValueStore<Long, PriceTime>) context.getStateStore("max-bid");
+                                this.stateStore = (KeyValueStore<Long, PriceTime>) context.getStateStore("max-bid-tab");
                             }
 
                             @Override
@@ -105,7 +109,7 @@ public class Query7 implements NexmarkQuery {
                 .filter((key, value) -> {
                     Instant lb = value.maxDateTime.minus(10, ChronoUnit.SECONDS);
                     return value.dateTime.compareTo(lb) >= 0 && value.dateTime.compareTo(value.maxDateTime) <= 0;
-                }).peek(caOutput).to("nexmark-q7", Produced.with(Serdes.Long(), bmSerde));
+                }).peek(caOutput).to("nexmark-q7-out", Produced.with(Serdes.Long(), bmSerde));
         return builder;
     }
 

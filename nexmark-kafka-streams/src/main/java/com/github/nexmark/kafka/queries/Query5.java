@@ -51,7 +51,12 @@ public class Query5 implements NexmarkQuery {
         WindowBytesStoreSupplier auctionBidsWSSupplier = Stores.inMemoryWindowStore("auctionBidsCountStore",
                 Duration.ofMillis(ts.gracePeriodMs() + ts.size()), Duration.ofMillis(ts.size()), true);
 
-        KStream<StartEndTime, AuctionIdCount> auctionBids = bid.groupByKey(Grouped.with(Serdes.Long(), serde))
+        int numberOfPartitions = 5;
+        KStream<StartEndTime, AuctionIdCount> auctionBids = bid
+                .repartition(Repartitioned.with(Serdes.Long(), serde)
+                        .withName("auctionBids-repartition-node")
+                        .withNumberOfPartitions(numberOfPartitions))
+                .groupByKey(Grouped.with(Serdes.Long(), serde))
                 .windowedBy(ts)
                 .count(Named.as("auctionBidsCount"),
                         Materialized.<Long, Long>as(auctionBidsWSSupplier)
@@ -80,6 +85,9 @@ public class Query5 implements NexmarkQuery {
         aicmSerde.setClass(AuctionIdCntMax.class);
 
         KTable<StartEndTime, Long> maxBids = auctionBids
+                .repartition(Repartitioned.with(seSerde, aicSerde)
+                        .withName("maxBids-repartition-node")
+                        .withNumberOfPartitions(numberOfPartitions))
                 .groupByKey(Grouped.with(seSerde, aicSerde))
                 .aggregate(() -> 0L,
                         (key, value, aggregate) -> {
