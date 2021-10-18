@@ -21,8 +21,8 @@ public class StreamsUtils {
         props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, "exactly_once_beta");
 
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
-        props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 2);
-        props.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all");
+        props.put(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, 2);
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
         return props;
     }
 
