@@ -51,6 +51,6 @@ public class Query2 implements NexmarkQuery {
 
     @Override
     public Map<String, CountAction> getCountActionMap() {
-        return null;
+        return caMap;
     }
 }
