@@ -101,8 +101,8 @@ public class RunQuery {
             System.out.println("reading events: " + caInput.GetProcessedRecords());
             System.out.println("output events: " + caOutput.GetProcessedRecords());
             System.out.println("Duration: " + durationSec);
-            System.out.println("reading events throughput: " + ((double)caInput.GetProcessedRecords()) / duration);
-            System.out.println("output throughput: " + (double)caOutput.GetProcessedRecords() / duration);
+            System.out.println("reading events throughput: " + ((double)caInput.GetProcessedRecords()) / durationSec);
+            System.out.println("output throughput: " + (double)caOutput.GetProcessedRecords() / durationSec);
             latch.countDown();
         });
         t.start();
