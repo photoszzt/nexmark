@@ -12,9 +12,12 @@ import com.google.gson.GsonBuilder;
 import org.apache.commons.lang3.reflect.TypeUtils;
 import java.time.Instant;
 import java.util.Map;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 
 public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T> {
     private Gson gson;
+    private Class<T> cls;
 
     public JSONPOJOSerde() {
         InstantTypeConverter serdeInstant = new InstantTypeConverter();
@@ -32,8 +35,14 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
     }
 
     public Class<T> returnedClass() throws ClassNotFoundException {
+        // System.out.println("########## class is: " + getClass());
+        // System.out.println("########## type arguments: " + TypeUtils.getTypeArguments(getClass(), JSONPOJOSerde.class).toString());
         return (Class<T>) TypeUtils.getTypeArguments(getClass(), JSONPOJOSerde.class)
                 .get(JSONPOJOSerde.class.getTypeParameters()[0]);
+    }
+
+    public void setClass(Class<T> cls) {
+        this.cls = cls;
     }
 
     @Override
@@ -44,9 +53,13 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
         
         try {
             String bytes_str = new String(bytes, "UTF-8");
-            // System.out.println("Input is " + bytes_str);
-            T desc = (T)this.gson.fromJson(bytes_str, returnedClass());
-            // System.out.println("desc out is " + desc.toString());
+            // System.out.println("########## Input is " + bytes_str);
+            if (this.cls == null) {
+                T desc = (T)this.gson.fromJson(bytes_str, returnedClass());
+                return desc;
+            }
+            T desc = (T) this.gson.fromJson(bytes_str, this.cls);
+            // System.out.println("########### Desc out is " + desc.toString());
             return desc;
         } catch (Exception err) {
             throw new SerializationException(err);

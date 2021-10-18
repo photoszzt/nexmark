@@ -7,6 +7,7 @@ public class CountAction <K, V> implements ForeachAction<K, V> {
 
     @Override
     public void apply(K k, V v) {
+        // System.out.println("################## get event k: " + k + " v: " + v);
         processedRecords += 1;
     }
 
