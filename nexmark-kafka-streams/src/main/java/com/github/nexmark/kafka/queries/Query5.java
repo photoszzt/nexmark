@@ -1,12 +1,15 @@
 package com.github.nexmark.kafka.queries;
 
-import com.github.nexmark.kafka.model.*;
+import com.github.nexmark.kafka.model.AuctionIdCntMax;
+import com.github.nexmark.kafka.model.AuctionIdCount;
+import com.github.nexmark.kafka.model.Event;
+import com.github.nexmark.kafka.model.StartEndTime;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
@@ -14,23 +17,29 @@ import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 public class Query5 implements NexmarkQuery {
-    public CountAction<String, Event> caInput;
-    public CountAction<StartEndTime, AuctionIdCntMax> caOutput;
+    private Map<String, CountAction> caMap;
+
+    public Query5() {
+        caMap = new HashMap<>();
+        caMap.put("caInput", new CountAction<String, Event>());
+        caMap.put("caOutput", new CountAction<StartEndTime, AuctionIdCntMax>());
+    }
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
 
-        NewTopic np = new NewTopic("nexmark-q5", 1, (short)3);
+        NewTopic np = new NewTopic("nexmark-q5", 1, (short) 3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
 
-        caInput = new CountAction<String, Event>();
-        caOutput = new CountAction<StartEndTime, AuctionIdCntMax>();
+        CountAction<String, Event> caInput = caMap.get("caInput");
+        CountAction<StartEndTime, AuctionIdCntMax> caOutput = caMap.get("caOutput");
 
         StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>() {};
+        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
         serde.setClass(Event.class);
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
@@ -40,7 +49,7 @@ public class Query5 implements NexmarkQuery {
 
         TimeWindows ts = TimeWindows.of(Duration.ofSeconds(10)).advanceBy(Duration.ofSeconds(2));
         WindowBytesStoreSupplier auctionBidsWSSupplier = Stores.inMemoryWindowStore("auctionBidsCountStore",
-                Duration.ofMillis(ts.gracePeriodMs()+ts.size()), Duration.ofMillis(ts.size()), true);
+                Duration.ofMillis(ts.gracePeriodMs() + ts.size()), Duration.ofMillis(ts.size()), true);
 
         KStream<StartEndTime, AuctionIdCount> auctionBids = bid.groupByKey(Grouped.with(Serdes.Long(), serde))
                 .windowedBy(ts)
@@ -73,19 +82,19 @@ public class Query5 implements NexmarkQuery {
         KTable<StartEndTime, Long> maxBids = auctionBids
                 .groupByKey(Grouped.with(seSerde, aicSerde))
                 .aggregate(() -> 0L,
-                (key, value, aggregate) -> {
-                    if (value.count > aggregate) {
-                        return value.count;
-                    } else {
-                        return aggregate;
-                    }
-                }, Named.as("maxBidsAgg"),
+                        (key, value, aggregate) -> {
+                            if (value.count > aggregate) {
+                                return value.count;
+                            } else {
+                                return aggregate;
+                            }
+                        }, Named.as("maxBidsAgg"),
                         Materialized.<StartEndTime, Long>as(maxBidsKV)
                                 .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>())
                                 .withKeySerde(seSerde)
                                 .withValueSerde(Serdes.Long())
-        );
+                );
         auctionBids
                 .join(maxBids, (leftValue, rightValue) ->
                         new AuctionIdCntMax(leftValue.aucId, leftValue.count, (long) rightValue))
@@ -100,5 +109,10 @@ public class Query5 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q5");
         return props;
+    }
+
+    @Override
+    public Map<String, CountAction> getCountActionMap() {
+        return caMap;
     }
 }

@@ -12,21 +12,28 @@ import org.apache.kafka.streams.state.Stores;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 public class Query3 implements NexmarkQuery {
-    public CountAction<String, Event> caInput;
-    public CountAction<Long, NameCityStateId> caOutput;
+
+    private Map<String, CountAction> caMap;
+
+    public Query3() {
+        caMap = new HashMap<>();
+        caMap.put("caInput", new CountAction<String, Event>());
+        caMap.put("caOutput", new CountAction<Long, NameCityStateId>());
+    }
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
-        NewTopic np = new NewTopic("nexmark-q3", 1, (short)3);
+        NewTopic np = new NewTopic("nexmark-q3", 1, (short) 3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
 
         StreamsBuilder builder = new StreamsBuilder();
 
-        caInput = new CountAction<>();
-        caOutput = new CountAction<>();
+        CountAction<String, Event> caInput = caMap.get("caInput");
+        CountAction<Long, NameCityStateId> caOutput = caMap.get("caOutput");
 
         JSONPOJOSerde<Event> eSerde = new JSONPOJOSerde<>();
         eSerde.setClass(Event.class);
@@ -76,5 +83,10 @@ public class Query3 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q3");
         return props;
+    }
+
+    @Override
+    public Map<String, CountAction> getCountActionMap() {
+        return caMap;
     }
 }

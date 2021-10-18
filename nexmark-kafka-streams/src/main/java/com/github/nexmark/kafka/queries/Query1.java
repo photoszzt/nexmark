@@ -11,13 +11,17 @@ import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 public class Query1 implements NexmarkQuery {
-    public CountAction<String, Event> caInput;
-    public CountAction<String, Event> caOutput;
+    public Map<String, CountAction> caMap;
 
     public Query1() {
+        caMap = new HashMap<>();
+        caMap.put("caInput", new CountAction<String, Event>());
+        caMap.put("caOutput", new CountAction<String, Event>());
     }
 
     @Override
@@ -26,13 +30,13 @@ public class Query1 implements NexmarkQuery {
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
 
         StreamsBuilder builder = new StreamsBuilder();
-        final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), new JSONPOJOSerde<Event>() {
-                })
+        JSONPOJOSerde<Event> eSerde = new JSONPOJOSerde<>();
+        eSerde.setClass(Event.class);
+
+        final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
-        caInput = new CountAction<String, Event>();
-        caOutput = new CountAction<String, Event>();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<>();
-        serde.setClass(Event.class);
+        CountAction<String, Event> caInput = caMap.get("caInput");
+        CountAction<String, Event> caOutput = caMap.get("caOutput");
 
         inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .mapValues(value -> {
@@ -40,7 +44,7 @@ public class Query1 implements NexmarkQuery {
                     Event e = new Event(
                             new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra));
                     return e;
-                }).peek(caOutput).to("nexmark-q1-out", Produced.valueSerde(serde));
+                }).peek(caOutput).to("nexmark-q1-out", Produced.valueSerde(eSerde));
         return builder;
     }
 
@@ -50,5 +54,10 @@ public class Query1 implements NexmarkQuery {
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q1");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "nexmark-q1-client");
         return props;
+    }
+
+    @Override
+    public Map<String, CountAction> getCountActionMap() {
+        return caMap;
     }
 }

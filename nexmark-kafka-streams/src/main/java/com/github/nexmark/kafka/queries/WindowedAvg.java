@@ -14,34 +14,40 @@ import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 public class WindowedAvg implements NexmarkQuery {
-    public CountAction<String, Event> caInput;
-    public CountAction<Windowed<Long>, Double> caOutput;
+    public Map<String, CountAction> caMap;
+
+    public WindowedAvg() {
+        this.caMap = new HashMap<>();
+        caMap.put("caInput", new CountAction<String, Event>());
+        caMap.put("caOutput", new CountAction<Windowed<Long>, Double>());
+    }
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
-        NewTopic out = new NewTopic("windowedavg-out", 1, (short)3);
-        NewTopic storeTp = new NewTopic("windowedavg-agg-store", 1, (short)3);
+        NewTopic out = new NewTopic("windowedavg-out", 1, (short) 3);
+        NewTopic storeTp = new NewTopic("windowedavg-agg-store", 1, (short) 3);
         ArrayList<NewTopic> newTps = new ArrayList<>(2);
         newTps.add(out);
         newTps.add(storeTp);
         StreamsUtils.createTopic(bootstrapServer, newTps);
 
         StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>(){};
+        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
         serde.setClass(Event.class);
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
-        caInput = new CountAction<>();
-        caOutput = new CountAction<>();
+        CountAction<String, Event> caInput = caMap.get("caInput");
+        CountAction<Windowed<Long>, Double> caOutput = caMap.get("caOutput");
         TimeWindows tw = TimeWindows.of(Duration.ofSeconds(10));
         WindowBytesStoreSupplier storeSupplier = Stores.inMemoryWindowStore("windowedavg-agg-store",
-                Duration.ofMillis(tw.gracePeriodMs()+tw.size()), Duration.ofMillis(tw.size()), false);
+                Duration.ofMillis(tw.gracePeriodMs() + tw.size()), Duration.ofMillis(tw.size()), false);
 
-        JSONPOJOSerde<SumAndCount> scSerde = new JSONPOJOSerde<SumAndCount>(){};
+        JSONPOJOSerde<SumAndCount> scSerde = new JSONPOJOSerde<SumAndCount>();
         scSerde.setClass(SumAndCount.class);
 
         Serde<Long> longSerde = Serdes.Long();
@@ -50,18 +56,20 @@ public class WindowedAvg implements NexmarkQuery {
         Serde<Windowed<Long>> windowedLongSerde = Serdes.serdeFrom(longWindowSerializer, longWindowDeserializer);
 
         inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
-                .groupBy((key, value) -> value.bid.auction, Grouped.with(Serdes.Long(), serde))
+                .selectKey((key, value) -> value.bid.auction)
+                .repartition(Repartitioned.with(Serdes.Long(), serde).withNumberOfPartitions(5).withName("groupby-repartition-node"))
+                .groupByKey(Grouped.with(Serdes.Long(), serde))
                 .windowedBy(tw)
                 .aggregate(
-                        ()->new SumAndCount(0, 0),
-                        (key, value, aggregate) -> new SumAndCount(aggregate.sum + value.bid.price, aggregate.count+1),
+                        () -> new SumAndCount(0, 0),
+                        (key, value, aggregate) -> new SumAndCount(aggregate.sum + value.bid.price, aggregate.count + 1),
                         Named.as("windowedavg-agg"), Materialized.<Long, SumAndCount>as(storeSupplier)
                                 .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>())
                                 .withValueSerde(scSerde)
                                 .withKeySerde(Serdes.Long())
                 )
-                .mapValues((key, value) -> (double)value.sum / (double)value.count)
+                .mapValues((key, value) -> (double) value.sum / (double) value.count)
                 .toStream()
                 .peek(caOutput)
                 .to("windowedavg-out", Produced.with(windowedLongSerde, Serdes.Double()));
@@ -73,5 +81,10 @@ public class WindowedAvg implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "windowedAvg");
         return props;
+    }
+
+    @Override
+    public Map<String, CountAction> getCountActionMap() {
+        return caMap;
     }
 }

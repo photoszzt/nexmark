@@ -10,20 +10,26 @@ import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 public class Query2 implements NexmarkQuery {
-    public CountAction<String, Event> caInput;
-    public CountAction<String, Event> caOutput;
+    public Map<String, CountAction> caMap;
 
+    public Query2() {
+        caMap = new HashMap<>();
+        caMap.put("caInput", new CountAction<String, Event>());
+        caMap.put("caOutput", new CountAction<String, Event>());
+    }
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
         NewTopic np = new NewTopic("nexmark-q2", 1, (short) 3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
         StreamsBuilder builder = new StreamsBuilder();
 
-        caInput = new CountAction<>();
-        caOutput = new CountAction<>();
+        CountAction<String, Event> caInput = caMap.get("caInput");
+        CountAction<String, Event> caOutput = caMap.get("caOutput");
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<>();
         serde.setClass(Event.class);
 
@@ -41,5 +47,10 @@ public class Query2 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q2");
         return props;
+    }
+
+    @Override
+    public Map<String, CountAction> getCountActionMap() {
+        return null;
     }
 }
