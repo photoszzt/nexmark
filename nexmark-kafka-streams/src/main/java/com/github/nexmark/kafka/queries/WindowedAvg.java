@@ -26,11 +26,12 @@ public class WindowedAvg implements NexmarkQuery {
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
-        NewTopic out = new NewTopic("windowedavg-out", 1, (short) 3);
-        NewTopic storeTp = new NewTopic("windowedavg-agg-store", 1, (short) 3);
+        int numPartition = 5;
+        NewTopic out = new NewTopic("windowedavg-out", numPartition, (short) 3);
+        // NewTopic storeTp = new NewTopic("windowedavg-agg-store", numPartition, (short) 3);
+
         ArrayList<NewTopic> newTps = new ArrayList<>(2);
         newTps.add(out);
-        newTps.add(storeTp);
         StreamsUtils.createTopic(bootstrapServer, newTps);
 
         StreamsBuilder builder = new StreamsBuilder();
@@ -59,7 +60,7 @@ public class WindowedAvg implements NexmarkQuery {
 
         inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.auction)
-                .repartition(Repartitioned.with(Serdes.Long(), serde).withNumberOfPartitions(5).withName("groupby-repartition-node"))
+                .repartition(Repartitioned.with(Serdes.Long(), serde).withNumberOfPartitions(numPartition).withName("groupby-repar"))
                 .groupByKey(Grouped.with(Serdes.Long(), serde))
                 .windowedBy(tw)
                 .aggregate(
