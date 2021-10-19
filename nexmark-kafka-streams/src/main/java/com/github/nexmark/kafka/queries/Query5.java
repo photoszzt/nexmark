@@ -6,7 +6,6 @@ import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.StartEndTime;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
@@ -34,7 +33,11 @@ public class Query5 implements NexmarkQuery {
         short replicationFactor = 3;
         List<NewTopic> nps = new ArrayList<>();
         NewTopic out = new NewTopic("nexmark-q5-out", numPartition, replicationFactor);
+        NewTopic bidsRepar = new NewTopic("nexmark-q5-bids-repar-repartition", numPartition, replicationFactor);
+        NewTopic auctionBidsRepar = new NewTopic("nexmark-q5-auctionBids-repar-repartition", numPartition, replicationFactor);
         nps.add(out);
+        nps.add(bidsRepar);
+        nps.add(auctionBidsRepar);
         StreamsUtils.createTopic(bootstrapServer, nps);
 
         CountAction<String, Event> caInput = new CountAction<String, Event>();
@@ -65,7 +68,7 @@ public class Query5 implements NexmarkQuery {
         int numberOfPartitions = 5;
         KStream<StartEndTime, AuctionIdCount> auctionBids = bid
                 .repartition(Repartitioned.with(Serdes.Long(), serde)
-                        .withName("auctionBids-repar")
+                        .withName("bids-repar")
                         .withNumberOfPartitions(numberOfPartitions))
                 .groupByKey(Grouped.with(Serdes.Long(), serde))
                 .windowedBy(ts)
