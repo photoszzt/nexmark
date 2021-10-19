@@ -5,21 +5,17 @@ import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.PriceTime;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.streams.processor.ProcessorContext;
-import org.apache.kafka.streams.state.KeyValueStore;
-import org.apache.kafka.streams.state.Stores;
-import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
+import org.apache.kafka.streams.state.*;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 public class Query7 implements NexmarkQuery {
     private Map<String, CountAction> caMap;
@@ -30,8 +26,14 @@ public class Query7 implements NexmarkQuery {
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
-        NewTopic q7 = new NewTopic("nexmark-q7", 1, (short) 3);
-        StreamsUtils.createTopic(bootstrapServer, Collections.singleton(q7));
+        int numPartition = 5;
+        short replicationFactor = 3;
+        List<NewTopic> nps = new ArrayList<>(2);
+        NewTopic q7 = new NewTopic("nexmark-q7-out", numPartition, replicationFactor);
+        NewTopic bidRepar = new NewTopic("nexmark-q7-bid-repartition", numPartition, replicationFactor);
+        nps.add(q7);
+        nps.add(bidRepar);
+        StreamsUtils.createTopic(bootstrapServer, nps);
 
         CountAction<String, Event> caInput = new CountAction<String, Event>();
         CountAction<Long, BidAndMax> caOutput = new CountAction<Long, BidAndMax>();
@@ -58,9 +60,7 @@ public class Query7 implements NexmarkQuery {
         JSONPOJOSerde<PriceTime> ptSerde = new JSONPOJOSerde<>();
         ptSerde.setClass(PriceTime.class);
 
-
-        bid
-                .groupByKey(Grouped.with(Serdes.Long(), serde))
+        bid.groupByKey(Grouped.with(Serdes.Long(), serde))
                 .windowedBy(tw)
                 .aggregate(() -> new PriceTime(0, Instant.MIN), (key, value, aggregate) -> {
                     if (value.bid.price > aggregate.price) {
@@ -77,35 +77,38 @@ public class Query7 implements NexmarkQuery {
         JSONPOJOSerde<BidAndMax> bmSerde = new JSONPOJOSerde<>();
         bmSerde.setClass(BidAndMax.class);
 
-        bid.transformValues(new ValueTransformerWithKeySupplier<Long, Event, BidAndMax>() {
-                    public ValueTransformerWithKey<Long, Event, BidAndMax> get() {
-                        return new ValueTransformerWithKey<Long, Event, BidAndMax>() {
-                            private KeyValueStore<Long, PriceTime> stateStore;
+        bid.transform(new TransformerSupplier<Long, Event, KeyValue<Long, BidAndMax>>() {
+            @Override
+            public Transformer<Long, Event, KeyValue<Long, BidAndMax>> get() {
+                return new Transformer<Long, Event, KeyValue<Long, BidAndMax>>() {
+                    private TimestampedWindowStore<Long, PriceTime> stateStore;
+                    private ProcessorContext pctx;
 
-                            @Override
-                            public void init(ProcessorContext context) {
-                                this.stateStore = (KeyValueStore<Long, PriceTime>) context.getStateStore("max-bid-tab");
-                            }
-
-                            @Override
-                            public BidAndMax transform(Long readOnlyKey, Event value) {
-                                Event event = (Event) value;
-                                PriceTime pt = (PriceTime) this.stateStore.get(readOnlyKey);
-                                if (pt != null) {
-                                    return new BidAndMax(event.bid.auction, event.bid.price, event.bid.bidder,
-                                            event.bid.dateTime, event.bid.extra, pt.dateTime);
-                                } else {
-                                    return null;
-                                }
-                            }
-
-                            @Override
-                            public void close() {
-
-                            }
-                        };
+                    @Override
+                    public void init(ProcessorContext processorContext) {
+                        this.stateStore = (TimestampedWindowStore<Long, PriceTime>) processorContext.getStateStore("max-bid-tab");
+                        this.pctx = processorContext;
                     }
-                }, "max-bid-tab")
+
+                    @Override
+                    public KeyValue<Long, BidAndMax> transform(Long aLong, Event event) {
+                        WindowStoreIterator<ValueAndTimestamp<PriceTime>> ptIter = this.stateStore.fetch(aLong, event.bid.dateTime.minusSeconds(10), event.bid.dateTime);
+                        while (ptIter.hasNext()) {
+                            KeyValue<Long, ValueAndTimestamp<PriceTime>> kv = ptIter.next();
+                            if (event.bid.price == kv.value.value().price) {
+                                pctx.forward(aLong, new BidAndMax(event.bid.auction, event.bid.price, event.bid.bidder,
+                                        event.bid.dateTime, event.bid.extra, kv.value.value().dateTime));
+                            }
+                        }
+                        return null;
+                    }
+
+                    @Override
+                    public void close() {
+                    }
+                };
+            }
+        }, "max-bid-tab")
                 .filter((key, value) -> {
                     Instant lb = value.maxDateTime.minus(10, ChronoUnit.SECONDS);
                     return value.dateTime.compareTo(lb) >= 0 && value.dateTime.compareTo(value.maxDateTime) <= 0;
