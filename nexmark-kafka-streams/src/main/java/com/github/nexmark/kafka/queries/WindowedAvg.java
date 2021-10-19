@@ -22,8 +22,6 @@ public class WindowedAvg implements NexmarkQuery {
 
     public WindowedAvg() {
         this.caMap = new HashMap<>();
-        caMap.put("caInput", new CountAction<String, Event>());
-        caMap.put("caOutput", new CountAction<Windowed<Long>, Double>());
     }
 
     @Override
@@ -41,8 +39,12 @@ public class WindowedAvg implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
-        CountAction<String, Event> caInput = caMap.get("caInput");
-        CountAction<Windowed<Long>, Double> caOutput = caMap.get("caOutput");
+
+        CountAction<String, Event> caInput = new CountAction<String, Event>();
+        CountAction<Windowed<Long>, Double> caOutput = new CountAction<Windowed<Long>, Double>();
+        caMap.put("caInput", caInput);
+        caMap.put("caOutput", caOutput);
+
         TimeWindows tw = TimeWindows.of(Duration.ofSeconds(10));
         WindowBytesStoreSupplier storeSupplier = Stores.inMemoryWindowStore("windowedavg-agg-store",
                 Duration.ofMillis(tw.gracePeriodMs() + tw.size()), Duration.ofMillis(tw.size()), false);

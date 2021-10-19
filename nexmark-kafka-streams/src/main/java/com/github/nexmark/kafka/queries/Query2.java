@@ -19,8 +19,6 @@ public class Query2 implements NexmarkQuery {
 
     public Query2() {
         caMap = new HashMap<>();
-        caMap.put("caInput", new CountAction<String, Event>());
-        caMap.put("caOutput", new CountAction<String, Event>());
     }
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
@@ -28,8 +26,10 @@ public class Query2 implements NexmarkQuery {
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
         StreamsBuilder builder = new StreamsBuilder();
 
-        CountAction<String, Event> caInput = caMap.get("caInput");
-        CountAction<String, Event> caOutput = caMap.get("caOutput");
+        CountAction<String, Event> caInput = new CountAction<String, Event>();
+        CountAction<String, Event> caOutput = new CountAction<String, Event>();
+        caMap.put("caInput", caInput);
+        caMap.put("caOutput", caOutput);
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<>();
         serde.setClass(Event.class);
 

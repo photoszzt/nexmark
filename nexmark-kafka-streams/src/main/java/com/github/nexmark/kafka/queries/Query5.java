@@ -25,8 +25,6 @@ public class Query5 implements NexmarkQuery {
 
     public Query5() {
         caMap = new HashMap<>();
-        caMap.put("caInput", new CountAction<String, Event>());
-        caMap.put("caOutput", new CountAction<StartEndTime, AuctionIdCntMax>());
     }
 
     @Override
@@ -35,8 +33,10 @@ public class Query5 implements NexmarkQuery {
         NewTopic np = new NewTopic("nexmark-q5", 1, (short) 3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
 
-        CountAction<String, Event> caInput = caMap.get("caInput");
-        CountAction<StartEndTime, AuctionIdCntMax> caOutput = caMap.get("caOutput");
+        CountAction<String, Event> caInput = new CountAction<String, Event>();
+        CountAction<StartEndTime, AuctionIdCntMax> caOutput = new CountAction<StartEndTime, AuctionIdCntMax>();
+        caMap.put("caInput", caInput);
+        caMap.put("caOutput", caOutput);
 
         StreamsBuilder builder = new StreamsBuilder();
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
