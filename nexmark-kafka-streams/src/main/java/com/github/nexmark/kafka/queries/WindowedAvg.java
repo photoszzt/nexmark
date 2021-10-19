@@ -30,7 +30,6 @@ public class WindowedAvg implements NexmarkQuery {
         short replicationFactor = 3;
         NewTopic out = new NewTopic("windowedavg-out", numPartition, replicationFactor);
         NewTopic groupByRepar = new NewTopic("windowedAvg-groupby-repar-repartition", numPartition, replicationFactor);
-        // NewTopic storeTp = new NewTopic("windowedavg-agg-store", numPartition, (short) 3);
 
         ArrayList<NewTopic> newTps = new ArrayList<>(2);
         newTps.add(out);
