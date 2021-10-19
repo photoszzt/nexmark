@@ -10,9 +10,10 @@ import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.Properties;
 
 public class Query3 implements NexmarkQuery {
@@ -25,8 +26,17 @@ public class Query3 implements NexmarkQuery {
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
-        NewTopic np = new NewTopic("nexmark-q3", 1, (short) 3);
-        StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
+        int numPartition = 5;
+        short repartitionFactor = 3;
+        NewTopic out = new NewTopic("nexmark-q3-out", numPartition, repartitionFactor);
+        NewTopic auctionBySellerIdTabPar = new NewTopic("nexmark-q3-auctionBySellerIdTab-repartition", numPartition, repartitionFactor);
+        NewTopic persionsByIdTabPar = new NewTopic("nexmakr-q3-personsByIdTab-repartition", numPartition, repartitionFactor);
+        List<NewTopic> nps = new ArrayList<NewTopic>(3);
+        nps.add(out);
+        nps.add(auctionBySellerIdTabPar);
+        nps.add(persionsByIdTabPar);
+
+        StreamsUtils.createTopic(bootstrapServer, nps);
 
         StreamsBuilder builder = new StreamsBuilder();
 

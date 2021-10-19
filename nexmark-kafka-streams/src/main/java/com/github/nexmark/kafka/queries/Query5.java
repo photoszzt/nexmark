@@ -15,10 +15,11 @@ import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 
 import java.time.Duration;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.List;
+import java.util.ArrayList;
 
 public class Query5 implements NexmarkQuery {
     private Map<String, CountAction> caMap;
@@ -29,9 +30,14 @@ public class Query5 implements NexmarkQuery {
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
-
-        NewTopic np = new NewTopic("nexmark-q5", 1, (short) 3);
-        StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
+        int numPartition = 5;
+        short replicationFactor = 3;
+        List<NewTopic> nps = new ArrayList<>();
+        NewTopic out = new NewTopic("nexmark-q5-out", numPartition, replicationFactor);
+        NewTopic maxBidsRepar = new NewTopic("nexmark-q5-maxBids-repar-repartition", numPartition, replicationFactor);
+        nps.add(out);
+        nps.add(maxBidsRepar);
+        StreamsUtils.createTopic(bootstrapServer, nps);
 
         CountAction<String, Event> caInput = new CountAction<String, Event>();
         CountAction<StartEndTime, AuctionIdCntMax> caOutput = new CountAction<StartEndTime, AuctionIdCntMax>();
@@ -41,6 +47,13 @@ public class Query5 implements NexmarkQuery {
         StreamsBuilder builder = new StreamsBuilder();
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
         serde.setClass(Event.class);
+        JSONPOJOSerde<StartEndTime> seSerde = new JSONPOJOSerde<StartEndTime>();
+        seSerde.setClass(StartEndTime.class);
+        JSONPOJOSerde<AuctionIdCount> aicSerde = new JSONPOJOSerde<AuctionIdCount>();
+        aicSerde.setClass(AuctionIdCount.class);
+        JSONPOJOSerde<AuctionIdCntMax> aicmSerde = new JSONPOJOSerde<AuctionIdCntMax>();
+        aicmSerde.setClass(AuctionIdCntMax.class);
+
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
                 .withTimestampExtractor(new JSONTimestampExtractor()));
@@ -54,7 +67,7 @@ public class Query5 implements NexmarkQuery {
         int numberOfPartitions = 5;
         KStream<StartEndTime, AuctionIdCount> auctionBids = bid
                 .repartition(Repartitioned.with(Serdes.Long(), serde)
-                        .withName("auctionBids-repartition-node")
+                        .withName("auctionBids-repar")
                         .withNumberOfPartitions(numberOfPartitions))
                 .groupByKey(Grouped.with(Serdes.Long(), serde))
                 .windowedBy(ts)
@@ -74,20 +87,14 @@ public class Query5 implements NexmarkQuery {
                             value
                     );
                     return KeyValue.pair(startEndTime, val);
-                });
+                })
+                .repartition(Repartitioned.with(seSerde, aicSerde)
+                        .withName("auctionBids-repar")
+                        .withNumberOfPartitions(numberOfPartitions));
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
-        JSONPOJOSerde<StartEndTime> seSerde = new JSONPOJOSerde<StartEndTime>();
-        seSerde.setClass(StartEndTime.class);
-        JSONPOJOSerde<AuctionIdCount> aicSerde = new JSONPOJOSerde<AuctionIdCount>();
-        aicSerde.setClass(AuctionIdCount.class);
-        JSONPOJOSerde<AuctionIdCntMax> aicmSerde = new JSONPOJOSerde<AuctionIdCntMax>();
-        aicmSerde.setClass(AuctionIdCntMax.class);
-
+        
         KTable<StartEndTime, Long> maxBids = auctionBids
-                .repartition(Repartitioned.with(seSerde, aicSerde)
-                        .withName("maxBids-repartition-node")
-                        .withNumberOfPartitions(numberOfPartitions))
                 .groupByKey(Grouped.with(seSerde, aicSerde))
                 .aggregate(() -> 0L,
                         (key, value, aggregate) -> {
