@@ -6,16 +6,12 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.Consumed;
-import org.apache.kafka.streams.kstream.JoinWindows;
-import org.apache.kafka.streams.kstream.KStream;
-import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.*;
+import org.apache.kafka.streams.state.Stores;
+import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 
 import java.time.Duration;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 public class Query8 implements NexmarkQuery {
     private Map<String, CountAction> caMap;
@@ -26,8 +22,16 @@ public class Query8 implements NexmarkQuery {
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
-        NewTopic q8 = new NewTopic("nexmark-q8", 1, (short) 3);
-        StreamsUtils.createTopic(bootstrapServer, Collections.singleton(q8));
+        int numPartition = 5;
+        short replicationFactor = 3;
+        List<NewTopic> nps = new ArrayList<>(3);
+        NewTopic q8 = new NewTopic("nexmark-q8-out", numPartition, replicationFactor);
+        NewTopic personRepar = new NewTopic("nexmark-q8-person-repartition", numPartition, replicationFactor);
+        NewTopic auctionRepar = new NewTopic("nexmark-q8-auction-repartition", numPartition, replicationFactor);
+        nps.add(q8);
+        nps.add(personRepar);
+        nps.add(auctionRepar);
+        StreamsUtils.createTopic(bootstrapServer, nps);
 
         CountAction<String, Event> caInput = new CountAction<String, Event>();
         CountAction<Long, PersonTime> caOutput = new CountAction<Long, PersonTime>();
@@ -46,15 +50,38 @@ public class Query8 implements NexmarkQuery {
         KStream<Long, Event> person = inputs
                 .peek(caInput)
                 .filter((key, value) -> value.etype == Event.Type.PERSON)
-                .selectKey((key, value) -> value.newPerson.id);
+                .selectKey((key, value) -> value.newPerson.id)
+                .repartition(Repartitioned.with(Serdes.Long(), serde)
+                        .withName("person-repartition")
+                        .withNumberOfPartitions(numPartition));
 
         KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.Type.AUCTION)
-                .selectKey((key, value) -> value.newAuction.seller);
+                .selectKey((key, value) -> value.newAuction.seller)
+                .repartition(Repartitioned.with(Serdes.Long(), serde)
+                        .withName("auction-repartition")
+                        .withNumberOfPartitions(numPartition));
 
-        auction.join(person,
-                        (leftValue, rightValue) -> new PersonTime(rightValue.newPerson.id, rightValue.newPerson.name, 0), JoinWindows.of(Duration.ofSeconds(10)))
+        JoinWindows jw = JoinWindows.of(Duration.ofSeconds(10));
+        WindowBytesStoreSupplier auctionStoreSupplier = Stores.inMemoryWindowStore(
+                "auction-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()), Duration.ofMillis(jw.size()), true
+        );
+        WindowBytesStoreSupplier personStoreSupplier = Stores.inMemoryWindowStore(
+                "person-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()), Duration.ofMillis(jw.size()), true
+        );
+        auction.join(person, new ValueJoiner<Event, Event, PersonTime>() {
+                            @Override
+                            public PersonTime apply(Event event, Event event2) {
+                                return new PersonTime(event2.newPerson.id, event2.newPerson.name, 0);
+                            }
+                        }, jw, StreamJoined.<Long, Event, Event>with(auctionStoreSupplier, personStoreSupplier)
+                                .withKeySerde(Serdes.Long())
+                                .withValueSerde(serde)
+                                .withOtherValueSerde(serde)
+                                .withLoggingEnabled(new HashMap<>())
+                                .withStoreName("auction-join-persion-store")
+                )
                 .peek(caOutput)
-                .to("nexmark-q8", Produced.with(Serdes.Long(), ptSerde));
+                .to("nexmark-q8-out", Produced.with(Serdes.Long(), ptSerde));
         return builder;
     }
 
