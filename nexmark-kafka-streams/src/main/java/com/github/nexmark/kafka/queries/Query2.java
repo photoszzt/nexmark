@@ -20,6 +20,7 @@ public class Query2 implements NexmarkQuery {
     public Query2() {
         caMap = new HashMap<>();
     }
+
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer) {
         NewTopic np = new NewTopic("nexmark-q2", 1, (short) 3);
@@ -30,22 +31,24 @@ public class Query2 implements NexmarkQuery {
         CountAction<String, Event> caOutput = new CountAction<String, Event>();
         caMap.put("caInput", caInput);
         caMap.put("caOutput", caOutput);
+        
         JSONPOJOSerde<Event> serde = new JSONPOJOSerde<>();
         serde.setClass(Event.class);
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), serde)
                         .withTimestampExtractor(new JSONTimestampExtractor()));
-        KStream<String, Event> q2Out = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
-                .filter((key, value) -> value.bid.auction % 123 == 0);
-        q2Out.peek(caOutput).to("nexmark-q2-out", Produced.valueSerde(serde));
+        inputs.peek(caInput)
+                .filter((key, value) -> value.etype == Event.Type.BID && value.bid.auction % 123 == 0)
+                .peek(caOutput)
+                .to("nexmark-q2-out", Produced.valueSerde(serde));
         return builder;
     }
 
     @Override
     public Properties getProperties(String bootstrapServer) {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
-        props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q2");
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q2");
         return props;
     }
 
