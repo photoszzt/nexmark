@@ -33,8 +33,8 @@ public class Query5 implements NexmarkQuery {
         short replicationFactor = 3;
         List<NewTopic> nps = new ArrayList<>();
         NewTopic out = new NewTopic("nexmark-q5-out", numPartition, replicationFactor);
-        NewTopic bidsRepar = new NewTopic("nexmark-q5-bids-repar-repartition", numPartition, replicationFactor);
-        NewTopic auctionBidsRepar = new NewTopic("nexmark-q5-auctionBids-repar-repartition", numPartition, replicationFactor);
+        NewTopic bidsRepar = new NewTopic("nexmark-q5-bids-repartition", numPartition, replicationFactor);
+        NewTopic auctionBidsRepar = new NewTopic("nexmark-q5-auctionBids-repartition", numPartition, replicationFactor);
         nps.add(out);
         nps.add(bidsRepar);
         nps.add(auctionBidsRepar);
@@ -68,7 +68,7 @@ public class Query5 implements NexmarkQuery {
         int numberOfPartitions = 5;
         KStream<StartEndTime, AuctionIdCount> auctionBids = bid
                 .repartition(Repartitioned.with(Serdes.Long(), serde)
-                        .withName("bids-repar")
+                        .withName("bids-repartition")
                         .withNumberOfPartitions(numberOfPartitions))
                 .groupByKey(Grouped.with(Serdes.Long(), serde))
                 .windowedBy(ts)
@@ -82,7 +82,7 @@ public class Query5 implements NexmarkQuery {
                 .mapValues((key, value) -> new AuctionIdCount(key.key(), value))
                 .selectKey((key, value) -> new StartEndTime(key.window().start(), key.window().end()))
                 .repartition(Repartitioned.with(seSerde, aicSerde)
-                        .withName("auctionBids-repar")
+                        .withName("auctionBids-repartition")
                         .withNumberOfPartitions(numberOfPartitions));
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
