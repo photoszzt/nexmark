@@ -78,16 +78,8 @@ public class Query5 implements NexmarkQuery {
                                 .withKeySerde(Serdes.Long())
                                 .withValueSerde(Serdes.Long()))
                 .toStream()
-                .map((key, value) -> {
-                    final StartEndTime startEndTime = new StartEndTime(
-                            key.window().start(),
-                            key.window().end());
-                    final AuctionIdCount val = new AuctionIdCount(
-                            key.key(),
-                            value
-                    );
-                    return KeyValue.pair(startEndTime, val);
-                })
+                .mapValues((key, value) -> new AuctionIdCount(key.key(), value))
+                .selectKey((key, value) -> new StartEndTime(key.window().start(), key.window().end()))
                 .repartition(Repartitioned.with(seSerde, aicSerde)
                         .withName("auctionBids-repar")
                         .withNumberOfPartitions(numberOfPartitions));
