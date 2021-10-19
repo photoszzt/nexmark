@@ -34,9 +34,7 @@ public class Query5 implements NexmarkQuery {
         short replicationFactor = 3;
         List<NewTopic> nps = new ArrayList<>();
         NewTopic out = new NewTopic("nexmark-q5-out", numPartition, replicationFactor);
-        NewTopic maxBidsRepar = new NewTopic("nexmark-q5-maxBids-repar-repartition", numPartition, replicationFactor);
         nps.add(out);
-        nps.add(maxBidsRepar);
         StreamsUtils.createTopic(bootstrapServer, nps);
 
         CountAction<String, Event> caInput = new CountAction<String, Event>();
