@@ -41,7 +41,7 @@ public class WindowedAvg implements NexmarkQuery {
         serde.setClass(Event.class);
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
-                .withTimestampExtractor(new JSONTimestampExtractor()));
+                .withTimestampExtractor(new EventTimestampExtractor()));
 
         CountAction<String, Event> caInput = new CountAction<String, Event>();
         CountAction<Windowed<Long>, Double> caOutput = new CountAction<Windowed<Long>, Double>();

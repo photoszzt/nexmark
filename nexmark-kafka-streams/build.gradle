@@ -12,6 +12,8 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.8.8'
     implementation 'com.google.code.gson:gson:2.8.8'
     implementation 'org.apache.commons:commons-lang3:3.12.0'
+    implementation 'org.msgpack:msgpack-core:0.9.0'
+    implementation 'org.msgpack:jackson-dataformat-msgpack:0.9.0'
 }
 
 tasks.register('uberJar', Jar) {

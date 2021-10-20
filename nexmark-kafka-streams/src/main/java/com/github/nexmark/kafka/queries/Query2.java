@@ -37,7 +37,7 @@ public class Query2 implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), serde)
-                        .withTimestampExtractor(new JSONTimestampExtractor()));
+                        .withTimestampExtractor(new EventTimestampExtractor()));
         inputs.peek(caInput)
                 .filter((key, value) -> value.etype == Event.Type.BID && value.bid.auction % 123 == 0)
                 .peek(caOutput)

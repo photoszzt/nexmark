@@ -45,7 +45,7 @@ public class Query7 implements NexmarkQuery {
         serde.setClass(Event.class);
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(Serdes.String(), serde).withTimestampExtractor(new JSONTimestampExtractor()));
+                Consumed.with(Serdes.String(), serde).withTimestampExtractor(new EventTimestampExtractor()));
 
         int numberOfPartition = 5;
         KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)

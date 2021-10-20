@@ -45,7 +45,7 @@ public class Query8 implements NexmarkQuery {
         ptSerde.setClass(PersonTime.class);
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
-                .withTimestampExtractor(new JSONTimestampExtractor()));
+                .withTimestampExtractor(new EventTimestampExtractor()));
 
         KStream<Long, Event> person = inputs
                 .peek(caInput)

@@ -51,7 +51,7 @@ public class Query3 implements NexmarkQuery {
         ncsiSerde.setClass(NameCityStateId.class);
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
-                .withTimestampExtractor(new JSONTimestampExtractor()));
+                .withTimestampExtractor(new EventTimestampExtractor()));
 
         KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores.inMemoryKeyValueStore("auctionBySellerIdKV");
         KTable<Long, Event> auctionsBySellerId = inputs.peek(caInput)

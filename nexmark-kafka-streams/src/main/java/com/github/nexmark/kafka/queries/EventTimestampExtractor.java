@@ -5,7 +5,7 @@ import com.github.nexmark.kafka.model.Event;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.streams.processor.TimestampExtractor;
 
-public class JSONTimestampExtractor implements TimestampExtractor {
+public class EventTimestampExtractor implements TimestampExtractor {
 
     @Override
     public long extract(ConsumerRecord<Object, Object> record, final long partitionTime) {
@@ -21,7 +21,6 @@ public class JSONTimestampExtractor implements TimestampExtractor {
                 throw new IllegalArgumentException("event type should be 0, 1 or 2; got " + e.etype);
             }
         }
-        throw new IllegalArgumentException("JsonTimestampExtractor cannot recognize the record value " + record.value());
+        throw new IllegalArgumentException("EventTimestampExtractor cannot recognize the record value " + record.value());
     }
-
 }

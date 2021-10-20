@@ -32,7 +32,7 @@ public class Query1 implements NexmarkQuery {
         eSerde.setClass(Event.class);
 
         final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
-                .withTimestampExtractor(new JSONTimestampExtractor()));
+                .withTimestampExtractor(new EventTimestampExtractor()));
 
         CountAction<String, Event> caInput = new CountAction<>();
         CountAction<String, Event> caOutput = new CountAction<>();

@@ -29,7 +29,7 @@ public class Query4 implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), serde)
-                        .withTimestampExtractor(new JSONTimestampExtractor()));
+                        .withTimestampExtractor(new EventTimestampExtractor()));
 
         KeyValueBytesStoreSupplier bidKVSupplier = Stores.inMemoryKeyValueStore("bidTab");
         KTable<Long, Event> bid = inputs
