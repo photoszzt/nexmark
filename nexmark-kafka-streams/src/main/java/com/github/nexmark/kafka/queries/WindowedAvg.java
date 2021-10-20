@@ -25,7 +25,7 @@ public class WindowedAvg implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
         int numPartition = 5;
         short replicationFactor = 3;
         NewTopic out = new NewTopic("windowedavg-out", numPartition, replicationFactor);
@@ -37,10 +37,19 @@ public class WindowedAvg implements NexmarkQuery {
         StreamsUtils.createTopic(bootstrapServer, newTps);
 
         StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
-        serde.setClass(Event.class);
-
-        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
+        Serde<Event> eSerde;
+        if (serde.equals("json")) {
+            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
+            eSerdeJSON.setClass(Event.class);
+            eSerde = eSerdeJSON;
+        } else if (serde.equals("msgp")) {
+            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            eSerdeMsgp.setClass(Event.class);
+            eSerde = eSerdeMsgp;
+        } else {
+            throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
+        }
+        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));
 
         CountAction<String, Event> caInput = new CountAction<String, Event>();
@@ -62,8 +71,8 @@ public class WindowedAvg implements NexmarkQuery {
 
         inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.auction)
-                .repartition(Repartitioned.with(Serdes.Long(), serde).withNumberOfPartitions(numPartition).withName("groupby-repar"))
-                .groupByKey(Grouped.with(Serdes.Long(), serde))
+                .repartition(Repartitioned.with(Serdes.Long(), eSerde).withNumberOfPartitions(numPartition).withName("groupby-repar"))
+                .groupByKey(Grouped.with(Serdes.Long(), eSerde))
                 .windowedBy(tw)
                 .aggregate(
                         () -> new SumAndCount(0, 0),

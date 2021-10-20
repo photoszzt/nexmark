@@ -1,6 +1,10 @@
 package com.github.nexmark.kafka.queries;
 
-import java.util.Properties;
+import org.apache.commons.cli.*;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.Topology;
@@ -10,40 +14,33 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
 public class RunQuery {
-  private static NexmarkQuery getNexmarkQuery(int queryNumber) {
-    switch (queryNumber) {
-    case 1:
-      return new Query1();
-    case 2:
-      return new Query2();
-    case 3:
-      return new Query3();
-    case 4:
-      return new Query4();
-    case 5:
-      return new Query5();
-    case 6:
-      return new Query6();
-    case 7:
-      return new Query7();
-    case 8:
-      return new Query8();
-    case 9:
-      return new WindowedAvg();
-    default:
-      System.err.println("Wrong query number: " + queryNumber);
-      return null;
-    }
-  }
+    private static final Option APP_NAME = new Option("n", "name", true, "app name");
+    private static final Option SERDE = new Option("s", "serde", true, "serde");
 
-  public static void main(final String[] args) {
-    if (args.length != 1) {
-      System.err.println("Need to specify query number");
-      System.exit(1);
-    }
-    System.out.println(args.length);
-    for (int i = 0; i < args.length; i++) {
-      System.out.println(args[i]);
+    private static NexmarkQuery getNexmarkQuery(String appName) {
+        switch (appName) {
+            case "q1":
+                return new Query1();
+            case "q2":
+                return new Query2();
+            case "q3":
+                return new Query3();
+            case "q4":
+                return new Query4();
+            case "q5":
+                return new Query5();
+            case "q6":
+                return new Query6();
+            case "q7":
+                return new Query7();
+            case "q8":
+                return new Query8();
+            case "windowedAvg":
+                return new WindowedAvg();
+            default:
+                System.err.println("Unrecognized app name: " + appName);
+                return null;
+        }
     }
 
     public static String getEnvValue(String envKey, String defaultVal) {
@@ -54,22 +51,27 @@ public class RunQuery {
         return defaultVal;
     }
 
-    public static void main(final String[] args) {
-        if (args.length != 1) {
-            System.err.println("Need to specify query number");
+    public static void main(final String[] args) throws ParseException {
+        if (args == null || args.length == 0) {
+            System.err.println("Usage: --name <q1> --serde json");
             System.exit(1);
         }
+        Options options = getOptions();
+        DefaultParser parser = new DefaultParser();
+        CommandLine line = parser.parse(options, args, true);
+        String appName = line.getOptionValue(APP_NAME.getOpt());
+        String serde = line.getOptionValue(SERDE.getOpt());
+
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
         for (int i = 0; i < args.length; i++) {
             System.out.println(args[i]);
         }
-        
-        int queryNumber = Integer.parseInt(args[0]);
-        NexmarkQuery query = getNexmarkQuery(queryNumber);
+
+        NexmarkQuery query = getNexmarkQuery(appName);
         if (query == null) {
             System.exit(1);
         }
-        StreamsBuilder builder = query.getStreamBuilder(bootstrapServers);
+        StreamsBuilder builder = query.getStreamBuilder(bootstrapServers, serde);
         Properties props = query.getProperties(bootstrapServers);
         Topology tp = builder.build();
         System.out.println(tp.describe());
@@ -115,12 +117,11 @@ public class RunQuery {
         }
         System.exit(0);
     }
-    StreamsBuilder builder = query.getStreamBuilder();
-    Properties props = query.getProperties();
-    Topology tp = builder.build();
-    System.out.println(tp.describe());
-    final KafkaStreams streams = new KafkaStreams(tp, props);
-    Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
-    streams.start();
-  }
+
+    private static Options getOptions() {
+        Options options = new Options();
+        options.addOption(APP_NAME);
+        options.addOption(SERDE);
+        return options;
+    }
 }

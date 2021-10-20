@@ -3,6 +3,7 @@ package com.github.nexmark.kafka.queries;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.PersonTime;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
@@ -21,7 +22,7 @@ public class Query8 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
         int numPartition = 5;
         short replicationFactor = 3;
         List<NewTopic> nps = new ArrayList<>(3);
@@ -39,25 +40,43 @@ public class Query8 implements NexmarkQuery {
         caMap.put("caOutput", caOutput);
 
         StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
-        serde.setClass(Event.class);
-        JSONPOJOSerde<PersonTime> ptSerde = new JSONPOJOSerde<>();
-        ptSerde.setClass(PersonTime.class);
 
-        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), serde)
+        Serde<Event> eSerde;
+        Serde<PersonTime> ptSerde;
+        if (serde.equals("json")) {
+            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
+            eSerdeJSON.setClass(Event.class);
+            eSerde = eSerdeJSON;
+
+            JSONPOJOSerde<PersonTime> ptSerdeJSON = new JSONPOJOSerde<>();
+            ptSerdeJSON.setClass(PersonTime.class);
+            ptSerde = ptSerdeJSON;
+        } else if (serde.equals("msgp")) {
+            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            eSerdeMsgp.setClass(Event.class);
+            eSerde = eSerdeMsgp;
+
+            MsgpPOJOSerde<PersonTime> ptSerdeMsgp = new MsgpPOJOSerde<>();
+            ptSerdeMsgp.setClass(PersonTime.class);
+            ptSerde = ptSerdeMsgp;
+        } else {
+            throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
+        }
+
+        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));
 
         KStream<Long, Event> person = inputs
                 .peek(caInput)
                 .filter((key, value) -> value.etype == Event.Type.PERSON)
                 .selectKey((key, value) -> value.newPerson.id)
-                .repartition(Repartitioned.with(Serdes.Long(), serde)
+                .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName("person-repartition")
                         .withNumberOfPartitions(numPartition));
 
         KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.Type.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller)
-                .repartition(Repartitioned.with(Serdes.Long(), serde)
+                .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName("auction-repartition")
                         .withNumberOfPartitions(numPartition));
 
@@ -75,8 +94,8 @@ public class Query8 implements NexmarkQuery {
                             }
                         }, jw, StreamJoined.<Long, Event, Event>with(auctionStoreSupplier, personStoreSupplier)
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(serde)
-                                .withOtherValueSerde(serde)
+                                .withValueSerde(eSerde)
+                                .withOtherValueSerde(eSerde)
                                 .withLoggingEnabled(new HashMap<>())
                                 .withStoreName("auction-join-persion-store")
                 )

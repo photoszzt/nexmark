@@ -15,7 +15,7 @@ public class Query6 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
         return null;
     }
 

@@ -3,6 +3,7 @@ package com.github.nexmark.kafka.queries;
 import com.github.nexmark.kafka.model.Bid;
 import com.github.nexmark.kafka.model.Event;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
@@ -23,13 +24,23 @@ public class Query1 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
         NewTopic np = new NewTopic("nexmark-q1", 1, (short) 3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
 
+        Serde<Event> eSerde;
         StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> eSerde = new JSONPOJOSerde<>();
-        eSerde.setClass(Event.class);
+        if (serde.equals("json")) {
+            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<>();
+            eSerdeJSON.setClass(Event.class);
+            eSerde = eSerdeJSON;
+        } else if (serde.equals("msgp")) {
+            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            eSerdeMsgp.setClass(Event.class);
+            eSerde = eSerdeMsgp;
+        } else {
+            throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
+        }
 
         final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));

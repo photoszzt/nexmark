@@ -3,6 +3,7 @@ package com.github.nexmark.kafka.queries;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.NameCityStateId;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
@@ -25,7 +26,7 @@ public class Query3 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
         int numPartition = 5;
         short repartitionFactor = 3;
         NewTopic out = new NewTopic("nexmark-q3-out", numPartition, repartitionFactor);
@@ -35,7 +36,6 @@ public class Query3 implements NexmarkQuery {
         nps.add(out);
         nps.add(auctionBySellerIdTabPar);
         nps.add(persionsByIdTabPar);
-
         StreamsUtils.createTopic(bootstrapServer, nps);
 
         StreamsBuilder builder = new StreamsBuilder();
@@ -45,10 +45,27 @@ public class Query3 implements NexmarkQuery {
         caMap.put("caInput", caInput);
         caMap.put("caOutput", caOutput);
 
-        JSONPOJOSerde<Event> eSerde = new JSONPOJOSerde<>();
-        eSerde.setClass(Event.class);
-        JSONPOJOSerde<NameCityStateId> ncsiSerde = new JSONPOJOSerde<>();
-        ncsiSerde.setClass(NameCityStateId.class);
+        Serde<Event> eSerde;
+        Serde<NameCityStateId> ncsiSerde;
+        if (serde.equals("json")) {
+            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<>();
+            eSerdeJSON.setClass(Event.class);
+            eSerde = eSerdeJSON;
+
+            JSONPOJOSerde<NameCityStateId> ncsiSerdeJSON = new JSONPOJOSerde<>();
+            ncsiSerdeJSON.setClass(NameCityStateId.class);
+            ncsiSerde = ncsiSerdeJSON;
+        } else if (serde.equals("msgp")) {
+            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            eSerdeMsgp.setClass(Event.class);
+            eSerde = eSerdeMsgp;
+
+            MsgpPOJOSerde<NameCityStateId> ncsiSerdeMsgp = new MsgpPOJOSerde<>();
+            ncsiSerdeMsgp.setClass(NameCityStateId.class);
+            ncsiSerde = ncsiSerdeMsgp;
+        } else {
+            throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
+        }
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));

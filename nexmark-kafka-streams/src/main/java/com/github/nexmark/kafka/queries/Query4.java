@@ -3,6 +3,7 @@ package com.github.nexmark.kafka.queries;
 import com.github.nexmark.kafka.model.AucIdCategory;
 import com.github.nexmark.kafka.model.AuctionBid;
 import com.github.nexmark.kafka.model.Event;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -22,13 +23,23 @@ public class Query4 implements NexmarkQuery {
         caMap = new HashMap<>();
     }
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
         StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
-        serde.setClass(Event.class);
+        Serde<Event> eSerde;
+        if (serde.equals("json")) {
+            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
+            eSerdeJSON.setClass(Event.class);
+            eSerde = eSerdeJSON;
+        } else if (serde.equals("msgp")) {
+            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            eSerdeMsgp.setClass(Event.class);
+            eSerde = eSerdeMsgp;
+        } else {
+            throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
+        }
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(Serdes.String(), serde)
+                Consumed.with(Serdes.String(), eSerde)
                         .withTimestampExtractor(new EventTimestampExtractor()));
 
         KeyValueBytesStoreSupplier bidKVSupplier = Stores.inMemoryKeyValueStore("bidTab");
@@ -40,7 +51,7 @@ public class Query4 implements NexmarkQuery {
                                 .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>())
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(serde));
+                                .withValueSerde(eSerde));
 
         KeyValueBytesStoreSupplier auctionKVSupplier = Stores.inMemoryKeyValueStore("auctionTab");
         KTable<Long, Event> auction = inputs
@@ -51,7 +62,7 @@ public class Query4 implements NexmarkQuery {
                                 .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>())
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(serde));
+                                .withValueSerde(eSerde));
 
         auction.join(bid, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime,
                         leftValue.newAuction.dateTime, leftValue.newAuction.expires,

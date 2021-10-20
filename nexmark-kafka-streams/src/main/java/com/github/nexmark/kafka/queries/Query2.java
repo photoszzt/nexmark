@@ -2,6 +2,7 @@ package com.github.nexmark.kafka.queries;
 
 import com.github.nexmark.kafka.model.Event;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
@@ -22,7 +23,7 @@ public class Query2 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
         NewTopic np = new NewTopic("nexmark-q2", 1, (short) 3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
         StreamsBuilder builder = new StreamsBuilder();
@@ -31,17 +32,27 @@ public class Query2 implements NexmarkQuery {
         CountAction<String, Event> caOutput = new CountAction<String, Event>();
         caMap.put("caInput", caInput);
         caMap.put("caOutput", caOutput);
-        
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<>();
-        serde.setClass(Event.class);
+
+        Serde<Event> eSerde;
+        if (serde.equals("json")) {
+            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<>();
+            eSerdeJSON.setClass(Event.class);
+            eSerde = eSerdeJSON;
+        } else if (serde.equals("msgp")) {
+            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            eSerdeMsgp.setClass(Event.class);
+            eSerde = eSerdeMsgp;
+        } else {
+            throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
+        }
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(Serdes.String(), serde)
+                Consumed.with(Serdes.String(), eSerde)
                         .withTimestampExtractor(new EventTimestampExtractor()));
         inputs.peek(caInput)
                 .filter((key, value) -> value.etype == Event.Type.BID && value.bid.auction % 123 == 0)
                 .peek(caOutput)
-                .to("nexmark-q2-out", Produced.valueSerde(serde));
+                .to("nexmark-q2-out", Produced.valueSerde(eSerde));
         return builder;
     }
 

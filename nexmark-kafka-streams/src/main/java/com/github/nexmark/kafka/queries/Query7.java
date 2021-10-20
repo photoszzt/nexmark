@@ -4,6 +4,7 @@ import com.github.nexmark.kafka.model.BidAndMax;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.PriceTime;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -25,7 +26,7 @@ public class Query7 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
         int numPartition = 5;
         short replicationFactor = 3;
         List<NewTopic> nps = new ArrayList<>(2);
@@ -40,27 +41,53 @@ public class Query7 implements NexmarkQuery {
         caMap.put("caInput", caInput);
         caMap.put("caOutput", caOutput);
 
-        StreamsBuilder builder = new StreamsBuilder();
-        JSONPOJOSerde<Event> serde = new JSONPOJOSerde<Event>();
-        serde.setClass(Event.class);
+        Serde<Event> eSerde;
+        Serde<PriceTime> ptSerde;
+        Serde<BidAndMax> bmSerde;
+        if (serde.equals("json")) {
+            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
+            eSerdeJSON.setClass(Event.class);
+            eSerde = eSerdeJSON;
 
+            JSONPOJOSerde<PriceTime> ptSerdeJSON = new JSONPOJOSerde<>();
+            ptSerdeJSON.setClass(PriceTime.class);
+            ptSerde = ptSerdeJSON;
+
+            JSONPOJOSerde<BidAndMax> bmSerdeJSON = new JSONPOJOSerde<>();
+            bmSerdeJSON.setClass(BidAndMax.class);
+            bmSerde = bmSerdeJSON;
+        } else if (serde.equals("msgp")) {
+            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            eSerdeMsgp.setClass(Event.class);
+            eSerde = eSerdeMsgp;
+
+            MsgpPOJOSerde<PriceTime> ptSerdeMsgp = new MsgpPOJOSerde<>();
+            ptSerdeMsgp.setClass(PriceTime.class);
+            ptSerde = ptSerdeMsgp;
+
+            MsgpPOJOSerde<BidAndMax> bmSerdeMsgp = new MsgpPOJOSerde<>();
+            bmSerdeMsgp.setClass(BidAndMax.class);
+            bmSerde = bmSerdeMsgp;
+        } else {
+            throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
+        }
+        StreamsBuilder builder = new StreamsBuilder();
         KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(Serdes.String(), serde).withTimestampExtractor(new EventTimestampExtractor()));
+                Consumed.with(Serdes.String(), eSerde).withTimestampExtractor(new EventTimestampExtractor()));
 
         int numberOfPartition = 5;
         KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
                 .selectKey((key, value) -> value.bid.price)
-                .repartition(Repartitioned.with(Serdes.Long(), serde)
+                .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName("bid-repartition")
                         .withNumberOfPartitions(numberOfPartition));
 
         TimeWindows tw = TimeWindows.of(Duration.ofSeconds(10));
         WindowBytesStoreSupplier maxBidWinStoreSupplier = Stores.inMemoryWindowStore(
                 "max-bid-tab", Duration.ofMillis(tw.size() + tw.gracePeriodMs()), Duration.ofMillis(tw.size()), false);
-        JSONPOJOSerde<PriceTime> ptSerde = new JSONPOJOSerde<>();
-        ptSerde.setClass(PriceTime.class);
 
-        bid.groupByKey(Grouped.with(Serdes.Long(), serde))
+
+        bid.groupByKey(Grouped.with(Serdes.Long(), eSerde))
                 .windowedBy(tw)
                 .aggregate(() -> new PriceTime(0, Instant.MIN), (key, value, aggregate) -> {
                     if (value.bid.price > aggregate.price) {
@@ -74,8 +101,6 @@ public class Query7 implements NexmarkQuery {
                         .withKeySerde(Serdes.Long())
                         .withValueSerde(ptSerde));
 
-        JSONPOJOSerde<BidAndMax> bmSerde = new JSONPOJOSerde<>();
-        bmSerde.setClass(BidAndMax.class);
 
         bid.transform(new TransformerSupplier<Long, Event, KeyValue<Long, BidAndMax>>() {
             @Override
