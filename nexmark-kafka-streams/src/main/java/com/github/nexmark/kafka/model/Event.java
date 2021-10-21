@@ -1,49 +1,66 @@
 package com.github.nexmark.kafka.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 import javax.annotation.Nullable;
 import java.io.Serializable;
 
 import java.util.Objects;
 
-
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Event implements Serializable {
+	@JsonProperty("newPerson")
     public @Nullable Person newPerson;
+	@JsonProperty("newAuction")
 	public @Nullable Auction newAuction;
+	@JsonProperty("bid")
 	public @Nullable Bid bid;
-	public Type etype;
+	@JsonProperty("etype")
+	public EType etype;
 
 	/** The type of object stored in this event. * */
-	public enum Type {
-		PERSON(0),
-		AUCTION(1),
-		BID(2);
+	public enum EType {
+		PERSON((byte)0),
+		AUCTION((byte)1),
+		BID((byte)2);
 
-		public final int value;
+		public final byte value;
 
-		Type(int value) {
+		EType(byte value) {
 			this.value = value;
+		}
+
+		@JsonValue
+		public byte getValue() {
+			return value;
 		}
 	}
 
+	@JsonCreator
 	public Event(Person newPerson) {
 		this.newPerson = newPerson;
 		newAuction = null;
 		bid = null;
-		etype = Type.PERSON;
+		etype = EType.PERSON;
 	}
 
+	@JsonCreator
 	public Event(Auction newAuction) {
 		newPerson = null;
 		this.newAuction = newAuction;
 		bid = null;
-		etype = Type.AUCTION;
+		etype = EType.AUCTION;
 	}
 
+	@JsonCreator
 	public Event(Bid bid) {
 		newPerson = null;
 		newAuction = null;
 		this.bid = bid;
-		etype = Type.BID;
+		etype = EType.BID;
 	}
 
 	@Override

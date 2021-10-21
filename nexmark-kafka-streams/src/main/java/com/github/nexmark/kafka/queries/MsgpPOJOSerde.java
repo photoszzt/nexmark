@@ -2,11 +2,13 @@ package com.github.nexmark.kafka.queries;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
+import com.github.nexmark.kafka.model.Event;
 
 import java.io.IOException;
 import java.util.Map;
@@ -16,6 +18,9 @@ public class MsgpPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
     private Class<T> cls;
     public MsgpPOJOSerde() {
         objectMapper = new ObjectMapper(new MessagePackFactory());
+        SimpleModule eventDescMod = new SimpleModule();
+        eventDescMod.addDeserializer(Event.class, new EventMsgpDeserialzer());
+        objectMapper.registerModule(eventDescMod);
     }
 
     public void setClass(Class<T> cls) {

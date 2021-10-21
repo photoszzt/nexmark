@@ -72,7 +72,7 @@ public class Query3 implements NexmarkQuery {
 
         KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores.inMemoryKeyValueStore("auctionBySellerIdKV");
         KTable<Long, Event> auctionsBySellerId = inputs.peek(caInput)
-                .filter((key, value) -> value.etype == Event.Type.AUCTION && value.newAuction.category == 10)
+                .filter((key, value) -> value.etype == Event.EType.AUCTION && value.newAuction.category == 10)
                 .selectKey((key, value) -> value.newAuction.seller)
                 .toTable(Named.as("auctionBySellerIdTab"),
                         Materialized.<Long, Event>as(auctionsBySellerIdKVStoreSupplier)
@@ -83,7 +83,7 @@ public class Query3 implements NexmarkQuery {
 
         KeyValueBytesStoreSupplier personsByIdKVStoreSupplier = Stores.inMemoryKeyValueStore("personsByIdKV");
         KTable<Long, Event> personsById = inputs
-                .filter((key, value) -> value.etype == Event.Type.PERSON)
+                .filter((key, value) -> value.etype == Event.EType.PERSON)
                 .filter((key, value) -> value.newPerson.state.equals("OR") || value.newPerson.state.equals("ID") ||
                         value.newPerson.state.equals("CA"))
                 .selectKey((key, value) -> value.newPerson.id)

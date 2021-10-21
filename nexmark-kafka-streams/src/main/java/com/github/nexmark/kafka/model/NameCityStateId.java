@@ -1,4 +1,5 @@
 package com.github.nexmark.kafka.model;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Objects;
 
 import java.io.Serializable;
@@ -10,6 +11,7 @@ public class NameCityStateId implements Serializable {
     public String state;
     public long id;
 
+    @JsonCreator
     public NameCityStateId(String name, String city, String state, long id) {
         this.name = name;
         this.city = city;

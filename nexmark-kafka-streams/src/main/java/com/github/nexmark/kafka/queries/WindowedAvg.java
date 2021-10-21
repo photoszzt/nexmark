@@ -69,7 +69,7 @@ public class WindowedAvg implements NexmarkQuery {
         TimeWindowedDeserializer<Long> longWindowDeserializer = new TimeWindowedDeserializer<Long>(longSerde.deserializer(), tw.sizeMs);
         Serde<Windowed<Long>> windowedLongSerde = Serdes.serdeFrom(longWindowSerializer, longWindowDeserializer);
 
-        inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
+        inputs.peek(caInput).filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde).withNumberOfPartitions(numPartition).withName("groupby-repar"))
                 .groupByKey(Grouped.with(Serdes.Long(), eSerde))

@@ -50,7 +50,7 @@ public class Query1 implements NexmarkQuery {
         caMap.put("caInput", caInput);
         caMap.put("caOutput", caOutput);
 
-        inputs.peek(caInput).filter((key, value) -> value.etype == Event.Type.BID)
+        inputs.peek(caInput).filter((key, value) -> value.etype == Event.EType.BID)
                 .mapValues(value -> {
                     Bid b = value.bid;
                     Event e = new Event(

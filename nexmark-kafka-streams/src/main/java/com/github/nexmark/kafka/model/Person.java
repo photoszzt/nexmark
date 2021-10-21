@@ -1,5 +1,8 @@
 package com.github.nexmark.kafka.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
@@ -24,15 +27,16 @@ public class Person implements Serializable {
     /** Additional arbitrary payload for performance testing. */
     public String extra;
 
+    @JsonCreator
     public Person(
-            long id,
-            String name,
-            String emailAddress,
-            String creditCard,
-            String city,
-            String state,
-            Instant dateTime,
-            String extra) {
+            @JsonProperty("id") long id,
+            @JsonProperty("name") String name,
+            @JsonProperty("emailAddress") String emailAddress,
+            @JsonProperty("creditCard") String creditCard,
+            @JsonProperty("city") String city,
+            @JsonProperty("state") String state,
+            @JsonProperty("dateTime") Instant dateTime,
+            @JsonProperty("extra") String extra) {
         this.id = id;
         this.name = name;
         this.emailAddress = emailAddress;

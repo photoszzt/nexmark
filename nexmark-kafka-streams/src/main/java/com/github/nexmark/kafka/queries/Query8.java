@@ -68,13 +68,13 @@ public class Query8 implements NexmarkQuery {
 
         KStream<Long, Event> person = inputs
                 .peek(caInput)
-                .filter((key, value) -> value.etype == Event.Type.PERSON)
+                .filter((key, value) -> value.etype == Event.EType.PERSON)
                 .selectKey((key, value) -> value.newPerson.id)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName("person-repartition")
                         .withNumberOfPartitions(numPartition));
 
-        KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.Type.AUCTION)
+        KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.EType.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName("auction-repartition")

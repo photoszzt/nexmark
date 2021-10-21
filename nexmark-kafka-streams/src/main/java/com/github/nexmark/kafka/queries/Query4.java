@@ -44,7 +44,7 @@ public class Query4 implements NexmarkQuery {
 
         KeyValueBytesStoreSupplier bidKVSupplier = Stores.inMemoryKeyValueStore("bidTab");
         KTable<Long, Event> bid = inputs
-                .filter((key, value) -> value.etype == Event.Type.BID)
+                .filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction)
                 .toTable(Named.as("bidTabNode"),
                         Materialized.<Long, Event>as(bidKVSupplier)
@@ -55,7 +55,7 @@ public class Query4 implements NexmarkQuery {
 
         KeyValueBytesStoreSupplier auctionKVSupplier = Stores.inMemoryKeyValueStore("auctionTab");
         KTable<Long, Event> auction = inputs
-                .filter((key, value) -> value.etype == Event.Type.AUCTION)
+                .filter((key, value) -> value.etype == Event.EType.AUCTION)
                 .selectKey((key, value) -> value.newAuction.id)
                 .toTable(Named.as("auctionTabNode"),
                         Materialized.<Long, Event>as(auctionKVSupplier)

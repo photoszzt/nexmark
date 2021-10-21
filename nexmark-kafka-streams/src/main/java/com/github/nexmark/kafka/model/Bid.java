@@ -2,6 +2,9 @@ package com.github.nexmark.kafka.model;
 
 import java.io.Serializable;
 import java.time.Instant;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
 public class Bid implements Serializable {
@@ -29,7 +32,15 @@ public class Bid implements Serializable {
 	/** Additional arbitrary payload for performance testing. */
 	public String extra;
 
-	public Bid(long auction, long bidder, long price, String channel, String url, Instant dateTime, String extra) {
+	@JsonCreator
+	public Bid(
+			@JsonProperty("auction") long auction,
+			@JsonProperty("bidder") long bidder,
+			@JsonProperty("price") long price,
+			@JsonProperty("channel") String channel,
+			@JsonProperty("url") String url,
+			@JsonProperty("dateTime") Instant dateTime,
+			@JsonProperty("extra") String extra) {
 		this.auction = auction;
 		this.bidder = bidder;
 		this.price = price;

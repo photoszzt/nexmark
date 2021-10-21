@@ -50,7 +50,7 @@ public class Query2 implements NexmarkQuery {
                 Consumed.with(Serdes.String(), eSerde)
                         .withTimestampExtractor(new EventTimestampExtractor()));
         inputs.peek(caInput)
-                .filter((key, value) -> value.etype == Event.Type.BID && value.bid.auction % 123 == 0)
+                .filter((key, value) -> value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
                 .peek(caOutput)
                 .to("nexmark-q2-out", Produced.valueSerde(eSerde));
         return builder;

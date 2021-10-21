@@ -3,6 +3,8 @@ package com.github.nexmark.kafka.model;
 import java.io.Serializable;
 import java.time.Instant;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
 public class Auction implements Serializable {
@@ -34,17 +36,18 @@ public class Auction implements Serializable {
 	/** Additional arbitrary payload for performance testing. */
 	public String extra;
 
+	@JsonCreator
 	public Auction(
-			long id,
-			String itemName,
-			String description,
-			long initialBid,
-			long reserve,
-			Instant dateTime,
-			Instant expires,
-			long seller,
-			long category,
-			String extra) {
+			@JsonProperty("id") long id,
+			@JsonProperty("itemName") String itemName,
+			@JsonProperty("description") String description,
+			@JsonProperty("initialBid") long initialBid,
+			@JsonProperty("reserve") long reserve,
+			@JsonProperty("dateTime") Instant dateTime,
+			@JsonProperty("expires") Instant expires,
+			@JsonProperty("seller") long seller,
+			@JsonProperty("category") long category,
+			@JsonProperty("extra") String extra) {
 		this.id = id;
 		this.itemName = itemName;
 		this.description = description;

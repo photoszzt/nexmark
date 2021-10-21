@@ -21,7 +21,7 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
         EventTypeConverter serdeEventType = new EventTypeConverter();
         GsonBuilder gsonBuilder = new GsonBuilder();
         gsonBuilder.registerTypeAdapter(Instant.class, serdeInstant);
-        gsonBuilder.registerTypeAdapter(Event.Type.class, serdeEventType);
+        gsonBuilder.registerTypeAdapter(Event.EType.class, serdeEventType);
 
         gson = gsonBuilder.create();
     }
