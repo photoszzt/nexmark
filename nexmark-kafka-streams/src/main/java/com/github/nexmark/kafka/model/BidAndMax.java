@@ -1,6 +1,7 @@
 package com.github.nexmark.kafka.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
 
@@ -13,9 +14,12 @@ public class BidAndMax {
     public Instant maxDateTime;
 
     @JsonCreator
-    public BidAndMax(long auction, long price,
-                     long bidder, Instant dateTime,
-                     String extra, Instant maxDateTime) {
+    public BidAndMax(@JsonProperty("auction") long auction,
+                     @JsonProperty("price") long price,
+                     @JsonProperty("bidder") long bidder,
+                     @JsonProperty("dateTime") Instant dateTime,
+                     @JsonProperty("extra") String extra,
+                     @JsonProperty("maxDateTime") Instant maxDateTime) {
         this.auction = auction;
         this.price = price;
         this.bidder = bidder;

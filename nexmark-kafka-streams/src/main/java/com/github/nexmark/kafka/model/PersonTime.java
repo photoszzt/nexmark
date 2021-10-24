@@ -1,6 +1,7 @@
 package com.github.nexmark.kafka.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class PersonTime {
     public long id;
@@ -8,7 +9,9 @@ public class PersonTime {
     public long startTime;
 
     @JsonCreator
-    public PersonTime(long id, String name, long startTime) {
+    public PersonTime(@JsonProperty("id") long id,
+                      @JsonProperty("name") String name,
+                      @JsonProperty("startTime") long startTime) {
         this.id = id;
         this.name = name;
         this.startTime = startTime;
