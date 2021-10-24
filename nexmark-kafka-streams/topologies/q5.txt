@@ -1,53 +1,57 @@
 Topologies:
    Sub-topology: 0
-    Source: KSTREAM-SOURCE-0000000000 (topics: [nexmark-input])
-      --> KSTREAM-FILTER-0000000001
-    Processor: KSTREAM-FILTER-0000000001 (stores: [])
-      --> KSTREAM-KEY-SELECT-0000000002
+    Source: KSTREAM-SOURCE-0000000000 (topics: [nexmark_src])
+      --> KSTREAM-PEEK-0000000001
+    Processor: KSTREAM-PEEK-0000000001 (stores: [])
+      --> KSTREAM-FILTER-0000000002
       <-- KSTREAM-SOURCE-0000000000
-    Processor: KSTREAM-KEY-SELECT-0000000002 (stores: [])
-      --> KSTREAM-FILTER-0000000006
-      <-- KSTREAM-FILTER-0000000001
-    Processor: KSTREAM-FILTER-0000000006 (stores: [])
-      --> KSTREAM-SINK-0000000005
-      <-- KSTREAM-KEY-SELECT-0000000002
-    Sink: KSTREAM-SINK-0000000005 (topic: KSTREAM-AGGREGATE-STATE-STORE-0000000003-repartition)
-      <-- KSTREAM-FILTER-0000000006
+    Processor: KSTREAM-FILTER-0000000002 (stores: [])
+      --> KSTREAM-KEY-SELECT-0000000003
+      <-- KSTREAM-PEEK-0000000001
+    Processor: KSTREAM-KEY-SELECT-0000000003 (stores: [])
+      --> bids-repartition-filter
+      <-- KSTREAM-FILTER-0000000002
+    Processor: bids-repartition-filter (stores: [])
+      --> bids-repartition-sink
+      <-- KSTREAM-KEY-SELECT-0000000003
+    Sink: bids-repartition-sink (topic: bids-repartition)
+      <-- bids-repartition-filter
 
   Sub-topology: 1
-    Source: KSTREAM-SOURCE-0000000007 (topics: [KSTREAM-AGGREGATE-STATE-STORE-0000000003-repartition])
-      --> KSTREAM-AGGREGATE-0000000004
-    Processor: KSTREAM-AGGREGATE-0000000004 (stores: [KSTREAM-AGGREGATE-STATE-STORE-0000000003])
+    Source: bids-repartition-source (topics: [bids-repartition])
+      --> auctionBidsCount
+    Processor: auctionBidsCount (stores: [auctionBidsCountStore])
       --> KTABLE-TOSTREAM-0000000008
-      <-- KSTREAM-SOURCE-0000000007
+      <-- bids-repartition-source
     Processor: KTABLE-TOSTREAM-0000000008 (stores: [])
-      --> KSTREAM-MAP-0000000009
-      <-- KSTREAM-AGGREGATE-0000000004
-    Processor: KSTREAM-MAP-0000000009 (stores: [])
-      --> KSTREAM-FILTER-0000000013, KSTREAM-FILTER-0000000016
+      --> KSTREAM-MAPVALUES-0000000009
+      <-- auctionBidsCount
+    Processor: KSTREAM-MAPVALUES-0000000009 (stores: [])
+      --> KSTREAM-KEY-SELECT-0000000010
       <-- KTABLE-TOSTREAM-0000000008
-    Processor: KSTREAM-FILTER-0000000013 (stores: [])
-      --> KSTREAM-SINK-0000000012
-      <-- KSTREAM-MAP-0000000009
-    Processor: KSTREAM-FILTER-0000000016 (stores: [])
-      --> KSTREAM-SINK-0000000015
-      <-- KSTREAM-MAP-0000000009
-    Sink: KSTREAM-SINK-0000000012 (topic: KSTREAM-AGGREGATE-STATE-STORE-0000000010-repartition)
-      <-- KSTREAM-FILTER-0000000013
-    Sink: KSTREAM-SINK-0000000015 (topic: KSTREAM-MAP-0000000009-repartition)
-      <-- KSTREAM-FILTER-0000000016
+    Processor: KSTREAM-KEY-SELECT-0000000010 (stores: [])
+      --> auctionBids-repartition-filter
+      <-- KSTREAM-MAPVALUES-0000000009
+    Processor: auctionBids-repartition-filter (stores: [])
+      --> auctionBids-repartition-sink
+      <-- KSTREAM-KEY-SELECT-0000000010
+    Sink: auctionBids-repartition-sink (topic: auctionBids-repartition)
+      <-- auctionBids-repartition-filter
 
   Sub-topology: 2
-    Source: KSTREAM-SOURCE-0000000017 (topics: [KSTREAM-MAP-0000000009-repartition])
-      --> KSTREAM-JOIN-0000000018
-    Processor: KSTREAM-JOIN-0000000018 (stores: [KSTREAM-AGGREGATE-STATE-STORE-0000000010])
-      --> KSTREAM-FILTER-0000000019
-      <-- KSTREAM-SOURCE-0000000017
-    Source: KSTREAM-SOURCE-0000000014 (topics: [KSTREAM-AGGREGATE-STATE-STORE-0000000010-repartition])
-      --> KSTREAM-AGGREGATE-0000000011
-    Processor: KSTREAM-AGGREGATE-0000000011 (stores: [KSTREAM-AGGREGATE-STATE-STORE-0000000010])
+    Source: auctionBids-repartition-source (topics: [auctionBids-repartition])
+      --> KSTREAM-JOIN-0000000015, maxBidsAgg
+    Processor: KSTREAM-JOIN-0000000015 (stores: [maxBidsKVStore])
+      --> KSTREAM-FILTER-0000000016
+      <-- auctionBids-repartition-source
+    Processor: KSTREAM-FILTER-0000000016 (stores: [])
+      --> KSTREAM-PEEK-0000000017
+      <-- KSTREAM-JOIN-0000000015
+    Processor: KSTREAM-PEEK-0000000017 (stores: [])
+      --> KSTREAM-SINK-0000000018
+      <-- KSTREAM-FILTER-0000000016
+    Sink: KSTREAM-SINK-0000000018 (topic: nexmark-q5-out)
+      <-- KSTREAM-PEEK-0000000017
+    Processor: maxBidsAgg (stores: [maxBidsKVStore])
       --> none
-      <-- KSTREAM-SOURCE-0000000014
-    Processor: KSTREAM-FILTER-0000000019 (stores: [])
-      --> none
-      <-- KSTREAM-JOIN-0000000018
+      <-- auctionBids-repartition-source
