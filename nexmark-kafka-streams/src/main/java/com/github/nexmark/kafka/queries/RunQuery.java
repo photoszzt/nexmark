@@ -63,10 +63,7 @@ public class RunQuery {
         String serde = line.getOptionValue(SERDE.getOpt());
 
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
-        for (int i = 0; i < args.length; i++) {
-            System.out.println(args[i]);
-        }
-
+        
         NexmarkQuery query = getNexmarkQuery(appName);
         if (query == null) {
             System.exit(1);
