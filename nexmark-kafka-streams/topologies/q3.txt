@@ -1,0 +1,61 @@
+Topologies:
+   Sub-topology: 0
+    Source: KSTREAM-SOURCE-0000000000 (topics: [nexmark_src])
+      --> KSTREAM-FILTER-0000000008, KSTREAM-PEEK-0000000001
+    Processor: KSTREAM-FILTER-0000000008 (stores: [])
+      --> KSTREAM-FILTER-0000000009
+      <-- KSTREAM-SOURCE-0000000000
+    Processor: KSTREAM-PEEK-0000000001 (stores: [])
+      --> KSTREAM-FILTER-0000000002
+      <-- KSTREAM-SOURCE-0000000000
+    Processor: KSTREAM-FILTER-0000000002 (stores: [])
+      --> KSTREAM-KEY-SELECT-0000000003
+      <-- KSTREAM-PEEK-0000000001
+    Processor: KSTREAM-FILTER-0000000009 (stores: [])
+      --> KSTREAM-KEY-SELECT-0000000010
+      <-- KSTREAM-FILTER-0000000008
+    Processor: KSTREAM-KEY-SELECT-0000000003 (stores: [])
+      --> auctionBySellerIdTab-repartition-filter
+      <-- KSTREAM-FILTER-0000000002
+    Processor: KSTREAM-KEY-SELECT-0000000010 (stores: [])
+      --> personsByIdTab-repartition-filter
+      <-- KSTREAM-FILTER-0000000009
+    Processor: auctionBySellerIdTab-repartition-filter (stores: [])
+      --> auctionBySellerIdTab-repartition-sink
+      <-- KSTREAM-KEY-SELECT-0000000003
+    Processor: personsByIdTab-repartition-filter (stores: [])
+      --> personsByIdTab-repartition-sink
+      <-- KSTREAM-KEY-SELECT-0000000010
+    Sink: auctionBySellerIdTab-repartition-sink (topic: auctionBySellerIdTab-repartition)
+      <-- auctionBySellerIdTab-repartition-filter
+    Sink: personsByIdTab-repartition-sink (topic: personsByIdTab-repartition)
+      <-- personsByIdTab-repartition-filter
+
+  Sub-topology: 1
+    Source: auctionBySellerIdTab-repartition-source (topics: [auctionBySellerIdTab-repartition])
+      --> auctionBySellerIdTab
+    Source: personsByIdTab-repartition-source (topics: [personsByIdTab-repartition])
+      --> personsByIdTab
+    Processor: auctionBySellerIdTab (stores: [auctionBySellerIdKV])
+      --> KTABLE-JOINTHIS-0000000016
+      <-- auctionBySellerIdTab-repartition-source
+    Processor: personsByIdTab (stores: [personsByIdKV])
+      --> KTABLE-JOINOTHER-0000000017
+      <-- personsByIdTab-repartition-source
+    Processor: KTABLE-JOINOTHER-0000000017 (stores: [auctionBySellerIdKV])
+      --> KTABLE-MERGE-0000000015
+      <-- personsByIdTab
+    Processor: KTABLE-JOINTHIS-0000000016 (stores: [personsByIdKV])
+      --> KTABLE-MERGE-0000000015
+      <-- auctionBySellerIdTab
+    Processor: KTABLE-MERGE-0000000015 (stores: [])
+      --> KTABLE-TOSTREAM-0000000018
+      <-- KTABLE-JOINTHIS-0000000016, KTABLE-JOINOTHER-0000000017
+    Processor: KTABLE-TOSTREAM-0000000018 (stores: [])
+      --> KSTREAM-PEEK-0000000019
+      <-- KTABLE-MERGE-0000000015
+    Processor: KSTREAM-PEEK-0000000019 (stores: [])
+      --> KSTREAM-SINK-0000000020
+      <-- KTABLE-TOSTREAM-0000000018
+    Sink: KSTREAM-SINK-0000000020 (topic: nexmark-q3-out)
+      <-- KSTREAM-PEEK-0000000019
