@@ -15,6 +15,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.io.FileInputStream;
+import java.io.IOException;
 
 public class Query1 implements NexmarkQuery {
     private Map<String, CountAction> caMap;
@@ -24,8 +26,13 @@ public class Query1 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
-        NewTopic np = new NewTopic("nexmark-q1", 1, (short) 3);
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
+        Properties prop = new Properties();
+        FileInputStream fis = new FileInputStream(configFile);
+        prop.load(fis);
+        String outTp = prop.getProperty("out.name");
+        int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
+        NewTopic np = new NewTopic(outTp, numPar, (short) 3);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
 
         Serde<Event> eSerde;

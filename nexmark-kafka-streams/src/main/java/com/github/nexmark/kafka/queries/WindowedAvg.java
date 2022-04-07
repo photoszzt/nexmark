@@ -25,7 +25,7 @@ public class WindowedAvg implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
         int numPartition = 5;
         short replicationFactor = 3;
         NewTopic out = new NewTopic("windowedavg-out", numPartition, replicationFactor);

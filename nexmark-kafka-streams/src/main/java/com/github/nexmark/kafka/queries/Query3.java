@@ -11,6 +11,8 @@ import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 
+import java.io.IOException;
+import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +28,7 @@ public class Query3 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
         int numPartition = 5;
         short repartitionFactor = 3;
         NewTopic out = new NewTopic("nexmark-q3-out", numPartition, repartitionFactor);

@@ -9,6 +9,7 @@ import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.Topology;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
@@ -16,6 +17,7 @@ import java.util.concurrent.CountDownLatch;
 public class RunQuery {
     private static final Option APP_NAME = new Option("n", "name", true, "app name");
     private static final Option SERDE = new Option("s", "serde", true, "serde");
+    private static final Option CONFIG_FILE = new Option("c", "conf", true, "config file");
 
     private static NexmarkQuery getNexmarkQuery(String appName) {
         switch (appName) {
@@ -53,7 +55,7 @@ public class RunQuery {
 
     public static void main(final String[] args) throws ParseException {
         if (args == null || args.length == 0) {
-            System.err.println("Usage: --name <q1> --serde json");
+            System.err.println("Usage: --name <q1> --serde json --config <config_file>");
             System.exit(1);
         }
         Options options = getOptions();
@@ -61,6 +63,7 @@ public class RunQuery {
         CommandLine line = parser.parse(options, args, true);
         String appName = line.getOptionValue(APP_NAME.getOpt());
         String serde = line.getOptionValue(SERDE.getOpt());
+        String configFile = line.getOptionValue(CONFIG_FILE.getOpt());
 
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
         
@@ -68,7 +71,16 @@ public class RunQuery {
         if (query == null) {
             System.exit(1);
         }
-        StreamsBuilder builder = query.getStreamBuilder(bootstrapServers, serde);
+        
+        StreamsBuilder builder;
+        try {
+            builder = query.getStreamBuilder(bootstrapServers, serde, configFile);
+        } catch (IOException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+            return;
+        }
+        
         Properties props = query.getProperties(bootstrapServers);
         Topology tp = builder.build();
         System.out.println(tp.describe());

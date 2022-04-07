@@ -23,7 +23,7 @@ public class Query4 implements NexmarkQuery {
         caMap = new HashMap<>();
     }
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
         StreamsBuilder builder = new StreamsBuilder();
         Serde<Event> eSerde;
         if (serde.equals("json")) {

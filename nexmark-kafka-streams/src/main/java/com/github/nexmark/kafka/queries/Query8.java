@@ -25,7 +25,7 @@ public class Query8 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
         int numPartition = 5;
         short replicationFactor = 3;
         List<NewTopic> nps = new ArrayList<>(3);
