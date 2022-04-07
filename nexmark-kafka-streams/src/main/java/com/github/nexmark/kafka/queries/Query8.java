@@ -1,7 +1,10 @@
 package com.github.nexmark.kafka.queries;
 
+import com.github.nexmark.kafka.model.Bid;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.PersonTime;
+import com.github.nexmark.kafka.model.Event.EType;
+
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
@@ -90,7 +93,11 @@ public class Query8 implements NexmarkQuery {
         auction.join(person, new ValueJoiner<Event, Event, PersonTime>() {
                             @Override
                             public PersonTime apply(Event event, Event event2) {
-                                return new PersonTime(event2.newPerson.id, event2.newPerson.name, 0);
+                                if (event2.etype == EType.PERSON) {
+                                    return new PersonTime(event2.newPerson.id, event2.newPerson.name, 0);
+                                } else {
+                                    return new PersonTime(event.newPerson.id, event.newPerson.name, 0);
+                                }
                             }
                         }, jw, StreamJoined.<Long, Event, Event>with(auctionStoreSupplier, personStoreSupplier)
                                 .withKeySerde(Serdes.Long())

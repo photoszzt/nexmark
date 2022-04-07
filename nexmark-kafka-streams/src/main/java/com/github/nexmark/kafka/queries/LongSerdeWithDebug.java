@@ -26,7 +26,6 @@ public class LongSerdeWithDebug implements Serde<Long>, Deserializer<Long>, Seri
         return this;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void configure(Map<String, ?> props, boolean isKey) {
     }
