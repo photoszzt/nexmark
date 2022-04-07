@@ -1,0 +1,15 @@
+Topologies:
+   Sub-topology: 0
+    Source: KSTREAM-SOURCE-0000000000 (topics: [nexmark_src])
+      --> KSTREAM-PEEK-0000000001
+    Processor: KSTREAM-PEEK-0000000001 (stores: [])
+      --> KSTREAM-FILTER-0000000002
+      <-- KSTREAM-SOURCE-0000000000
+    Processor: KSTREAM-FILTER-0000000002 (stores: [])
+      --> KSTREAM-PEEK-0000000003
+      <-- KSTREAM-PEEK-0000000001
+    Processor: KSTREAM-PEEK-0000000003 (stores: [])
+      --> KSTREAM-SINK-0000000004
+      <-- KSTREAM-FILTER-0000000002
+    Sink: KSTREAM-SINK-0000000004 (topic: nexmark-q2-out)
+      <-- KSTREAM-PEEK-0000000003
