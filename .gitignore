@@ -79,3 +79,4 @@ gradle
 .metals
 
 **/kafka/kafka_2.13-3.0.0/
+.bloop
