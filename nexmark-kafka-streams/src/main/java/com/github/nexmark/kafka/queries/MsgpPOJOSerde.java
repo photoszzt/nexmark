@@ -3,6 +3,8 @@ package com.github.nexmark.kafka.queries;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
@@ -21,6 +23,7 @@ public class MsgpPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
         SimpleModule eventDescMod = new SimpleModule();
         eventDescMod.addDeserializer(Event.class, new EventMsgpDeserialzer());
         objectMapper.registerModule(eventDescMod);
+        objectMapper.registerModule(new JavaTimeModule());
     }
 
     public void setClass(Class<T> cls) {

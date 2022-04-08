@@ -57,7 +57,7 @@ public class WindowedAvg implements NexmarkQuery {
         caMap.put("caInput", caInput);
         caMap.put("caOutput", caOutput);
 
-        TimeWindows tw = TimeWindows.of(Duration.ofSeconds(10));
+        TimeWindows tw = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(10));
         WindowBytesStoreSupplier storeSupplier = Stores.inMemoryWindowStore("windowedavg-agg-store",
                 Duration.ofMillis(tw.gracePeriodMs() + tw.size()), Duration.ofMillis(tw.size()), false);
 

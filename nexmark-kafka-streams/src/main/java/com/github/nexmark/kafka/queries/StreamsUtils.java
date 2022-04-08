@@ -19,7 +19,7 @@ public class StreamsUtils {
     public static Properties getStreamsConfig(String bootstrapServer) {
         final Properties props = new Properties();
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
-        props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_BETA);
+        props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
 
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
         props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 2);
@@ -28,7 +28,6 @@ public class StreamsUtils {
 
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
-        props.put(ProducerConfig.LINGER_MS_CONFIG, 1);
         props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
         return props;

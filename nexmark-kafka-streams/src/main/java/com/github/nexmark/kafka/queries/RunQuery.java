@@ -64,6 +64,7 @@ public class RunQuery {
         String appName = line.getOptionValue(APP_NAME.getOpt());
         String serde = line.getOptionValue(SERDE.getOpt());
         String configFile = line.getOptionValue(CONFIG_FILE.getOpt());
+        System.out.println("appName: "+appName+" serde: "+serde+" configFile: "+configFile);
 
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
         
@@ -131,6 +132,7 @@ public class RunQuery {
         Options options = new Options();
         options.addOption(APP_NAME);
         options.addOption(SERDE);
+        options.addOption(CONFIG_FILE);
         return options;
     }
 }
