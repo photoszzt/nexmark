@@ -63,7 +63,7 @@ public class Query1 implements NexmarkQuery {
                     Event e = new Event(
                             new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra));
                     return e;
-                }).peek(caOutput).to("nexmark-q1-out", Produced.valueSerde(eSerde));
+                }).peek(caOutput).to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }
 

@@ -1,6 +1,5 @@
 package com.github.nexmark.kafka.queries;
 
-import com.github.nexmark.kafka.model.Bid;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.PersonTime;
 import com.github.nexmark.kafka.model.Event.EType;
@@ -16,6 +15,8 @@ import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 
 import java.time.Duration;
 import java.util.*;
+import java.io.IOException;
+import java.io.FileInputStream;
 
 public class Query8 implements NexmarkQuery {
     private Map<String, CountAction> caMap;
@@ -25,14 +26,25 @@ public class Query8 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
-        int numPartition = 5;
-        short replicationFactor = 3;
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException{
+        Properties prop = new Properties();
+        FileInputStream fis = new FileInputStream(configFile);
+        prop.load(fis);
+
+        String outTp = prop.getProperty("out.name");
+        int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
+        NewTopic out = new NewTopic(outTp, numPar, (short) 3);
+
+        String aucBySellerIDTp = prop.getProperty("aucBySellerIDTp.name");
+        int aucBySellerIDTpPar = Integer.parseInt(prop.getProperty("aucBySellerIDTp.numPar"));
+        NewTopic auctionRepar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, (short) 3);
+
+        String personsByIDTp = prop.getProperty("personsByIDTp.name");
+        int personsByIDTpPar = Integer.parseInt(prop.getProperty("personsByIDTp.numPar"));
+        NewTopic personRepar = new NewTopic(personsByIDTp, personsByIDTpPar, (short) 3);
+
         List<NewTopic> nps = new ArrayList<>(3);
-        NewTopic q8 = new NewTopic("nexmark-q8-out", numPartition, replicationFactor);
-        NewTopic personRepar = new NewTopic("nexmark-q8-person-repartition", numPartition, replicationFactor);
-        NewTopic auctionRepar = new NewTopic("nexmark-q8-auction-repartition", numPartition, replicationFactor);
-        nps.add(q8);
+        nps.add(out);
         nps.add(personRepar);
         nps.add(auctionRepar);
         StreamsUtils.createTopic(bootstrapServer, nps);
@@ -74,21 +86,23 @@ public class Query8 implements NexmarkQuery {
                 .filter((key, value) -> value.etype == Event.EType.PERSON)
                 .selectKey((key, value) -> value.newPerson.id)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName("person-repartition")
-                        .withNumberOfPartitions(numPartition));
+                        .withName(personsByIDTp)
+                        .withNumberOfPartitions(personsByIDTpPar));
 
         KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.EType.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName("auction-repartition")
-                        .withNumberOfPartitions(numPartition));
+                        .withName(aucBySellerIDTp)
+                        .withNumberOfPartitions(aucBySellerIDTpPar));
 
-        JoinWindows jw = JoinWindows.of(Duration.ofSeconds(10));
+        JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofSeconds(10));
         WindowBytesStoreSupplier auctionStoreSupplier = Stores.inMemoryWindowStore(
-                "auction-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()), Duration.ofMillis(jw.size()), true
+                "auction-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()), 
+                Duration.ofMillis(jw.size()), true
         );
         WindowBytesStoreSupplier personStoreSupplier = Stores.inMemoryWindowStore(
-                "person-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()), Duration.ofMillis(jw.size()), true
+                "person-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()), 
+                Duration.ofMillis(jw.size()), true
         );
         auction.join(person, new ValueJoiner<Event, Event, PersonTime>() {
                             @Override
@@ -104,10 +118,9 @@ public class Query8 implements NexmarkQuery {
                                 .withValueSerde(eSerde)
                                 .withOtherValueSerde(eSerde)
                                 .withLoggingEnabled(new HashMap<>())
-                                .withStoreName("auction-join-persion-store")
                 )
                 .peek(caOutput)
-                .to("nexmark-q8-out", Produced.with(Serdes.Long(), ptSerde));
+                .to(outTp, Produced.with(Serdes.Long(), ptSerde));
         return builder;
     }
 

@@ -14,6 +14,8 @@ import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 
+import java.io.IOException;
+import java.io.FileInputStream;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,13 +31,24 @@ public class Query5 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
-        int numPartition = 5;
-        short replicationFactor = 3;
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
+        Properties prop = new Properties();
+        FileInputStream fis = new FileInputStream(configFile);
+        prop.load(fis);
+
+        String outTp = prop.getProperty("out.name");
+        int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
+        NewTopic out = new NewTopic(outTp, numPar, (short) 3);
+
+        String bidsTp = prop.getProperty("bids.name");
+        int bidsTpPar = Integer.parseInt(prop.getProperty("bids.numPar"));
+        NewTopic bidsRepar = new NewTopic(bidsTp, bidsTpPar, (short) 3);
+
+        String auctionBidsTp = prop.getProperty("auctionBids.name");
+        int auctionBidsTpPar = Integer.parseInt(prop.getProperty("auctionBids.numPar"));
+        NewTopic auctionBidsRepar = new NewTopic(auctionBidsTp, auctionBidsTpPar, (short) 3);
+
         List<NewTopic> nps = new ArrayList<>();
-        NewTopic out = new NewTopic("nexmark-q5-out", numPartition, replicationFactor);
-        NewTopic bidsRepar = new NewTopic("nexmark-q5-bids-repartition", numPartition, replicationFactor);
-        NewTopic auctionBidsRepar = new NewTopic("nexmark-q5-auctionBids-repartition", numPartition, replicationFactor);
         nps.add(out);
         nps.add(bidsRepar);
         nps.add(auctionBidsRepar);
@@ -94,15 +107,14 @@ public class Query5 implements NexmarkQuery {
         KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction);
 
-        TimeWindows ts = TimeWindows.of(Duration.ofSeconds(10)).advanceBy(Duration.ofSeconds(2));
+        TimeWindows ts = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(10)).advanceBy(Duration.ofSeconds(2));
         WindowBytesStoreSupplier auctionBidsWSSupplier = Stores.inMemoryWindowStore("auctionBidsCountStore",
                 Duration.ofMillis(ts.gracePeriodMs() + ts.size()), Duration.ofMillis(ts.size()), true);
 
-        int numberOfPartitions = 5;
         KStream<StartEndTime, AuctionIdCount> auctionBids = bid
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName("bids-repartition")
-                        .withNumberOfPartitions(numberOfPartitions))
+                        .withName(bidsTp)
+                        .withNumberOfPartitions(bidsTpPar))
                 .groupByKey(Grouped.with(Serdes.Long(), eSerde))
                 .windowedBy(ts)
                 .count(Named.as("auctionBidsCount"),
@@ -115,8 +127,8 @@ public class Query5 implements NexmarkQuery {
                 .mapValues((key, value) -> new AuctionIdCount(key.key(), value))
                 .selectKey((key, value) -> new StartEndTime(key.window().start(), key.window().end()))
                 .repartition(Repartitioned.with(seSerde, aicSerde)
-                        .withName("auctionBids-repartition")
-                        .withNumberOfPartitions(numberOfPartitions));
+                        .withName(auctionBidsTp)
+                        .withNumberOfPartitions(auctionBidsTpPar));
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
         
@@ -141,7 +153,7 @@ public class Query5 implements NexmarkQuery {
                         new AuctionIdCntMax(leftValue.aucId, leftValue.count, (long) rightValue))
                 .filter((key, value) -> value.count >= value.maxCnt)
                 .peek(caOutput)
-                .to("nexmark-q5-out", Produced.with(seSerde, aicmSerde));
+                .to(outTp, Produced.with(seSerde, aicmSerde));
         return builder;
     }
 

@@ -13,6 +13,8 @@ import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.*;
 
+import java.io.IOException;
+import java.io.FileInputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -26,14 +28,22 @@ public class Query7 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
-        int numPartition = 5;
-        short replicationFactor = 3;
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
+        Properties prop = new Properties();
+        FileInputStream fis = new FileInputStream(configFile);
+        prop.load(fis);
+
+        String outTp = prop.getProperty("out.name");
+        int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
+        NewTopic out = new NewTopic(outTp, numPar, (short) 3);
+
+        String bidsTp = prop.getProperty("bids.name");
+        int bidsTpPar = Integer.parseInt(prop.getProperty("bids.numPar"));
+        NewTopic bidsRepar = new NewTopic(bidsTp, bidsTpPar, (short) 3);
+
         List<NewTopic> nps = new ArrayList<>(2);
-        NewTopic q7 = new NewTopic("nexmark-q7-out", numPartition, replicationFactor);
-        NewTopic bidRepar = new NewTopic("nexmark-q7-bid-repartition", numPartition, replicationFactor);
-        nps.add(q7);
-        nps.add(bidRepar);
+        nps.add(out);
+        nps.add(bidsRepar);
         StreamsUtils.createTopic(bootstrapServer, nps);
 
         CountAction<String, Event> caInput = new CountAction<String, Event>();
@@ -75,17 +85,17 @@ public class Query7 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde).withTimestampExtractor(new EventTimestampExtractor()));
 
-        int numberOfPartition = 5;
         KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.price)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName("bid-repartition")
-                        .withNumberOfPartitions(numberOfPartition));
+                        .withName(bidsTp)
+                        .withNumberOfPartitions(bidsTpPar));
 
-        TimeWindows tw = TimeWindows.of(Duration.ofSeconds(10));
+        TimeWindows tw = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(10));
+        String wintabName = "max-bid-tab";
         WindowBytesStoreSupplier maxBidWinStoreSupplier = Stores.inMemoryWindowStore(
-                "max-bid-tab", Duration.ofMillis(tw.size() + tw.gracePeriodMs()), Duration.ofMillis(tw.size()), false);
-
+                wintabName, Duration.ofMillis(tw.size() + tw.gracePeriodMs()),
+                Duration.ofMillis(tw.size()), false);
 
         bid.groupByKey(Grouped.with(Serdes.Long(), eSerde))
                 .windowedBy(tw)
@@ -101,7 +111,6 @@ public class Query7 implements NexmarkQuery {
                         .withKeySerde(Serdes.Long())
                         .withValueSerde(ptSerde));
 
-
         bid.transform(new TransformerSupplier<Long, Event, KeyValue<Long, BidAndMax>>() {
             @Override
             public Transformer<Long, Event, KeyValue<Long, BidAndMax>> get() {
@@ -111,13 +120,15 @@ public class Query7 implements NexmarkQuery {
 
                     @Override
                     public void init(ProcessorContext processorContext) {
-                        this.stateStore = (TimestampedWindowStore<Long, PriceTime>) processorContext.getStateStore("max-bid-tab");
+                        this.stateStore = (TimestampedWindowStore<Long, PriceTime>) processorContext
+                                .getStateStore(wintabName);
                         this.pctx = processorContext;
                     }
 
                     @Override
                     public KeyValue<Long, BidAndMax> transform(Long aLong, Event event) {
-                        WindowStoreIterator<ValueAndTimestamp<PriceTime>> ptIter = this.stateStore.fetch(aLong, event.bid.dateTime.minusSeconds(10), event.bid.dateTime);
+                        WindowStoreIterator<ValueAndTimestamp<PriceTime>> ptIter = this.stateStore.fetch(aLong,
+                                event.bid.dateTime.minusSeconds(10), event.bid.dateTime);
                         while (ptIter.hasNext()) {
                             KeyValue<Long, ValueAndTimestamp<PriceTime>> kv = ptIter.next();
                             if (event.bid.price == kv.value.value().price) {
@@ -133,11 +144,11 @@ public class Query7 implements NexmarkQuery {
                     }
                 };
             }
-        }, "max-bid-tab")
+        }, wintabName)
                 .filter((key, value) -> {
                     Instant lb = value.maxDateTime.minus(10, ChronoUnit.SECONDS);
                     return value.dateTime.compareTo(lb) >= 0 && value.dateTime.compareTo(value.maxDateTime) <= 0;
-                }).peek(caOutput).to("nexmark-q7-out", Produced.with(Serdes.Long(), bmSerde));
+                }).peek(caOutput).to(outTp, Produced.with(Serdes.Long(), bmSerde));
         return builder;
     }
 

@@ -28,12 +28,24 @@ public class Query3 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
-        int numPartition = 5;
-        short repartitionFactor = 3;
-        NewTopic out = new NewTopic("nexmark-q3-out", numPartition, repartitionFactor);
-        NewTopic auctionBySellerIdTabPar = new NewTopic("nexmark-q3-auctionBySellerIdTab-repartition", numPartition, repartitionFactor);
-        NewTopic persionsByIdTabPar = new NewTopic("nexmakr-q3-personsByIdTab-repartition", numPartition, repartitionFactor);
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
+
+        Properties prop = new Properties();
+        FileInputStream fis = new FileInputStream(configFile);
+        prop.load(fis);
+
+        String outTp = prop.getProperty("out.name");
+        int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
+        NewTopic out = new NewTopic(outTp, numPar, (short) 3);
+
+        String aucBySellerIDTp = prop.getProperty("aucBySellerIDTp.name");
+        int aucBySellerIDTpPar = Integer.parseInt(prop.getProperty("aucBySellerIDTp.numPar"));
+        NewTopic auctionBySellerIdTabPar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, (short) 3);
+
+        String personsByIDTp = prop.getProperty("personsByIDTp.name");
+        int personsByIDTpPar = Integer.parseInt(prop.getProperty("personsByIDTp.numPar"));
+        NewTopic persionsByIdTabPar = new NewTopic(personsByIDTp, personsByIDTpPar, (short) 3);
+
         List<NewTopic> nps = new ArrayList<NewTopic>(3);
         nps.add(out);
         nps.add(auctionBySellerIdTabPar);
@@ -103,7 +115,7 @@ public class Query3 implements NexmarkQuery {
                         rightValue.newPerson.id))
                 .toStream()
                 .peek(caOutput)
-                .to("nexmark-q3-out", Produced.with(Serdes.Long(), ncsiSerde));
+                .to(outTp, Produced.with(Serdes.Long(), ncsiSerde));
         return builder;
     }
 

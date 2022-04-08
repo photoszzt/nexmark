@@ -60,7 +60,7 @@ public class Query2 implements NexmarkQuery {
         inputs.peek(caInput)
                 .filter((key, value) -> value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
                 .peek(caOutput)
-                .to("nexmark-q2-out", Produced.valueSerde(eSerde));
+                .to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }
 
