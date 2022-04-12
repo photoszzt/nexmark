@@ -69,7 +69,8 @@ public class RunQuery {
         String configFile = line.getOptionValue(CONFIG_FILE.getOpt());
         String durStr = line.getOptionValue(DURATION.getOpt());
         int duration = Integer.parseInt(durStr) * 1000;
-        System.out.println("appName: " + appName + " serde: " + serde + " configFile: " + configFile);
+        System.out.println("appName: " + appName + " serde: " + serde + " configFile: " + configFile + " duration(ms): "
+                + duration);
 
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
 
