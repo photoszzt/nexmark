@@ -74,13 +74,13 @@ public class Query8 implements NexmarkQuery {
                 .filter((key, value) -> value.etype == Event.EType.PERSON)
                 .selectKey((key, value) -> value.newPerson.id)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName(personsByIDTp)
+                        .withName("person-repartition")
                         .withNumberOfPartitions(personsByIDTpPar));
 
         KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.EType.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName(aucBySellerIDTp)
+                        .withName("auction-repartition")
                         .withNumberOfPartitions(aucBySellerIDTpPar));
 
         JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofSeconds(10));
