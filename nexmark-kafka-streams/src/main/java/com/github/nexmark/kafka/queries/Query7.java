@@ -32,6 +32,7 @@ public class Query7 implements NexmarkQuery {
         NewTopic out = new NewTopic(outTp, numPar, (short) 3);
 
         String bidsTp = prop.getProperty("bids.name");
+        String bidsTpRepar = prop.getProperty("bids.reparName");
         int bidsTpPar = Integer.parseInt(prop.getProperty("bids.numPar"));
         NewTopic bidsRepar = new NewTopic(bidsTp, bidsTpPar, (short) 3);
 
@@ -77,10 +78,10 @@ public class Query7 implements NexmarkQuery {
         KStream<Long, Event> bid = inputs.filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.price)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName(bidsTp)
+                        .withName(bidsTpRepar)
                         .withNumberOfPartitions(bidsTpPar));
 
-        TimeWindows tw = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(10));
+        TimeWindows tw = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5));
         String wintabName = "max-bid-tab";
         WindowBytesStoreSupplier maxBidWinStoreSupplier = Stores.inMemoryWindowStore(
                 wintabName, Duration.ofMillis(tw.size() + tw.gracePeriodMs()),

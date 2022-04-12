@@ -30,10 +30,12 @@ public class Query8 implements NexmarkQuery {
         NewTopic out = new NewTopic(outTp, numPar, (short) 3);
 
         String aucBySellerIDTp = prop.getProperty("aucBySellerIDTp.name");
+        String aucBySellerIDTpRepar = prop.getProperty("aucBySellerIDTp.reparName");
         int aucBySellerIDTpPar = Integer.parseInt(prop.getProperty("aucBySellerIDTp.numPar"));
         NewTopic auctionRepar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, (short) 3);
 
         String personsByIDTp = prop.getProperty("personsByIDTp.name");
+        String personsByIDTpRepar = prop.getProperty("personsByIDTp.reparName");
         int personsByIDTpPar = Integer.parseInt(prop.getProperty("personsByIDTp.numPar"));
         NewTopic personRepar = new NewTopic(personsByIDTp, personsByIDTpPar, (short) 3);
 
@@ -74,16 +76,16 @@ public class Query8 implements NexmarkQuery {
                 .filter((key, value) -> value.etype == Event.EType.PERSON)
                 .selectKey((key, value) -> value.newPerson.id)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName("person-repartition")
+                        .withName(personsByIDTpRepar)
                         .withNumberOfPartitions(personsByIDTpPar));
 
         KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.EType.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName("auction-repartition")
+                        .withName(aucBySellerIDTpRepar)
                         .withNumberOfPartitions(aucBySellerIDTpPar));
 
-        JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofSeconds(10));
+        JoinWindows jw = JoinWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5));
         WindowBytesStoreSupplier auctionStoreSupplier = Stores.inMemoryWindowStore(
                 "auction-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()), 
                 Duration.ofMillis(jw.size()), true

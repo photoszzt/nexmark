@@ -35,10 +35,12 @@ public class Query5 implements NexmarkQuery {
         NewTopic out = new NewTopic(outTp, numPar, (short) 3);
 
         String bidsTp = prop.getProperty("bids.name");
+        String bidsTpRepar = prop.getProperty("bids.reparName");
         int bidsTpPar = Integer.parseInt(prop.getProperty("bids.numPar"));
         NewTopic bidsRepar = new NewTopic(bidsTp, bidsTpPar, (short) 3);
 
         String auctionBidsTp = prop.getProperty("auctionBids.name");
+        String auctionBidsTpRepar = prop.getProperty("auctionBids.reparName");
         int auctionBidsTpPar = Integer.parseInt(prop.getProperty("auctionBids.numPar"));
         NewTopic auctionBidsRepar = new NewTopic(auctionBidsTp, auctionBidsTpPar, (short) 3);
 
@@ -96,13 +98,13 @@ public class Query5 implements NexmarkQuery {
         KStream<Long, Event> bid = inputs.filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction);
 
-        TimeWindows ts = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(10)).advanceBy(Duration.ofSeconds(2));
+        TimeWindows ts = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5)).advanceBy(Duration.ofSeconds(2));
         WindowBytesStoreSupplier auctionBidsWSSupplier = Stores.inMemoryWindowStore("auctionBidsCountStore",
                 Duration.ofMillis(ts.gracePeriodMs() + ts.size()), Duration.ofMillis(ts.size()), true);
 
         KStream<StartEndTime, AuctionIdCount> auctionBids = bid
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName(bidsTp)
+                        .withName(bidsTpRepar)
                         .withNumberOfPartitions(bidsTpPar))
                 .groupByKey(Grouped.with(Serdes.Long(), eSerde))
                 .windowedBy(ts)
@@ -116,7 +118,7 @@ public class Query5 implements NexmarkQuery {
                 .mapValues((key, value) -> new AuctionIdCount(key.key(), value))
                 .selectKey((key, value) -> new StartEndTime(key.window().start(), key.window().end()))
                 .repartition(Repartitioned.with(seSerde, aicSerde)
-                        .withName(auctionBidsTp)
+                        .withName(auctionBidsTpRepar)
                         .withNumberOfPartitions(auctionBidsTpPar));
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
