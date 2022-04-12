@@ -17,11 +17,6 @@ import java.util.Map;
 import java.util.Properties;
 
 public class Query4 implements NexmarkQuery {
-    private Map<String, CountAction> caMap;
-
-    public Query4() {
-        caMap = new HashMap<>();
-    }
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
         StreamsBuilder builder = new StreamsBuilder();
@@ -80,10 +75,5 @@ public class Query4 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q4");
         return props;
-    }
-
-    @Override
-    public Map<String, CountAction> getCountActionMap() {
-        return caMap;
     }
 }

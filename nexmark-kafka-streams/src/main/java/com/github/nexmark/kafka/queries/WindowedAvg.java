@@ -18,12 +18,6 @@ import java.util.Map;
 import java.util.Properties;
 
 public class WindowedAvg implements NexmarkQuery {
-    public Map<String, CountAction> caMap;
-
-    public WindowedAvg() {
-        this.caMap = new HashMap<>();
-    }
-
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
         int numPartition = 5;
@@ -52,11 +46,6 @@ public class WindowedAvg implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));
 
-        CountAction<String, Event> caInput = new CountAction<String, Event>();
-        CountAction<Windowed<Long>, Double> caOutput = new CountAction<Windowed<Long>, Double>();
-        caMap.put("caInput", caInput);
-        caMap.put("caOutput", caOutput);
-
         TimeWindows tw = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(10));
         WindowBytesStoreSupplier storeSupplier = Stores.inMemoryWindowStore("windowedavg-agg-store",
                 Duration.ofMillis(tw.gracePeriodMs() + tw.size()), Duration.ofMillis(tw.size()), false);
@@ -69,7 +58,7 @@ public class WindowedAvg implements NexmarkQuery {
         TimeWindowedDeserializer<Long> longWindowDeserializer = new TimeWindowedDeserializer<Long>(longSerde.deserializer(), tw.sizeMs);
         Serde<Windowed<Long>> windowedLongSerde = Serdes.serdeFrom(longWindowSerializer, longWindowDeserializer);
 
-        inputs.peek(caInput).filter((key, value) -> value.etype == Event.EType.BID)
+        inputs.filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde).withNumberOfPartitions(numPartition).withName("groupby-repar"))
                 .groupByKey(Grouped.with(Serdes.Long(), eSerde))
@@ -85,7 +74,6 @@ public class WindowedAvg implements NexmarkQuery {
                 )
                 .mapValues((key, value) -> (double) value.sum / (double) value.count)
                 .toStream()
-                .peek(caOutput)
                 .to("windowedavg-out", Produced.with(windowedLongSerde, Serdes.Double()));
         return builder;
     }
@@ -95,10 +83,5 @@ public class WindowedAvg implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "windowedAvg");
         return props;
-    }
-
-    @Override
-    public Map<String, CountAction> getCountActionMap() {
-        return caMap;
     }
 }

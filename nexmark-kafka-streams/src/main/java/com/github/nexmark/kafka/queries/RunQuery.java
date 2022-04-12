@@ -5,6 +5,9 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.kafka.common.Metric;
+import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.Topology;
@@ -47,7 +50,7 @@ public class RunQuery {
 
     public static String getEnvValue(String envKey, String defaultVal) {
         String envValue = System.getenv(envKey);
-        if(envValue != null && !envValue.isEmpty()) {
+        if (envValue != null && !envValue.isEmpty()) {
             return envValue;
         }
         return defaultVal;
@@ -64,15 +67,15 @@ public class RunQuery {
         String appName = line.getOptionValue(APP_NAME.getOpt());
         String serde = line.getOptionValue(SERDE.getOpt());
         String configFile = line.getOptionValue(CONFIG_FILE.getOpt());
-        System.out.println("appName: "+appName+" serde: "+serde+" configFile: "+configFile);
+        System.out.println("appName: " + appName + " serde: " + serde + " configFile: " + configFile);
 
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
-        
+
         NexmarkQuery query = getNexmarkQuery(appName);
         if (query == null) {
             System.exit(1);
         }
-        
+
         StreamsBuilder builder;
         try {
             builder = query.getStreamBuilder(bootstrapServers, serde, configFile);
@@ -81,7 +84,7 @@ public class RunQuery {
             e1.printStackTrace();
             return;
         }
-        
+
         Properties props = query.getProperties(bootstrapServers);
         Topology tp = builder.build();
         System.out.println(tp.describe());
@@ -105,16 +108,20 @@ public class RunQuery {
                 e.printStackTrace();
             }
             streams.close();
+            Map<MetricName, ? extends Metric> metric = streams.metrics();
+            System.out.println();
+            System.out.println();
+            metric.forEach((k, v) -> {
+                if ((k.name().equals("record-send-total") || k.name().equals("records-consumed-total"))
+                        && (k.group().equals("producer-metrics") || k.group().equals("producer-topic-metrics")
+                                || k.group().equals("consumer-fetch-manager-metrics"))) {
+                    System.out.println(k.group() + " " + k.name() + ", tags: " + k.tags()
+                            + ", val: " + v.metricValue());
+                }
+            });
             long timeEnd = System.currentTimeMillis();
             double durationSec = ((timeEnd - timeStart) / 1000.0);
-            Map<String, CountAction> caMap = query.getCountActionMap();
-            CountAction caInput = caMap.get("caInput");
-            CountAction caOutput = caMap.get("caOutput");
-            System.out.println("reading events: " + caInput.GetProcessedRecords());
-            System.out.println("output events: " + caOutput.GetProcessedRecords());
             System.out.println("Duration: " + durationSec);
-            System.out.println("reading events throughput: " + ((double)caInput.GetProcessedRecords()) / durationSec);
-            System.out.println("output throughput: " + (double)caOutput.GetProcessedRecords() / durationSec);
             latch.countDown();
         });
         t.start();

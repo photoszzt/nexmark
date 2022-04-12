@@ -19,12 +19,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 
 public class Query1 implements NexmarkQuery {
-    private Map<String, CountAction> caMap;
-
-    public Query1() {
-        caMap = new HashMap<>();
-    }
-
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
         Properties prop = new Properties();
@@ -52,18 +46,13 @@ public class Query1 implements NexmarkQuery {
         final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));
 
-        CountAction<String, Event> caInput = new CountAction<>();
-        CountAction<String, Event> caOutput = new CountAction<>();
-        caMap.put("caInput", caInput);
-        caMap.put("caOutput", caOutput);
-
-        inputs.peek(caInput).filter((key, value) -> value.etype == Event.EType.BID)
+        inputs.filter((key, value) -> value.etype == Event.EType.BID)
                 .mapValues(value -> {
                     Bid b = value.bid;
                     Event e = new Event(
                             new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra));
                     return e;
-                }).peek(caOutput).to(outTp, Produced.valueSerde(eSerde));
+                }).to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }
 
@@ -73,10 +62,5 @@ public class Query1 implements NexmarkQuery {
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q1");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "nexmark-q1-client");
         return props;
-    }
-
-    @Override
-    public Map<String, CountAction> getCountActionMap() {
-        return caMap;
     }
 }

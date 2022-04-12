@@ -13,17 +13,9 @@ import org.apache.kafka.streams.kstream.Produced;
 import java.io.IOException;
 import java.io.FileInputStream;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 public class Query2 implements NexmarkQuery {
-    private Map<String, CountAction> caMap;
-
-    public Query2() {
-        caMap = new HashMap<>();
-    }
-
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
         Properties prop = new Properties();
@@ -35,11 +27,6 @@ public class Query2 implements NexmarkQuery {
 
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
         StreamsBuilder builder = new StreamsBuilder();
-
-        CountAction<String, Event> caInput = new CountAction<String, Event>();
-        CountAction<String, Event> caOutput = new CountAction<String, Event>();
-        caMap.put("caInput", caInput);
-        caMap.put("caOutput", caOutput);
 
         Serde<Event> eSerde;
         if (serde.equals("json")) {
@@ -57,9 +44,7 @@ public class Query2 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde)
                         .withTimestampExtractor(new EventTimestampExtractor()));
-        inputs.peek(caInput)
-                .filter((key, value) -> value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
-                .peek(caOutput)
+        inputs.filter((key, value) -> value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
                 .to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }
@@ -69,10 +54,5 @@ public class Query2 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q2");
         return props;
-    }
-
-    @Override
-    public Map<String, CountAction> getCountActionMap() {
-        return caMap;
     }
 }

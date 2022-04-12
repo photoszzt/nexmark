@@ -18,17 +18,11 @@ import java.io.IOException;
 import java.io.FileInputStream;
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 import java.util.List;
 import java.util.ArrayList;
 
 public class Query5 implements NexmarkQuery {
-    private Map<String, CountAction> caMap;
-
-    public Query5() {
-        caMap = new HashMap<>();
-    }
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
@@ -53,11 +47,6 @@ public class Query5 implements NexmarkQuery {
         nps.add(bidsRepar);
         nps.add(auctionBidsRepar);
         StreamsUtils.createTopic(bootstrapServer, nps);
-
-        CountAction<String, Event> caInput = new CountAction<String, Event>();
-        CountAction<StartEndTime, AuctionIdCntMax> caOutput = new CountAction<StartEndTime, AuctionIdCntMax>();
-        caMap.put("caInput", caInput);
-        caMap.put("caOutput", caOutput);
 
         Serde<Event> eSerde;
         Serde<StartEndTime> seSerde;
@@ -104,7 +93,7 @@ public class Query5 implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));
-        KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.etype == Event.EType.BID)
+        KStream<Long, Event> bid = inputs.filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction);
 
         TimeWindows ts = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(10)).advanceBy(Duration.ofSeconds(2));
@@ -152,7 +141,6 @@ public class Query5 implements NexmarkQuery {
                 .join(maxBids, (leftValue, rightValue) ->
                         new AuctionIdCntMax(leftValue.aucId, leftValue.count, (long) rightValue))
                 .filter((key, value) -> value.count >= value.maxCnt)
-                .peek(caOutput)
                 .to(outTp, Produced.with(seSerde, aicmSerde));
         return builder;
     }
@@ -162,10 +150,5 @@ public class Query5 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q5");
         return props;
-    }
-
-    @Override
-    public Map<String, CountAction> getCountActionMap() {
-        return caMap;
     }
 }

@@ -19,12 +19,6 @@ import java.io.IOException;
 import java.io.FileInputStream;
 
 public class Query8 implements NexmarkQuery {
-    private Map<String, CountAction> caMap;
-
-    public Query8() {
-        caMap = new HashMap<>();
-    }
-
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException{
         Properties prop = new Properties();
@@ -48,11 +42,6 @@ public class Query8 implements NexmarkQuery {
         nps.add(personRepar);
         nps.add(auctionRepar);
         StreamsUtils.createTopic(bootstrapServer, nps);
-
-        CountAction<String, Event> caInput = new CountAction<String, Event>();
-        CountAction<Long, PersonTime> caOutput = new CountAction<Long, PersonTime>();
-        caMap.put("caInput", caInput);
-        caMap.put("caOutput", caOutput);
 
         StreamsBuilder builder = new StreamsBuilder();
 
@@ -82,7 +71,6 @@ public class Query8 implements NexmarkQuery {
                 .withTimestampExtractor(new EventTimestampExtractor()));
 
         KStream<Long, Event> person = inputs
-                .peek(caInput)
                 .filter((key, value) -> value.etype == Event.EType.PERSON)
                 .selectKey((key, value) -> value.newPerson.id)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
@@ -119,7 +107,6 @@ public class Query8 implements NexmarkQuery {
                                 .withOtherValueSerde(eSerde)
                                 .withLoggingEnabled(new HashMap<>())
                 )
-                .peek(caOutput)
                 .to(outTp, Produced.with(Serdes.Long(), ptSerde));
         return builder;
     }
@@ -129,10 +116,5 @@ public class Query8 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q8");
         return props;
-    }
-
-    @Override
-    public Map<String, CountAction> getCountActionMap() {
-        return caMap;
     }
 }

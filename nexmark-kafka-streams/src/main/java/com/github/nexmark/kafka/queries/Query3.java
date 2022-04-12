@@ -21,12 +21,6 @@ import java.util.Properties;
 
 public class Query3 implements NexmarkQuery {
 
-    private Map<String, CountAction> caMap;
-
-    public Query3() {
-        caMap = new HashMap<>();
-    }
-
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
 
@@ -54,11 +48,6 @@ public class Query3 implements NexmarkQuery {
 
         StreamsBuilder builder = new StreamsBuilder();
 
-        CountAction<String, Event> caInput = new CountAction<String, Event>();
-        CountAction<Long, NameCityStateId> caOutput = new CountAction<Long, NameCityStateId>();
-        caMap.put("caInput", caInput);
-        caMap.put("caOutput", caOutput);
-
         Serde<Event> eSerde;
         Serde<NameCityStateId> ncsiSerde;
         if (serde.equals("json")) {
@@ -85,7 +74,7 @@ public class Query3 implements NexmarkQuery {
                 .withTimestampExtractor(new EventTimestampExtractor()));
 
         KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores.inMemoryKeyValueStore("auctionBySellerIdKV");
-        KTable<Long, Event> auctionsBySellerId = inputs.peek(caInput)
+        KTable<Long, Event> auctionsBySellerId = inputs
                 .filter((key, value) -> value.etype == Event.EType.AUCTION && value.newAuction.category == 10)
                 .selectKey((key, value) -> value.newAuction.seller)
                 .toTable(Named.as("auctionBySellerIdTab"),
@@ -114,7 +103,6 @@ public class Query3 implements NexmarkQuery {
                         rightValue.newPerson.state,
                         rightValue.newPerson.id))
                 .toStream()
-                .peek(caOutput)
                 .to(outTp, Produced.with(Serdes.Long(), ncsiSerde));
         return builder;
     }
@@ -124,10 +112,5 @@ public class Query3 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q3");
         return props;
-    }
-
-    @Override
-    public Map<String, CountAction> getCountActionMap() {
-        return caMap;
     }
 }

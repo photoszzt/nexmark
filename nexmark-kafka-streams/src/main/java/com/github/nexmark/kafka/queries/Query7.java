@@ -21,12 +21,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 public class Query7 implements NexmarkQuery {
-    private Map<String, CountAction> caMap;
-
-    public Query7() {
-        caMap = new HashMap<>();
-    }
-
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
         Properties prop = new Properties();
@@ -45,11 +39,6 @@ public class Query7 implements NexmarkQuery {
         nps.add(out);
         nps.add(bidsRepar);
         StreamsUtils.createTopic(bootstrapServer, nps);
-
-        CountAction<String, Event> caInput = new CountAction<String, Event>();
-        CountAction<Long, BidAndMax> caOutput = new CountAction<Long, BidAndMax>();
-        caMap.put("caInput", caInput);
-        caMap.put("caOutput", caOutput);
 
         Serde<Event> eSerde;
         Serde<PriceTime> ptSerde;
@@ -85,7 +74,7 @@ public class Query7 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde).withTimestampExtractor(new EventTimestampExtractor()));
 
-        KStream<Long, Event> bid = inputs.peek(caInput).filter((key, value) -> value.etype == Event.EType.BID)
+        KStream<Long, Event> bid = inputs.filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.price)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsTp)
@@ -148,7 +137,7 @@ public class Query7 implements NexmarkQuery {
                 .filter((key, value) -> {
                     Instant lb = value.maxDateTime.minus(10, ChronoUnit.SECONDS);
                     return value.dateTime.compareTo(lb) >= 0 && value.dateTime.compareTo(value.maxDateTime) <= 0;
-                }).peek(caOutput).to(outTp, Produced.with(Serdes.Long(), bmSerde));
+                }).to(outTp, Produced.with(Serdes.Long(), bmSerde));
         return builder;
     }
 
@@ -157,10 +146,5 @@ public class Query7 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q7");
         return props;
-    }
-
-    @Override
-    public Map<String, CountAction> getCountActionMap() {
-        return caMap;
     }
 }
