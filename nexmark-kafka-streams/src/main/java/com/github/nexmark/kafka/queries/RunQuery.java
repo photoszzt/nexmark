@@ -7,7 +7,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
-import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.Topology;
@@ -21,6 +20,7 @@ public class RunQuery {
     private static final Option APP_NAME = new Option("n", "name", true, "app name");
     private static final Option SERDE = new Option("s", "serde", true, "serde");
     private static final Option CONFIG_FILE = new Option("c", "conf", true, "config file");
+    private static final Option DURATION = new Option("d", "duration", true, "duration in seconds");
 
     private static NexmarkQuery getNexmarkQuery(String appName) {
         switch (appName) {
@@ -67,6 +67,8 @@ public class RunQuery {
         String appName = line.getOptionValue(APP_NAME.getOpt());
         String serde = line.getOptionValue(SERDE.getOpt());
         String configFile = line.getOptionValue(CONFIG_FILE.getOpt());
+        String durStr = line.getOptionValue(DURATION.getOpt());
+        int duration = Integer.parseInt(durStr) * 1000;
         System.out.println("appName: " + appName + " serde: " + serde + " configFile: " + configFile);
 
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
@@ -91,7 +93,6 @@ public class RunQuery {
         final KafkaStreams streams = new KafkaStreams(tp, props);
 
         final CountDownLatch latch = new CountDownLatch(1);
-        int duration = 60 * 1000;
         // attach shutdown handler to catch control-c
         Runtime.getRuntime().addShutdownHook(new Thread("streams-shutdown-hook") {
             @Override
@@ -140,6 +141,7 @@ public class RunQuery {
         options.addOption(APP_NAME);
         options.addOption(SERDE);
         options.addOption(CONFIG_FILE);
+        options.addOption(DURATION);
         return options;
     }
 }
