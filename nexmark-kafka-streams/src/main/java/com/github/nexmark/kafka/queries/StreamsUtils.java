@@ -22,8 +22,9 @@ public class StreamsUtils {
         props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
 
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
-        props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 2);
+        props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all");
+        props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), Integer.toString(4096));
         props.put(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, 1);
 
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");

@@ -3,8 +3,6 @@ package com.github.nexmark.kafka.queries;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 public class Query6 implements NexmarkQuery {
