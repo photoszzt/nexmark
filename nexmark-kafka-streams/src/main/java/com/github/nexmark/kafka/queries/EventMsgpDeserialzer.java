@@ -31,7 +31,7 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
         }
         JsonNode etypeNode = node.get("etype");
         if (etypeNode == null) {
-            return null;
+            throw new RuntimeException("event should have a etype");
         }
         byte etype = (byte)node.get("etype").asInt();
         if (etype == 0) {
