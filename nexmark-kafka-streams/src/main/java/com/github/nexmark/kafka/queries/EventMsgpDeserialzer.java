@@ -29,9 +29,16 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
         if (node == null) {
             return null;
         }
+        JsonNode etypeNode = node.get("etype");
+        if (etypeNode == null) {
+            return null;
+        }
         byte etype = (byte)node.get("etype").asInt();
         if (etype == 0) {
             JsonNode personNode = node.get("newPerson");
+            if (personNode == null) {
+                throw new RuntimeException("etype is 0; but no person is enclosed");
+            }
             long id = personNode.get("id").asLong();
             String name = personNode.get("name").asText();
             String emailAddress = personNode.get("emailAddress").asText();
@@ -44,6 +51,9 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
             return new Event(newPerson);
         } else if (etype == 1) {
             JsonNode auctionNode = node.get("newAuction");
+            if (auctionNode == null) {
+                throw new RuntimeException("etype is 1; but no auction is enclosed");
+            }
             long id = auctionNode.get("id").asLong();
             String itemName = auctionNode.get("itemName").asText();
             String description = auctionNode.get("description").asText();
@@ -59,6 +69,9 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
             return new Event(newAuction);
         } else if (etype == 2) {
             JsonNode bidNode = node.get("bid");
+            if (bidNode == null) {
+                throw new RuntimeException("etype is 2; but no bid is enclosed");
+            }
             long auction = bidNode.get("auction").asLong();
             long bidder = bidNode.get("bidder").asLong();
             long price = bidNode.get("price").asLong();
