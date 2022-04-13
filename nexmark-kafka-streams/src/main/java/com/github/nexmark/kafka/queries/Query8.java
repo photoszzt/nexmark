@@ -73,13 +73,13 @@ public class Query8 implements NexmarkQuery {
                 .withTimestampExtractor(new EventTimestampExtractor()));
 
         KStream<Long, Event> person = inputs
-                .filter((key, value) -> value.etype == Event.EType.PERSON)
+                .filter((key, value) -> value != null && value.etype == Event.EType.PERSON)
                 .selectKey((key, value) -> value.newPerson.id)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(personsByIDTpRepar)
                         .withNumberOfPartitions(personsByIDTpPar));
 
-        KStream<Long, Event> auction = inputs.filter((key, value) -> value.etype == Event.EType.AUCTION)
+        KStream<Long, Event> auction = inputs.filter((key, value) -> value != null && value.etype == Event.EType.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucBySellerIDTpRepar)

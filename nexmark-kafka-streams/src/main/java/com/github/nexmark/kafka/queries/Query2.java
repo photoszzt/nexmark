@@ -44,7 +44,7 @@ public class Query2 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde)
                         .withTimestampExtractor(new EventTimestampExtractor()));
-        inputs.filter((key, value) -> value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
+        inputs.filter((key, value) -> value != null && value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
                 .to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }

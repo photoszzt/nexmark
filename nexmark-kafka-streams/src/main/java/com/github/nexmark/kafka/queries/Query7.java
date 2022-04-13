@@ -75,7 +75,7 @@ public class Query7 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde).withTimestampExtractor(new EventTimestampExtractor()));
 
-        KStream<Long, Event> bid = inputs.filter((key, value) -> value.etype == Event.EType.BID)
+        KStream<Long, Event> bid = inputs.filter((key, value) -> value != null && value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.price)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsTpRepar)
