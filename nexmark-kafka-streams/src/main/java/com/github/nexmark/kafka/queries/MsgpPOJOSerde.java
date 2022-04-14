@@ -9,7 +9,7 @@ import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
-import org.msgpack.jackson.dataformat.MessagePackFactory;
+import org.msgpack.jackson.dataformat.MessagePackMapper;
 import com.github.nexmark.kafka.model.Event;
 
 import java.io.IOException;
@@ -19,7 +19,7 @@ public class MsgpPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
     private ObjectMapper objectMapper;
     private Class<T> cls;
     public MsgpPOJOSerde() {
-        objectMapper = new ObjectMapper(new MessagePackFactory());
+        objectMapper = new MessagePackMapper();
         SimpleModule eventDescMod = new SimpleModule();
         eventDescMod.addDeserializer(Event.class, new EventMsgpDeserialzer());
         objectMapper.registerModule(eventDescMod);
@@ -39,7 +39,9 @@ public class MsgpPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
     @Override
     public T deserialize(String s, byte[] bytes) {
         try {
+            assert(bytes != null);
             T obj = (T)objectMapper.readValue(bytes, this.cls);
+            assert(obj != null);
             return obj;
         } catch (IOException e) {
             e.printStackTrace();
