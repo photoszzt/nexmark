@@ -27,7 +27,7 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
     public Event deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
         JsonNode node = p.getCodec().readTree(p);
         if (node == null) {
-            return null;
+            throw new RuntimeException("event should not be null");
         }
         JsonNode etypeNode = node.get("etype");
         if (etypeNode == null) {
