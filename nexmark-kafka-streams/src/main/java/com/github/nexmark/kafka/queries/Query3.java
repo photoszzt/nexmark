@@ -21,8 +21,8 @@ import java.util.Properties;
 public class Query3 implements NexmarkQuery {
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
-
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile)
+            throws IOException {
         Properties prop = new Properties();
         FileInputStream fis = new FileInputStream(configFile);
         prop.load(fis);
@@ -72,9 +72,11 @@ public class Query3 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));
 
-        KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores.inMemoryKeyValueStore("auctionBySellerIdKV");
+        KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores
+                .inMemoryKeyValueStore("auctionBySellerIdKV");
         KTable<Long, Event> auctionsBySellerId = inputs
-                .filter((key, value) -> value != null && value.etype == Event.EType.AUCTION && value.newAuction.category == 10)
+                .filter((key, value) -> value != null && value.etype == Event.EType.AUCTION
+                        && value.newAuction.category == 10)
                 .selectKey((key, value) -> value.newAuction.seller)
                 .toTable(Named.as("auctionBySellerIdTab"),
                         Materialized.<Long, Event>as(auctionsBySellerIdKVStoreSupplier)
@@ -85,9 +87,10 @@ public class Query3 implements NexmarkQuery {
 
         KeyValueBytesStoreSupplier personsByIdKVStoreSupplier = Stores.inMemoryKeyValueStore("personsByIdKV");
         KTable<Long, Event> personsById = inputs
-                .filter((key, value) -> value != null && value.etype == Event.EType.PERSON)
-                .filter((key, value) -> value.newPerson.state.equals("OR") || value.newPerson.state.equals("ID") ||
-                        value.newPerson.state.equals("CA"))
+                .filter((key, value) -> value != null && value.etype == Event.EType.PERSON
+                        && (value.newPerson.state.equals("OR") ||
+                                value.newPerson.state.equals("ID") ||
+                                value.newPerson.state.equals("CA")))
                 .selectKey((key, value) -> value.newPerson.id)
                 .toTable(Named.as("personsByIdTab"),
                         Materialized.<Long, Event>as(personsByIdKVStoreSupplier)
@@ -97,10 +100,12 @@ public class Query3 implements NexmarkQuery {
                                 .withValueSerde(eSerde));
 
         auctionsBySellerId
-                .join(personsById, (leftValue, rightValue) -> new NameCityStateId(rightValue.newPerson.name,
-                        rightValue.newPerson.city,
-                        rightValue.newPerson.state,
-                        rightValue.newPerson.id))
+                .join(personsById,
+                        (leftValue, rightValue) -> new NameCityStateId(
+                                rightValue.newPerson.name,
+                                rightValue.newPerson.city,
+                                rightValue.newPerson.state,
+                                rightValue.newPerson.id))
                 .toStream()
                 .to(outTp, Produced.with(Serdes.Long(), ncsiSerde));
         return builder;
