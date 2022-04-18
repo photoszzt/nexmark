@@ -114,12 +114,8 @@ public class RunQuery {
             System.out.println();
             System.out.println();
             metric.forEach((k, v) -> {
-                if ((k.name().equals("record-send-total") || k.name().equals("records-consumed-total"))
-                        && (k.group().equals("producer-metrics") || k.group().equals("producer-topic-metrics")
-                                || k.group().equals("consumer-fetch-manager-metrics"))) {
-                    System.out.println(k.group() + " " + k.name() + ", tags: " + k.tags()
-                            + ", val: " + v.metricValue());
-                }
+                System.out.println(k.group() + " " + k.name() + ", tags: " + k.tags()
+                        + ", val: " + v.metricValue());
             });
             long timeEnd = System.currentTimeMillis();
             double durationSec = ((timeEnd - timeStart) / 1000.0);
