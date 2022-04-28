@@ -10,7 +10,10 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.Topology;
-
+// import java.io.BufferedOutputStream;
+// import java.io.FileNotFoundException;
+// import java.io.FileOutputStream;
+// import java.io.PrintStream;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
@@ -21,6 +24,7 @@ public class RunQuery {
     private static final Option SERDE = new Option("s", "serde", true, "serde");
     private static final Option CONFIG_FILE = new Option("c", "conf", true, "config file");
     private static final Option DURATION = new Option("d", "duration", true, "duration in seconds");
+    // private static final Option NUM_SRC_EVENTS = new Option("e", "srcEvents", true, "number of src events");
 
     private static NexmarkQuery getNexmarkQuery(String appName) {
         switch (appName) {
@@ -69,9 +73,13 @@ public class RunQuery {
         String configFile = line.getOptionValue(CONFIG_FILE.getOpt());
         String durStr = line.getOptionValue(DURATION.getOpt());
         int duration = Integer.parseInt(durStr) * 1000;
-        System.out.println("appName: " + appName + " serde: " + serde + " configFile: " + configFile + " duration(ms): "
-                + duration);
-
+        /*
+         * String srcEventStr = line.getOptionValue(NUM_SRC_EVENTS.getOpt());
+         * int srcEvents = Integer.parseInt(srcEventStr);
+         * System.out.println("appName: " + appName + " serde: " + serde +
+         * " configFile: " + configFile + " duration(ms): "
+         * + duration + " numSrcEvents: " + srcEvents);
+         */
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
 
         NexmarkQuery query = getNexmarkQuery(appName);
@@ -104,11 +112,36 @@ public class RunQuery {
         });
         Thread t = new Thread(() -> {
             long timeStart = System.currentTimeMillis();
+            // if (duration != 0 && srcEvents == 0) {
             try {
                 Thread.sleep(duration);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+            /*
+             * } else {
+             * boolean done = false;
+             * while (!done) {
+             * Map<MetricName, ? extends Metric> metric = streams.metrics();
+             * for (Map.Entry<MetricName, ? extends Metric> entry : metric.entrySet()) {
+             * MetricName k = entry.getKey();
+             * Metric v = entry.getValue();
+             * if (k.group() == "consumer-fetch-manager-metrics" &&
+             * k.tags().containsKey("topic")) {
+             * String topicName = k.tags().get("topic");
+             * if (topicName == "nexmark_src") {
+             * int val = (int) v.metricValue();
+             * System.out.println("topicName: " + topicName + " val: " + val);
+             * if (val >= srcEvents) {
+             * done = true;
+             * break;
+             * }
+             * }
+             * }
+             * }
+             * }
+             * }
+             */
             streams.close();
             Map<MetricName, ? extends Metric> metric = streams.metrics();
             System.out.println();
@@ -139,6 +172,7 @@ public class RunQuery {
         options.addOption(SERDE);
         options.addOption(CONFIG_FILE);
         options.addOption(DURATION);
+        // options.addOption(NUM_SRC_EVENTS);
         return options;
     }
 }
