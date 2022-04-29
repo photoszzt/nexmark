@@ -75,4 +75,9 @@ public class Query4 implements NexmarkQuery {
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q4");
         return props;
     }
+
+    @Override
+    public long getInputCount() {
+        return 0;
+    }
 }

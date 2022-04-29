@@ -19,6 +19,11 @@ import java.util.List;
 import java.util.Properties;
 
 public class Query3 implements NexmarkQuery {
+    public CountAction<String, Event> input;
+
+    public Query3() {
+        input = new CountAction<>();
+    }
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile)
@@ -70,7 +75,7 @@ public class Query3 implements NexmarkQuery {
         }
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
-                .withTimestampExtractor(new EventTimestampExtractor()));
+                .withTimestampExtractor(new EventTimestampExtractor())).peek(input);
 
         KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores
                 .inMemoryKeyValueStore("auctionBySellerIdKV");
@@ -116,5 +121,10 @@ public class Query3 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q3");
         return props;
+    }
+
+    @Override
+    public long getInputCount() {
+        return input.GetProcessedRecords();
     }
 }

@@ -23,9 +23,15 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class Query5 implements NexmarkQuery {
+    public CountAction<String, Event> input;
+
+    public Query5() {
+        input = new CountAction<>();
+    }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile)
+            throws IOException {
         Properties prop = new Properties();
         FileInputStream fis = new FileInputStream(configFile);
         prop.load(fis);
@@ -95,10 +101,12 @@ public class Query5 implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));
-        KStream<Long, Event> bid = inputs.filter((key, value) -> value != null && value.etype == Event.EType.BID)
+        KStream<Long, Event> bid = inputs
+                .filter((key, value) -> value != null && value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction);
 
-        TimeWindows ts = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5)).advanceBy(Duration.ofSeconds(2));
+        TimeWindows ts = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5))
+                .advanceBy(Duration.ofSeconds(2));
         WindowBytesStoreSupplier auctionBidsWSSupplier = Stores.inMemoryWindowStore("auctionBidsCountStore",
                 Duration.ofMillis(ts.gracePeriodMs() + ts.size()), Duration.ofMillis(ts.size()), true);
 
@@ -122,7 +130,7 @@ public class Query5 implements NexmarkQuery {
                         .withNumberOfPartitions(auctionBidsTpPar));
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
-        
+
         KTable<StartEndTime, Long> maxBids = auctionBids
                 .groupByKey(Grouped.with(seSerde, aicSerde))
                 .aggregate(() -> 0L,
@@ -137,11 +145,10 @@ public class Query5 implements NexmarkQuery {
                                 .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>())
                                 .withKeySerde(seSerde)
-                                .withValueSerde(Serdes.Long())
-                );
+                                .withValueSerde(Serdes.Long()));
         auctionBids
-                .join(maxBids, (leftValue, rightValue) ->
-                        new AuctionIdCntMax(leftValue.aucId, leftValue.count, (long) rightValue))
+                .join(maxBids, (leftValue, rightValue) -> new AuctionIdCntMax(leftValue.aucId,
+                        leftValue.count, (long) rightValue))
                 .filter((key, value) -> value.count >= value.maxCnt)
                 .to(outTp, Produced.with(seSerde, aicmSerde));
         return builder;
@@ -152,5 +159,10 @@ public class Query5 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q5");
         return props;
+    }
+
+    @Override
+    public long getInputCount() {
+        return input.GetProcessedRecords();
     }
 }

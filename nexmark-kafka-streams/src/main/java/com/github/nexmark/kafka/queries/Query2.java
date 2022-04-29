@@ -16,6 +16,12 @@ import java.util.Collections;
 import java.util.Properties;
 
 public class Query2 implements NexmarkQuery {
+    public CountAction<String, Event> input;
+
+    public Query2() {
+        input = new CountAction<>();
+    }
+
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
         Properties prop = new Properties();
@@ -41,10 +47,13 @@ public class Query2 implements NexmarkQuery {
             throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
         }
 
+        input = new CountAction<>();
+
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde)
                         .withTimestampExtractor(new EventTimestampExtractor()));
-        inputs.filter((key, value) -> value != null && value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
+        inputs.peek(input)
+                .filter((key, value) -> value != null && value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
                 .to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }
@@ -54,5 +63,10 @@ public class Query2 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q2");
         return props;
+    }
+
+    @Override
+    public long getInputCount() {
+        return input.GetProcessedRecords();
     }
 }

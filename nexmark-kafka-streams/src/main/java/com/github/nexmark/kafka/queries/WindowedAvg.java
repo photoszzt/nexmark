@@ -84,4 +84,9 @@ public class WindowedAvg implements NexmarkQuery {
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "windowedAvg");
         return props;
     }
+
+    @Override
+    public long getInputCount() {
+        return 0;
+    }
 }

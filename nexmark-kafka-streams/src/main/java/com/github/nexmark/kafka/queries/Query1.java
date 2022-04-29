@@ -17,6 +17,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 
 public class Query1 implements NexmarkQuery {
+    public CountAction<String, Event> input;
+
+    public Query1() {
+        input = new CountAction<>();
+    }
+
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
         Properties prop = new Properties();
@@ -44,7 +50,7 @@ public class Query1 implements NexmarkQuery {
         final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));
 
-        inputs.filter((key, value) -> (value != null && value.etype == Event.EType.BID))
+        inputs.peek(input).filter((key, value) -> (value != null && value.etype == Event.EType.BID))
                 .mapValues(value -> {
                     Bid b = value.bid;
                     Event e = new Event(
@@ -60,5 +66,10 @@ public class Query1 implements NexmarkQuery {
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q1");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "nexmark-q1-client");
         return props;
+    }
+
+    @Override
+    public long getInputCount() {
+        return input.GetProcessedRecords();
     }
 }

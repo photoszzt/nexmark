@@ -8,4 +8,5 @@ import java.util.Properties;
 public interface NexmarkQuery {
     StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException;
     Properties getProperties(String bootstrapServer);
+    long getInputCount();
 }

@@ -1,17 +1,19 @@
 package com.github.nexmark.kafka.queries;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.kafka.streams.kstream.ForeachAction;
 
 public class CountAction <K, V> implements ForeachAction<K, V> {
-    long processedRecords = 0;
+    AtomicLong processedRecords = new AtomicLong(0);
 
     @Override
     public void apply(K k, V v) {
         // System.out.println("################## get event k: " + k + " v: " + v);
-        processedRecords += 1;
+        processedRecords.incrementAndGet();
     }
 
     public long GetProcessedRecords() {
-        return processedRecords;
+        return processedRecords.get();
     }
 }

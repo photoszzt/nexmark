@@ -19,8 +19,14 @@ import java.io.IOException;
 import java.io.FileInputStream;
 
 public class Query8 implements NexmarkQuery {
+    public CountAction<String, Event> input;
+
+    public Query8() {
+        input = new CountAction<>();
+    }
+
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException{
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
         Properties prop = new Properties();
         FileInputStream fis = new FileInputStream(configFile);
         prop.load(fis);
@@ -79,7 +85,8 @@ public class Query8 implements NexmarkQuery {
                         .withName(personsByIDTpRepar)
                         .withNumberOfPartitions(personsByIDTpPar));
 
-        KStream<Long, Event> auction = inputs.filter((key, value) -> value != null && value.etype == Event.EType.AUCTION)
+        KStream<Long, Event> auction = inputs
+                .filter((key, value) -> value != null && value.etype == Event.EType.AUCTION)
                 .selectKey((key, value) -> value.newAuction.seller)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucBySellerIDTpRepar)
@@ -87,28 +94,25 @@ public class Query8 implements NexmarkQuery {
 
         JoinWindows jw = JoinWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5));
         WindowBytesStoreSupplier auctionStoreSupplier = Stores.inMemoryWindowStore(
-                "auction-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()), 
-                Duration.ofMillis(jw.size()), true
-        );
+                "auction-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
+                Duration.ofMillis(jw.size()), true);
         WindowBytesStoreSupplier personStoreSupplier = Stores.inMemoryWindowStore(
-                "person-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()), 
-                Duration.ofMillis(jw.size()), true
-        );
+                "person-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
+                Duration.ofMillis(jw.size()), true);
         auction.join(person, new ValueJoiner<Event, Event, PersonTime>() {
-                            @Override
-                            public PersonTime apply(Event event, Event event2) {
-                                if (event2.etype == EType.PERSON) {
-                                    return new PersonTime(event2.newPerson.id, event2.newPerson.name, 0);
-                                } else {
-                                    return new PersonTime(event.newPerson.id, event.newPerson.name, 0);
-                                }
-                            }
-                        }, jw, StreamJoined.<Long, Event, Event>with(auctionStoreSupplier, personStoreSupplier)
-                                .withKeySerde(Serdes.Long())
-                                .withValueSerde(eSerde)
-                                .withOtherValueSerde(eSerde)
-                                .withLoggingEnabled(new HashMap<>())
-                )
+            @Override
+            public PersonTime apply(Event event, Event event2) {
+                if (event2.etype == EType.PERSON) {
+                    return new PersonTime(event2.newPerson.id, event2.newPerson.name, 0);
+                } else {
+                    return new PersonTime(event.newPerson.id, event.newPerson.name, 0);
+                }
+            }
+        }, jw, StreamJoined.<Long, Event, Event>with(auctionStoreSupplier, personStoreSupplier)
+                .withKeySerde(Serdes.Long())
+                .withValueSerde(eSerde)
+                .withOtherValueSerde(eSerde)
+                .withLoggingEnabled(new HashMap<>()))
                 .to(outTp, Produced.with(Serdes.Long(), ptSerde));
         return builder;
     }
@@ -118,5 +122,10 @@ public class Query8 implements NexmarkQuery {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q8");
         return props;
+    }
+
+    @Override
+    public long getInputCount() {
+        return input.GetProcessedRecords();
     }
 }
