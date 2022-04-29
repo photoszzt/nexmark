@@ -76,7 +76,7 @@ public class Query8 implements NexmarkQuery {
         }
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
-                .withTimestampExtractor(new EventTimestampExtractor()));
+                .withTimestampExtractor(new EventTimestampExtractor())).peek(input);
 
         KStream<Long, Event> person = inputs
                 .filter((key, value) -> value != null && value.etype == Event.EType.PERSON)

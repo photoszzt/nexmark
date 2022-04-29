@@ -119,9 +119,12 @@ public class RunQuery {
             } else {
                 boolean done = false;
                 while (!done) {
-                    long currentCount = query.getInputCount();
-                    if (query.getInputCount() == srcEvents) {
-                        done = true;
+                    long cur = System.currentTimeMillis();
+                    if (cur - timeStart >= 10000) {
+                        long currentCount = query.getInputCount();
+                        if (currentCount == srcEvents) {
+                            done = true;
+                        }
                     }
                     try {
                         Thread.sleep(500); // ms
@@ -129,7 +132,6 @@ public class RunQuery {
                         // TODO Auto-generated catch block
                         e.printStackTrace();
                     }
-                    System.out.println(currentCount);
                 }
             }
 

@@ -100,7 +100,7 @@ public class Query5 implements NexmarkQuery {
         StreamsBuilder builder = new StreamsBuilder();
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
-                .withTimestampExtractor(new EventTimestampExtractor()));
+                .withTimestampExtractor(new EventTimestampExtractor())).peek(input);
         KStream<Long, Event> bid = inputs
                 .filter((key, value) -> value != null && value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction);
