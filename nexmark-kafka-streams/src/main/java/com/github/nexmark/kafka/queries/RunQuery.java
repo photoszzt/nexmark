@@ -221,7 +221,7 @@ public class RunQuery {
                     System.exit(1);
                 }
 
-                byte[] response = "done".getBytes();
+                byte[] response = "done nexmark".getBytes();
                 exchange.sendResponseHeaders(200, response.length);
                 OutputStream os = exchange.getResponseBody();
                 os.write(response);
