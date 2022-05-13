@@ -153,4 +153,13 @@ public class Query7 implements NexmarkQuery {
     public long getInputCount() {
         return 0;
     }
+
+    @Override
+    public void setAfterWarmup() {
+    }
+
+    @Override
+    public List<Long> getRecordE2ELatency() {
+        return null;
+    }
 }

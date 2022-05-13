@@ -13,13 +13,16 @@ import org.apache.kafka.streams.kstream.Produced;
 import java.io.IOException;
 import java.io.FileInputStream;
 import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 
 public class Query2 implements NexmarkQuery {
     public CountAction<String, Event> input;
+    public LatencyCount<String, Event> latCount;
 
     public Query2() {
         input = new CountAction<>();
+        latCount = new LatencyCount<>();
     }
 
     @Override
@@ -54,6 +57,7 @@ public class Query2 implements NexmarkQuery {
                         .withTimestampExtractor(new EventTimestampExtractor()));
         inputs.peek(input)
                 .filter((key, value) -> value != null && value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
+                .peek(latCount)
                 .to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }
@@ -68,5 +72,15 @@ public class Query2 implements NexmarkQuery {
     @Override
     public long getInputCount() {
         return input.GetProcessedRecords();
+    }
+
+    @Override
+    public void setAfterWarmup() {
+        latCount.SetAfterWarmup();
+    }
+
+    @Override
+    public List<Long> getRecordE2ELatency() {
+        return latCount.GetLatencies();
     }
 }

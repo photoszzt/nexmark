@@ -24,9 +24,11 @@ import java.util.ArrayList;
 
 public class Query5 implements NexmarkQuery {
     public CountAction<String, Event> input;
+    public LatencyCountTransformerSupplier<AuctionIdCntMax> lcts;
 
     public Query5() {
         input = new CountAction<>();
+        lcts = new LatencyCountTransformerSupplier<>();
     }
 
     @Override
@@ -150,6 +152,7 @@ public class Query5 implements NexmarkQuery {
                 .join(maxBids, (leftValue, rightValue) -> new AuctionIdCntMax(leftValue.aucId,
                         leftValue.count, (long) rightValue))
                 .filter((key, value) -> value.count >= value.maxCnt)
+                .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(seSerde, aicmSerde));
         return builder;
     }
@@ -164,5 +167,15 @@ public class Query5 implements NexmarkQuery {
     @Override
     public long getInputCount() {
         return input.GetProcessedRecords();
+    }
+
+    @Override
+    public void setAfterWarmup() {
+        lcts.SetAfterWarmup();
+    }
+
+    @Override
+    public List<Long> getRecordE2ELatency() {
+        return lcts.GetLatency();
     }
 }

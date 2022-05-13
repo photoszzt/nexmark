@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.github.nexmark.kafka.queries.TimestampFromValue;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
@@ -11,7 +12,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class Event implements Serializable {
+public class Event implements Serializable, TimestampFromValue<Event> {
 	@JsonProperty("newPerson")
     public @Nullable Person newPerson;
 	@JsonProperty("newAuction")
@@ -92,6 +93,19 @@ public class Event implements Serializable {
 			return bid.toString();
 		} else {
 			throw new RuntimeException("invalid event");
+		}
+	}
+
+	@Override
+	public long extract() {
+		if (etype == Event.EType.AUCTION) {
+			return newAuction.dateTime.toEpochMilli();
+		} else if (etype == Event.EType.PERSON) {
+			return newPerson.dateTime.toEpochMilli();
+		} else if (etype == Event.EType.BID) {
+			return bid.dateTime.toEpochMilli();
+		} else {
+			throw new IllegalArgumentException("event type should be 0, 1 or 2; got " + etype);
 		}
 	}
 }

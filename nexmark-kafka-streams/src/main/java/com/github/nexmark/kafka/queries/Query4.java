@@ -13,6 +13,7 @@ import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
 
 public class Query4 implements NexmarkQuery {
@@ -79,5 +80,14 @@ public class Query4 implements NexmarkQuery {
     @Override
     public long getInputCount() {
         return 0;
+    }
+
+    @Override
+    public void setAfterWarmup() {
+    }
+
+    @Override
+    public List<Long> getRecordE2ELatency() {
+        return null;
     }
 }

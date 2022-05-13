@@ -3,6 +3,7 @@ package com.github.nexmark.kafka.queries;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 
+import java.util.List;
 import java.util.Properties;
 
 public class Query6 implements NexmarkQuery {
@@ -22,5 +23,15 @@ public class Query6 implements NexmarkQuery {
     @Override
     public long getInputCount() {
         return 0;
+    }
+
+    @Override
+    public void setAfterWarmup() {
+    }
+
+    @Override
+    public List<Long> getRecordE2ELatency() {
+        // TODO Auto-generated method stub
+        return null;
     }
 }

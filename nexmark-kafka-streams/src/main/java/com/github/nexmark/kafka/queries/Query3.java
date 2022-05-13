@@ -17,12 +17,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.Queue;
 
 public class Query3 implements NexmarkQuery {
     public CountAction<String, Event> input;
+    public LatencyCountTransformerSupplier<NameCityStateId> lcts;
 
     public Query3() {
         input = new CountAction<>();
+        lcts = new LatencyCountTransformerSupplier<NameCityStateId>();
     }
 
     @Override
@@ -112,6 +115,7 @@ public class Query3 implements NexmarkQuery {
                                 rightValue.newPerson.state,
                                 rightValue.newPerson.id))
                 .toStream()
+                .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(Serdes.Long(), ncsiSerde));
         return builder;
     }
@@ -126,5 +130,15 @@ public class Query3 implements NexmarkQuery {
     @Override
     public long getInputCount() {
         return input.GetProcessedRecords();
+    }
+
+    @Override
+    public void setAfterWarmup() {
+        lcts.SetAfterWarmup();
+    }
+
+    @Override
+    public List<Long> getRecordE2ELatency() {
+        return lcts.GetLatency();
     }
 }

@@ -20,9 +20,11 @@ import java.io.FileInputStream;
 
 public class Query8 implements NexmarkQuery {
     public CountAction<String, Event> input;
+    public LatencyCountTransformerSupplier<PersonTime> lcts;
 
     public Query8() {
         input = new CountAction<>();
+        lcts = new LatencyCountTransformerSupplier<>();
     }
 
     @Override
@@ -113,6 +115,7 @@ public class Query8 implements NexmarkQuery {
                 .withValueSerde(eSerde)
                 .withOtherValueSerde(eSerde)
                 .withLoggingEnabled(new HashMap<>()))
+                .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(Serdes.Long(), ptSerde));
         return builder;
     }
@@ -127,5 +130,15 @@ public class Query8 implements NexmarkQuery {
     @Override
     public long getInputCount() {
         return input.GetProcessedRecords();
+    }
+
+    @Override
+    public void setAfterWarmup() {
+        lcts.SetAfterWarmup();
+    }
+
+    @Override
+    public List<Long> getRecordE2ELatency() {
+        return lcts.GetLatency();
     }
 }
