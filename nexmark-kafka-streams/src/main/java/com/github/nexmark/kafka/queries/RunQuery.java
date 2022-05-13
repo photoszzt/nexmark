@@ -11,6 +11,7 @@ import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.Topology;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
@@ -219,6 +220,12 @@ public class RunQuery {
                 } catch (Throwable e) {
                     System.exit(1);
                 }
+
+                byte[] response = "done".getBytes();
+                exchange.sendResponseHeaders(200, response.length);
+                OutputStream os = exchange.getResponseBody();
+                os.write(response);
+                os.close();
             }
         });
         server.setExecutor(null);

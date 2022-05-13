@@ -33,7 +33,7 @@ public class StreamsUtils {
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
         props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-        props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, Integer.toString(duration*1000));
+        // props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, Integer.toString(duration*1000));
         props.put(StreamsConfig.METRICS_RECORDING_LEVEL_CONFIG, "INFO");
         return props;
     }

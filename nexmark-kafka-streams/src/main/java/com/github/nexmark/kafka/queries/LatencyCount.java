@@ -8,7 +8,7 @@ import org.apache.kafka.streams.kstream.ForeachAction;
 
 public class LatencyCount<K, V extends TimestampFromValue<V>> implements ForeachAction<K, TimestampFromValue<V>> {
     List<Long> latencies = new ArrayList<>();
-    AtomicBoolean afterWarmup;
+    AtomicBoolean afterWarmup = new AtomicBoolean(false);
 
     @Override
     public void apply(K key, TimestampFromValue<V> value) {

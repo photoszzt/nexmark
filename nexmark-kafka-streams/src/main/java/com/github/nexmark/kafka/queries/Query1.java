@@ -9,12 +9,12 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.Named;
 import org.apache.kafka.streams.kstream.Produced;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.Queue;
 import java.io.FileInputStream;
 import java.io.IOException;
 
@@ -60,7 +60,7 @@ public class Query1 implements NexmarkQuery {
                     Event e = new Event(
                             new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra));
                     return e;
-                }).peek(latCount).to(outTp, Produced.valueSerde(eSerde));
+                }).peek(latCount, Named.as("measure-latency")).to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }
 

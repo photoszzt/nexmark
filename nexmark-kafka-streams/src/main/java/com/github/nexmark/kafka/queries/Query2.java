@@ -9,6 +9,7 @@ import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.Named;
 
 import java.io.IOException;
 import java.io.FileInputStream;
@@ -57,7 +58,7 @@ public class Query2 implements NexmarkQuery {
                         .withTimestampExtractor(new EventTimestampExtractor()));
         inputs.peek(input)
                 .filter((key, value) -> value != null && value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
-                .peek(latCount)
+                .peek(latCount, Named.as("measure-latency"))
                 .to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }
