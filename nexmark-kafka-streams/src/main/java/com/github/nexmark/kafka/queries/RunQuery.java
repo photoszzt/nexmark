@@ -163,6 +163,7 @@ public class RunQuery {
                 });
                 Thread t = new Thread(() -> {
                     long timeStart = System.currentTimeMillis();
+                    long afterWarmStart = 0;
                     if (durationMs != 0 && srcEvents == 0) {
                         while (true) {
                             long elapsed = System.currentTimeMillis() - timeStart;
@@ -171,6 +172,7 @@ public class RunQuery {
                             }
                             if (elapsed >= warmupDuration) {
                                 query.setAfterWarmup();
+                                afterWarmStart = System.currentTimeMillis();
                             }
                             try {
                                 Thread.sleep(10);
@@ -207,6 +209,9 @@ public class RunQuery {
                     });
                     double durationSec = ((timeEnd - timeStart) / 1000.0);
                     System.out.println("Duration: " + durationSec);
+                    if (warmupDuration != 0) {
+                        System.out.println("Duration after warmup: " + (timeEnd - afterWarmStart)/1000.0);
+                    }
                     List<Long> latencies = query.getRecordE2ELatency();
                     System.out.println("Latencies: " + Arrays.toString(latencies.toArray()));
                     Collections.sort(latencies);
