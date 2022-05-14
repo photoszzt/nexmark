@@ -151,7 +151,8 @@ public class RunQuery {
                 // System.exit(1);
                 // }
                 // }
-
+                
+                System.out.println("Got connection\n");
                 final CountDownLatch latch = new CountDownLatch(1);
                 final KafkaStreams streams = new KafkaStreams(tp, props);
                 Runtime.getRuntime().addShutdownHook(new Thread("streams-shutdown-hook") {
@@ -221,6 +222,7 @@ public class RunQuery {
                 });
 
                 t.start();
+                System.out.println("Start processing and waiting for result\n");
                 try {
                     streams.start();
                     latch.await();
