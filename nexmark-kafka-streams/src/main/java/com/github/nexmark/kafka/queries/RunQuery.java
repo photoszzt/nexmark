@@ -13,6 +13,7 @@ import org.apache.kafka.streams.Topology;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -207,6 +208,7 @@ public class RunQuery {
                     double durationSec = ((timeEnd - timeStart) / 1000.0);
                     System.out.println("Duration: " + durationSec);
                     List<Long> latencies = query.getRecordE2ELatency();
+                    System.out.println("Latencies: " + Arrays.toString(latencies.toArray()));
                     Collections.sort(latencies);
                     System.out.println("latency p50: " + percentile(latencies, 50) +
                             " ms p99: " + percentile(latencies, 99) + " ms");
