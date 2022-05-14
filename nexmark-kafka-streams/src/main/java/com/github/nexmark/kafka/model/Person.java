@@ -22,7 +22,7 @@ public class Person implements Serializable {
 
     public String state;
 
-    public Instant dateTime;
+    public long dateTime;
 
     /** Additional arbitrary payload for performance testing. */
     public String extra;
@@ -35,7 +35,7 @@ public class Person implements Serializable {
             @JsonProperty("creditCard") String creditCard,
             @JsonProperty("city") String city,
             @JsonProperty("state") String state,
-            @JsonProperty("dateTime") Instant dateTime,
+            @JsonProperty("dateTime") long dateTime,
             @JsonProperty("extra") String extra) {
         this.id = id;
         this.name = name;

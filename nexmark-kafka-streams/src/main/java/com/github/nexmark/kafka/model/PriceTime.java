@@ -7,11 +7,11 @@ import java.time.Instant;
 
 public class PriceTime {
     public long price;
-    public Instant dateTime;
+    public long dateTime;
 
     @JsonCreator
     public PriceTime(@JsonProperty("price") long price,
-                     @JsonProperty("dateTime") Instant dateTime) {
+                     @JsonProperty("dateTime") long dateTime) {
         this.price = price;
         this.dateTime = dateTime;
     }

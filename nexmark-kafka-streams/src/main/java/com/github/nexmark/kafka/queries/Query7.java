@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.io.FileInputStream;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 public class Query7 implements NexmarkQuery {
@@ -89,7 +88,7 @@ public class Query7 implements NexmarkQuery {
 
         bid.groupByKey(Grouped.with(Serdes.Long(), eSerde))
                 .windowedBy(tw)
-                .aggregate(() -> new PriceTime(0, Instant.MIN), (key, value, aggregate) -> {
+                .aggregate(() -> new PriceTime(0, Instant.MIN.toEpochMilli()), (key, value, aggregate) -> {
                     if (value.bid.price > aggregate.price) {
                         return new PriceTime(value.bid.price, value.bid.dateTime);
                     } else {
@@ -118,7 +117,7 @@ public class Query7 implements NexmarkQuery {
                     @Override
                     public KeyValue<Long, BidAndMax> transform(Long aLong, Event event) {
                         WindowStoreIterator<ValueAndTimestamp<PriceTime>> ptIter = this.stateStore.fetch(aLong,
-                                event.bid.dateTime.minusSeconds(10), event.bid.dateTime);
+                                event.bid.dateTime - 10*1000, event.bid.dateTime);
                         while (ptIter.hasNext()) {
                             KeyValue<Long, ValueAndTimestamp<PriceTime>> kv = ptIter.next();
                             if (event.bid.price == kv.value.value().price) {
@@ -136,8 +135,8 @@ public class Query7 implements NexmarkQuery {
             }
         }, wintabName)
                 .filter((key, value) -> {
-                    Instant lb = value.maxDateTime.minus(10, ChronoUnit.SECONDS);
-                    return value.dateTime.compareTo(lb) >= 0 && value.dateTime.compareTo(value.maxDateTime) <= 0;
+                    long lb = value.maxDateTime - 10*1000;
+                    return value.dateTimeMs >= lb && value.dateTimeMs <= value.maxDateTime;
                 }).to(outTp, Produced.with(Serdes.Long(), bmSerde));
         return builder;
     }

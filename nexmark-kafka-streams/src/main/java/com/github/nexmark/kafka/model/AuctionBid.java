@@ -6,22 +6,22 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 
 public class AuctionBid {
-    public Instant bidDateTime;
-    public Instant aucDateTime;
-    public Instant aucExpires;
+    public long bidDateTimeMs;
+    public long aucDateTimeMs;
+    public long aucExpiresMs;
     public long bidPrice;
     public long aucCategory;
 
     @JsonCreator
     public AuctionBid(
-            @JsonProperty("bidDateTime") Instant bidDateTime,
-            @JsonProperty("aucDateTime") Instant aucDateTime,
-            @JsonProperty("aucExpires") Instant aucExpires,
+            @JsonProperty("bidDateTime") long bidDateTime,
+            @JsonProperty("aucDateTime") long aucDateTime,
+            @JsonProperty("aucExpires") long aucExpires,
             @JsonProperty("bidPrice") long bidPrice,
             @JsonProperty("aucCategory") long aucCategory) {
-        this.bidDateTime = bidDateTime;
-        this.aucDateTime = aucDateTime;
-        this.aucExpires = aucExpires;
+        this.bidDateTimeMs = bidDateTime;
+        this.aucDateTimeMs = aucDateTime;
+        this.aucExpiresMs = aucExpires;
         this.bidPrice = bidPrice;
         this.aucCategory = aucCategory;
     }

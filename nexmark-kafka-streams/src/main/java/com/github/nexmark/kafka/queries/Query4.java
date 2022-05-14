@@ -60,10 +60,10 @@ public class Query4 implements NexmarkQuery {
                                 .withValueSerde(eSerde));
 
         auction.join(bid, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime,
-                        leftValue.newAuction.dateTime, leftValue.newAuction.expires,
+                        leftValue.newAuction.dateTimeMs, leftValue.newAuction.expiresMs,
                         rightValue.bid.price, leftValue.newAuction.category))
-                .filter((key, value) -> value.bidDateTime.compareTo(value.aucDateTime) >= 0
-                        && value.bidDateTime.compareTo(value.aucExpires) <= 0
+                .filter((key, value) -> value.bidDateTimeMs >= value.aucDateTimeMs
+                        && value.bidDateTimeMs <= value.aucExpiresMs
                 )
                 .groupBy((key, value) -> KeyValue.pair(new AucIdCategory(key, value.aucCategory), value));
         // TODO: aggregate is not done

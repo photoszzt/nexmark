@@ -27,7 +27,7 @@ public class Bid implements Serializable {
 	 * Instant at which bid was made (ms since epoch). NOTE: This may be earlier than the system's
 	 * event time.
 	 */
-	public Instant dateTime;
+	public long dateTime;
 
 	/** Additional arbitrary payload for performance testing. */
 	public String extra;
@@ -39,7 +39,7 @@ public class Bid implements Serializable {
 			@JsonProperty("price") long price,
 			@JsonProperty("channel") String channel,
 			@JsonProperty("url") String url,
-			@JsonProperty("dateTime") Instant dateTime,
+			@JsonProperty("dateTime") long dateTime,
 			@JsonProperty("extra") String extra) {
 		this.auction = auction;
 		this.bidder = bidder;

@@ -99,11 +99,11 @@ public class Event implements Serializable, TimestampFromValue<Event> {
 	@Override
 	public long extract() {
 		if (etype == Event.EType.AUCTION) {
-			return newAuction.dateTime.toEpochMilli();
+			return newAuction.dateTimeMs;
 		} else if (etype == Event.EType.PERSON) {
-			return newPerson.dateTime.toEpochMilli();
+			return newPerson.dateTime;
 		} else if (etype == Event.EType.BID) {
-			return bid.dateTime.toEpochMilli();
+			return bid.dateTime;
 		} else {
 			throw new IllegalArgumentException("event type should be 0, 1 or 2; got " + etype);
 		}

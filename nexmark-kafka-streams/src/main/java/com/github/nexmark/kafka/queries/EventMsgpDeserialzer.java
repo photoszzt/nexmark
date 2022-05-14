@@ -45,7 +45,7 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
             String creditCard = personNode.get("creditCard").asText();
             String city = personNode.get("city").asText();
             String state = personNode.get("state").asText();
-            Instant dateTime = Instant.ofEpochMilli(personNode.get("dateTime").asLong());
+            long dateTime = personNode.get("dateTime").asLong();
             String extra = personNode.get("extra").asText();
             Person newPerson = new Person(id, name, emailAddress, creditCard, city, state, dateTime, extra);
             return new Event(newPerson);
@@ -59,8 +59,8 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
             String description = auctionNode.get("description").asText();
             long initialBid = auctionNode.get("initialBid").asLong();
             long reserve = auctionNode.get("reserve").asLong();
-            Instant dateTime = Instant.ofEpochMilli(auctionNode.get("dateTime").asLong());
-            Instant expires = Instant.ofEpochMilli(auctionNode.get("expires").asLong());
+            long dateTime = auctionNode.get("dateTime").asLong();
+            long expires = auctionNode.get("expires").asLong();
             long seller = auctionNode.get("seller").asLong();
             long category = auctionNode.get("category").asLong();
             String extra = auctionNode.get("extra").asText();
@@ -77,7 +77,7 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
             long price = bidNode.get("price").asLong();
             String channel = bidNode.get("channel").asText();
             String url = bidNode.get("url").asText();
-            Instant dateTime = Instant.ofEpochMilli(bidNode.get("dateTime").asLong());
+            long dateTime = bidNode.get("dateTime").asLong();
             String extra = bidNode.get("extra").asText();
             Bid bid = new Bid(auction, bidder, price, channel, url, dateTime, extra);
             return new Event(bid);
