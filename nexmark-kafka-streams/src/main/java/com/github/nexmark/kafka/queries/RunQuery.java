@@ -32,6 +32,7 @@ public class RunQuery {
     private static final Option WARMUP_TIME = new Option("w", "warmup_time", true, "warmup time in seconds");
     private static final Option NUM_SRC_EVENTS = new Option("e", "srcEvents",
             true, "number of src events");
+    private static final Option PORT = new Option("p", "port", true, "port to listen");
 
     private static NexmarkQuery getNexmarkQuery(String appName) {
         switch (appName) {
@@ -80,8 +81,10 @@ public class RunQuery {
         String configFile = line.getOptionValue(CONFIG_FILE.getOpt());
         String durStr = line.getOptionValue(DURATION.getOpt());
         String warmupTime = line.getOptionValue(WARMUP_TIME.getOpt());
+        String portStr = line.getOptionValue(PORT.getOpt());
         int durationMs = durStr == null ? 0 : Integer.parseInt(durStr) * 1000;
         int warmupDuration = warmupTime == null ? 0 : Integer.parseInt(warmupTime) * 1000;
+        int port = portStr == null ? 8090 : Integer.parseInt(portStr);
 
         String srcEventStr = line.getOptionValue(NUM_SRC_EVENTS.getOpt());
         int srcEvents = srcEventStr == null ? 0 : Integer.parseInt(srcEventStr);
@@ -110,7 +113,8 @@ public class RunQuery {
         Topology tp = builder.build();
         System.out.println(tp.describe());
 
-        HttpServer server = HttpServer.create(new InetSocketAddress(8090), 0);
+        System.out.printf("nexmark listening %d\n", port);
+        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/run", new HttpHandler() {
 
             @Override
@@ -258,6 +262,7 @@ public class RunQuery {
         options.addOption(DURATION);
         options.addOption(NUM_SRC_EVENTS);
         options.addOption(WARMUP_TIME);
+        options.addOption(PORT);
         return options;
     }
 }
