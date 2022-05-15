@@ -9,7 +9,7 @@ import java.util.Queue;
 
 public interface NexmarkQuery {
     StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException;
-    Properties getProperties(String bootstrapServer, int duration);
+    Properties getProperties(String bootstrapServer, int duration, int flushms);
     long getInputCount();
     void setAfterWarmup();
     List<Long> getRecordE2ELatency();

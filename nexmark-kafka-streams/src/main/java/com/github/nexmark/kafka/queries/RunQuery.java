@@ -33,6 +33,7 @@ public class RunQuery {
     private static final Option NUM_SRC_EVENTS = new Option("e", "srcEvents",
             true, "number of src events");
     private static final Option PORT = new Option("p", "port", true, "port to listen");
+    private static final Option FLUSHMS = new Option("f", "flushms", true, "flush interval in ms");
 
     private static NexmarkQuery getNexmarkQuery(String appName) {
         switch (appName) {
@@ -82,16 +83,18 @@ public class RunQuery {
         String durStr = line.getOptionValue(DURATION.getOpt());
         String warmupTime = line.getOptionValue(WARMUP_TIME.getOpt());
         String portStr = line.getOptionValue(PORT.getOpt());
+        String flushStr = line.getOptionValue(FLUSHMS.getOpt());
         int durationMs = durStr == null ? 0 : Integer.parseInt(durStr) * 1000;
         int warmupDuration = warmupTime == null ? 0 : Integer.parseInt(warmupTime) * 1000;
         int port = portStr == null ? 8090 : Integer.parseInt(portStr);
+        int flushms = flushStr == null ? 100 : Integer.parseInt(flushStr);
 
         String srcEventStr = line.getOptionValue(NUM_SRC_EVENTS.getOpt());
         int srcEvents = srcEventStr == null ? 0 : Integer.parseInt(srcEventStr);
         System.out.println("appName: " + appName + " serde: " + serde +
                 " configFile: " + configFile + " duration(ms): "
                 + durationMs + "warmup(ms): " + warmupDuration +
-                " numSrcEvents: " + srcEvents);
+                " numSrcEvents: " + srcEvents + " flushMs: " + flushms);
 
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
 
@@ -109,7 +112,7 @@ public class RunQuery {
             return;
         }
 
-        Properties props = query.getProperties(bootstrapServers, durationMs);
+        Properties props = query.getProperties(bootstrapServers, durationMs, flushms);
         Topology tp = builder.build();
         System.out.println(tp.describe());
 
@@ -263,6 +266,7 @@ public class RunQuery {
         options.addOption(NUM_SRC_EVENTS);
         options.addOption(WARMUP_TIME);
         options.addOption(PORT);
+        options.addOption(FLUSHMS);
         return options;
     }
 }

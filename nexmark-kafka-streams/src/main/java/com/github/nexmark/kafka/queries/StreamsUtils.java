@@ -16,7 +16,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 public class StreamsUtils {
-    public static Properties getStreamsConfig(String bootstrapServer, int duration) {
+    public static Properties getStreamsConfig(String bootstrapServer, int duration, int flushms) {
         final Properties props = new Properties();
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
         props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
@@ -25,7 +25,7 @@ public class StreamsUtils {
         props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all");
         props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), Integer.toString(128*1024));
-        props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(100));
+        props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(flushms));
         props.put(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, 1);
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);
 

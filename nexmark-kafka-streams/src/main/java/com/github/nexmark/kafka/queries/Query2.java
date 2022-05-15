@@ -64,8 +64,8 @@ public class Query2 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getProperties(String bootstrapServer, int duration) {
-        Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration);
+    public Properties getProperties(String bootstrapServer, int duration, int flushms) {
+        Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration, flushms);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q2");
         return props;
     }
