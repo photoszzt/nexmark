@@ -116,124 +116,88 @@ public class RunQuery {
         System.out.println(tp.describe());
 
         System.out.printf("nexmark listening %d\n", port);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final KafkaStreams streams = new KafkaStreams(tp, props);
+        Runtime.getRuntime().addShutdownHook(new Thread("streams-shutdown-hook") {
+            @Override
+            public void run() {
+                streams.close();
+                latch.countDown();
+            }
+        });
+        Thread t = new Thread(() -> {
+            long timeStart = System.currentTimeMillis();
+            long afterWarmStart = 0;
+            boolean afterWarmup = false;
+            if (durationMs != 0 && srcEvents == 0) {
+                while (true) {
+                    long elapsed = System.currentTimeMillis() - timeStart;
+                    if (elapsed >= durationMs) {
+                        break;
+                    }
+                    if (!afterWarmup && elapsed >= warmupDuration) {
+                        afterWarmup = true;
+                        query.setAfterWarmup();
+                        afterWarmStart = System.currentTimeMillis();
+                    }
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else {
+                boolean done = false;
+                while (!done) {
+                    long cur = System.currentTimeMillis();
+                    if (cur - timeStart >= 10000) {
+                        long currentCount = query.getInputCount();
+                        if (currentCount == srcEvents) {
+                            done = true;
+                        }
+                    }
+                    try {
+                        Thread.sleep(5); // ms
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            streams.close();
+            long timeEnd = System.currentTimeMillis();
+            System.out.println();
+            System.out.println();
+            Map<MetricName, ? extends Metric> metric = streams.metrics();
+            metric.forEach((k, v) -> {
+                System.out.println(k.group() + " " + k.name() + ", tags: " + k.tags()
+                        + ", val: " + v.metricValue());
+            });
+            double durationSec = ((timeEnd - timeStart) / 1000.0);
+            System.out.println("Duration: " + durationSec);
+            if (warmupDuration != 0) {
+                System.out.println("Duration after warmup: " + (timeEnd - afterWarmStart) / 1000.0);
+            }
+            List<Long> latencies = query.getRecordE2ELatency();
+            System.out.println("Latencies: " + Arrays.toString(latencies.toArray()));
+            System.out.println();
+            // Collections.sort(latencies);
+            // System.out.println("latency p50: " + percentile(latencies, 50) +
+            // " ms p99: " + percentile(latencies, 99) + " ms");
+            latch.countDown();
+        });
+        streams.start();
+        System.err.println("done preparation");
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/run", new HttpHandler() {
 
             @Override
             public void handle(HttpExchange exchange) throws IOException {
-
-                // if (warmupDuration != 0) {
-                // final KafkaStreams warmStreams = new KafkaStreams(tp, props);
-                // CountDownLatch warmupLatch = new CountDownLatch(1);
-                // // attach shutdown handler to catch control-c
-                // Runtime.getRuntime().addShutdownHook(new Thread("warm-streams-shutdown-hook")
-                // {
-                // @Override
-                // public void run() {
-                // warmStreams.close();
-                // warmupLatch.countDown();
-                // }
-                // });
-                // Thread warmupT = new Thread(() -> {
-                // long timeStart = System.currentTimeMillis();
-                // if (warmupDuration != 0 && srcEvents == 0) {
-                // try {
-                // Thread.sleep(warmupDuration);
-                // } catch (InterruptedException e) {
-                // e.printStackTrace();
-                // }
-                // }
-                // warmStreams.close();
-                // warmupLatch.countDown();
-                // long timeEnd = System.currentTimeMillis();
-                // double durationSec = ((timeEnd - timeStart) / 1000.0);
-                // System.out.println("Warmup takes: " + durationSec + " s");
-                // });
-                // warmupT.start();
-                // try {
-                // warmStreams.start();
-                // warmupLatch.await();
-                // } catch (Throwable e) {
-                // System.exit(1);
-                // }
-                // }
-                
                 System.out.println("Got connection\n");
-                final CountDownLatch latch = new CountDownLatch(1);
-                final KafkaStreams streams = new KafkaStreams(tp, props);
-                Runtime.getRuntime().addShutdownHook(new Thread("streams-shutdown-hook") {
-                    @Override
-                    public void run() {
-                        streams.close();
-                        latch.countDown();
-                    }
-                });
-                Thread t = new Thread(() -> {
-                    long timeStart = System.currentTimeMillis();
-                    long afterWarmStart = 0;
-                    boolean afterWarmup = false;
-                    if (durationMs != 0 && srcEvents == 0) {
-                        while (true) {
-                            long elapsed = System.currentTimeMillis() - timeStart;
-                            if (elapsed >= durationMs) {
-                                break;
-                            }
-                            if (!afterWarmup && elapsed >= warmupDuration) {
-                                afterWarmup = true;
-                                query.setAfterWarmup();
-                                afterWarmStart = System.currentTimeMillis();
-                            }
-                            try {
-                                Thread.sleep(10);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    } else {
-                        boolean done = false;
-                        while (!done) {
-                            long cur = System.currentTimeMillis();
-                            if (cur - timeStart >= 10000) {
-                                long currentCount = query.getInputCount();
-                                if (currentCount == srcEvents) {
-                                    done = true;
-                                }
-                            }
-                            try {
-                                Thread.sleep(5); // ms
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-
-                    streams.close();
-                    long timeEnd = System.currentTimeMillis();
-                    System.out.println();
-                    System.out.println();
-                    Map<MetricName, ? extends Metric> metric = streams.metrics();
-                    metric.forEach((k, v) -> {
-                        System.out.println(k.group() + " " + k.name() + ", tags: " + k.tags()
-                                + ", val: " + v.metricValue());
-                    });
-                    double durationSec = ((timeEnd - timeStart) / 1000.0);
-                    System.out.println("Duration: " + durationSec);
-                    if (warmupDuration != 0) {
-                        System.out.println("Duration after warmup: " + (timeEnd - afterWarmStart)/1000.0);
-                    }
-                    List<Long> latencies = query.getRecordE2ELatency();
-                    System.out.println("Latencies: " + Arrays.toString(latencies.toArray()));
-                    System.out.println();
-                    // Collections.sort(latencies);
-                    // System.out.println("latency p50: " + percentile(latencies, 50) +
-                    //         " ms p99: " + percentile(latencies, 99) + " ms");
-                    latch.countDown();
-                });
 
                 t.start();
                 System.out.println("Start processing and waiting for result\n");
                 try {
-                    streams.start();
                     latch.await();
                 } catch (Throwable e) {
                     System.exit(1);

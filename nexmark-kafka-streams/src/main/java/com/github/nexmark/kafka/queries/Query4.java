@@ -18,6 +18,14 @@ import java.util.List;
 import java.util.Properties;
 
 public class Query4 implements NexmarkQuery {
+    public CountAction<String, Event> input;
+    public LatencyCountTransformerSupplier<Double> lcts;
+    
+    public Query4() {
+        input = new CountAction<>();
+        lcts = new LatencyCountTransformerSupplier<>();
+    }
+
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
         StreamsBuilder builder = new StreamsBuilder();
@@ -64,7 +72,7 @@ public class Query4 implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde)
-                        .withTimestampExtractor(new EventTimestampExtractor()));
+                        .withTimestampExtractor(new EventTimestampExtractor())).peek(input);
 
         KeyValueBytesStoreSupplier bidKVSupplier = Stores.inMemoryKeyValueStore("bidTab");
         KTable<Long, Event> bid = inputs
@@ -114,15 +122,16 @@ public class Query4 implements NexmarkQuery {
         maxBids.toStream()
                 .selectKey((key, value) -> key.category)
                 .groupByKey(Grouped.with(Serdes.Long(), Serdes.Long()))
-                .aggregate(()->new SumAndCount(0, 0), 
-                (key, value, aggregate) -> new SumAndCount(aggregate.sum + value, aggregate.count+1),
-                Named.as("sumCount"), Materialized.<Long, SumAndCount>as(sumCountKV)
-                .withCachingEnabled()
-                        .withLoggingEnabled(new HashMap<>())
-                        .withKeySerde(Serdes.Long())
-                        .withValueSerde(scSerde))
-                .mapValues((key, value) -> (double)value.sum / (double) value.count)
+                .aggregate(() -> new SumAndCount(0, 0),
+                        (key, value, aggregate) -> new SumAndCount(aggregate.sum + value, aggregate.count + 1),
+                        Named.as("sumCount"), Materialized.<Long, SumAndCount>as(sumCountKV)
+                                .withCachingEnabled()
+                                .withLoggingEnabled(new HashMap<>())
+                                .withKeySerde(Serdes.Long())
+                                .withValueSerde(scSerde))
+                .mapValues((key, value) -> (double) value.sum / (double) value.count)
                 .toStream()
+                .transformValues(lcts, Named.as("latency-measure"))
                 .to("q4-out", Produced.with(Serdes.Long(), Serdes.Double()));
         return builder;
     }
@@ -136,15 +145,16 @@ public class Query4 implements NexmarkQuery {
 
     @Override
     public long getInputCount() {
-        return 0;
+        return input.GetProcessedRecords();
     }
 
     @Override
     public void setAfterWarmup() {
+        lcts.SetAfterWarmup();
     }
 
     @Override
     public List<Long> getRecordE2ELatency() {
-        return null;
+        return lcts.GetLatency();
     }
 }
