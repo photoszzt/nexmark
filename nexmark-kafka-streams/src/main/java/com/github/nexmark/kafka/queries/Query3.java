@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
-import java.util.Queue;
 
 public class Query3 implements NexmarkQuery {
     public CountAction<String, Event> input;

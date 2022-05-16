@@ -22,9 +22,11 @@ public class Auction implements Serializable {
 	/** Reserve price, in cents. */
 	public long reserve;
 
+	@JsonProperty("dateTime")
 	public long dateTimeMs;
 
 	/** When does auction expire? (ms since epoch). Bids at or after this time are ignored. */
+	@JsonProperty("expires")
 	public long expiresMs;
 
 	/** Id of person who instigated auction. */
