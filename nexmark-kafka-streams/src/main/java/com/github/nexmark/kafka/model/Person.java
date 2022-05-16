@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
-import java.time.Instant;
 import java.util.Objects;
 
 public class Person implements Serializable {

@@ -1,7 +1,6 @@
 package com.github.nexmark.kafka.model;
 
 import java.io.Serializable;
-import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

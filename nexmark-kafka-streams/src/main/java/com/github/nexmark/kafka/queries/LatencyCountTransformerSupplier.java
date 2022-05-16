@@ -1,9 +1,7 @@
 package com.github.nexmark.kafka.queries;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Queue;
 
 import org.apache.kafka.streams.kstream.ValueTransformer;
 import org.apache.kafka.streams.kstream.ValueTransformerSupplier;

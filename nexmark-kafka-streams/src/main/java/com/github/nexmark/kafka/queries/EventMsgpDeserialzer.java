@@ -11,7 +11,6 @@ import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.Person;
 
 import java.io.IOException;
-import java.time.Instant;
 
 public class EventMsgpDeserialzer extends StdDeserializer<Event> {
 
