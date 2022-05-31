@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Properties;
 import java.util.List;
 import java.util.ArrayList;
+import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query5 implements NexmarkQuery {
     public CountAction<String, Event> input;
@@ -40,17 +41,17 @@ public class Query5 implements NexmarkQuery {
 
         String outTp = prop.getProperty("out.name");
         int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
-        NewTopic out = new NewTopic(outTp, numPar, (short) 3);
+        NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
 
         String bidsTp = prop.getProperty("bids.name");
         String bidsTpRepar = prop.getProperty("bids.reparName");
         int bidsTpPar = Integer.parseInt(prop.getProperty("bids.numPar"));
-        NewTopic bidsRepar = new NewTopic(bidsTp, bidsTpPar, (short) 3);
+        NewTopic bidsRepar = new NewTopic(bidsTp, bidsTpPar, REPLICATION_FACTOR);
 
         String auctionBidsTp = prop.getProperty("auctionBids.name");
         String auctionBidsTpRepar = prop.getProperty("auctionBids.reparName");
         int auctionBidsTpPar = Integer.parseInt(prop.getProperty("auctionBids.numPar"));
-        NewTopic auctionBidsRepar = new NewTopic(auctionBidsTp, auctionBidsTpPar, (short) 3);
+        NewTopic auctionBidsRepar = new NewTopic(auctionBidsTp, auctionBidsTpPar, REPLICATION_FACTOR);
 
         List<NewTopic> nps = new ArrayList<>();
         nps.add(out);
@@ -160,7 +161,7 @@ public class Query5 implements NexmarkQuery {
     @Override
     public Properties getProperties(String bootstrapServer, int duration, int flushms) {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration, flushms);
-        props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q5");
+        props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q5");
         return props;
     }
 

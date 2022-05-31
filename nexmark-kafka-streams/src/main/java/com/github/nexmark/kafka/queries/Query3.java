@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query3 implements NexmarkQuery {
     public CountAction<String, Event> input;
@@ -36,15 +37,17 @@ public class Query3 implements NexmarkQuery {
 
         String outTp = prop.getProperty("out.name");
         int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
-        NewTopic out = new NewTopic(outTp, numPar, (short) 3);
+        NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
 
+        String aucBySellerIDTab = prop.getProperty("aucBySellerIDTab.name");
         String aucBySellerIDTp = prop.getProperty("aucBySellerIDTp.name");
         int aucBySellerIDTpPar = Integer.parseInt(prop.getProperty("aucBySellerIDTp.numPar"));
-        NewTopic auctionBySellerIdTabPar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, (short) 3);
+        NewTopic auctionBySellerIdTabPar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, REPLICATION_FACTOR);
 
+        String personsByIDTab = prop.getProperty("personsByIDTab.name");
         String personsByIDTp = prop.getProperty("personsByIDTp.name");
         int personsByIDTpPar = Integer.parseInt(prop.getProperty("personsByIDTp.numPar"));
-        NewTopic persionsByIdTabPar = new NewTopic(personsByIDTp, personsByIDTpPar, (short) 3);
+        NewTopic persionsByIdTabPar = new NewTopic(personsByIDTp, personsByIDTpPar, REPLICATION_FACTOR);
 
         List<NewTopic> nps = new ArrayList<NewTopic>(3);
         nps.add(out);
@@ -85,7 +88,7 @@ public class Query3 implements NexmarkQuery {
                 .filter((key, value) -> value != null && value.etype == Event.EType.AUCTION
                         && value.newAuction.category == 10)
                 .selectKey((key, value) -> value.newAuction.seller)
-                .toTable(Named.as("auctionBySellerIdTab"),
+                .toTable(Named.as(aucBySellerIDTab),
                         Materialized.<Long, Event>as(auctionsBySellerIdKVStoreSupplier)
                                 .withLoggingEnabled(new HashMap<>())
                                 .withCachingEnabled()
@@ -99,7 +102,7 @@ public class Query3 implements NexmarkQuery {
                                 value.newPerson.state.equals("ID") ||
                                 value.newPerson.state.equals("CA")))
                 .selectKey((key, value) -> value.newPerson.id)
-                .toTable(Named.as("personsByIdTab"),
+                .toTable(Named.as(personsByIDTab),
                         Materialized.<Long, Event>as(personsByIdKVStoreSupplier)
                                 .withLoggingEnabled(new HashMap<>())
                                 .withCachingEnabled()
@@ -122,7 +125,7 @@ public class Query3 implements NexmarkQuery {
     @Override
     public Properties getProperties(String bootstrapServer, int duration, int flushms) {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration, flushms);
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q3");
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q3");
         return props;
     }
 

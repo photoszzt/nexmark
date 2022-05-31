@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.util.*;
 import java.io.IOException;
 import java.io.FileInputStream;
+import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query8 implements NexmarkQuery {
     public CountAction<String, Event> input;
@@ -35,17 +36,17 @@ public class Query8 implements NexmarkQuery {
 
         String outTp = prop.getProperty("out.name");
         int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
-        NewTopic out = new NewTopic(outTp, numPar, (short) 3);
+        NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
 
         String aucBySellerIDTp = prop.getProperty("aucBySellerIDTp.name");
         String aucBySellerIDTpRepar = prop.getProperty("aucBySellerIDTp.reparName");
         int aucBySellerIDTpPar = Integer.parseInt(prop.getProperty("aucBySellerIDTp.numPar"));
-        NewTopic auctionRepar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, (short) 3);
+        NewTopic auctionRepar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, REPLICATION_FACTOR);
 
         String personsByIDTp = prop.getProperty("personsByIDTp.name");
         String personsByIDTpRepar = prop.getProperty("personsByIDTp.reparName");
         int personsByIDTpPar = Integer.parseInt(prop.getProperty("personsByIDTp.numPar"));
-        NewTopic personRepar = new NewTopic(personsByIDTp, personsByIDTpPar, (short) 3);
+        NewTopic personRepar = new NewTopic(personsByIDTp, personsByIDTpPar, REPLICATION_FACTOR);
 
         List<NewTopic> nps = new ArrayList<>(3);
         nps.add(out);
@@ -123,7 +124,7 @@ public class Query8 implements NexmarkQuery {
     @Override
     public Properties getProperties(String bootstrapServer, int duration, int flushms) {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration, flushms);
-        props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q8");
+        props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q8");
         return props;
     }
 

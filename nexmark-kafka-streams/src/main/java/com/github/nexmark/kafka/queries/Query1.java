@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Properties;
 import java.io.FileInputStream;
 import java.io.IOException;
+import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query1 implements NexmarkQuery {
     public CountAction<String, Event> input;
@@ -34,7 +35,7 @@ public class Query1 implements NexmarkQuery {
         prop.load(fis);
         String outTp = prop.getProperty("out.name");
         int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
-        NewTopic np = new NewTopic(outTp, numPar, (short) 3);
+        NewTopic np = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
 
         Serde<Event> eSerde;
@@ -67,8 +68,8 @@ public class Query1 implements NexmarkQuery {
     @Override
     public Properties getProperties(String bootstrapServer, int duration, int flushms) {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration, flushms);
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q1");
-        props.put(StreamsConfig.CLIENT_ID_CONFIG, "nexmark-q1-client");
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q1");
+        props.put(StreamsConfig.CLIENT_ID_CONFIG, "q1-client");
         return props;
     }
 
