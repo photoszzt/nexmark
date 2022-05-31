@@ -4,6 +4,7 @@ import com.github.nexmark.kafka.model.AucIdCategory;
 import com.github.nexmark.kafka.model.AuctionBid;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.SumAndCount;
+import org.apache.kafka.clients.admin.NewTopic;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
@@ -13,22 +14,65 @@ import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.io.FileInputStream;
+import java.io.IOException;
+
+import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query4 implements NexmarkQuery {
     public CountAction<String, Event> input;
     public LatencyCountTransformerSupplier<Double> lcts;
-    
+
     public Query4() {
         input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>();
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) {
+    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
+
+        Properties prop = new Properties();
+        FileInputStream fis = new FileInputStream(configFile);
+        prop.load(fis);
+
+        String outTp = prop.getProperty("out.name");
+        int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
+        NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
+
+        String bidsByAucIDTab = prop.getProperty("bidsByAucIDTab.name");
+        String bidsByAucIDTp = prop.getProperty("bidsByAucIDTp.name");
+        numPar = Integer.parseInt(prop.getProperty("bidsByAucIDTp.numPar"));
+        NewTopic bidsByAucIDPar = new NewTopic(bidsByAucIDTp, numPar, REPLICATION_FACTOR);
+
+        String aucsByIDTab = prop.getProperty("aucsByIDTab.name");
+        String aucsByIDTp = prop.getProperty("aucsByIDTp.name");
+        numPar = Integer.parseInt(prop.getProperty("aucsByIDTp.numPar"));
+        NewTopic aucsByIDPar = new NewTopic(aucsByIDTp, numPar, REPLICATION_FACTOR);
+
+        String aucBidsTp = prop.getProperty("aucBidsTp.name");
+        String aucBidsTpRepar = prop.getProperty("aucBidsTp.reparName");
+        int aucBidsTpNumPar = Integer.parseInt(prop.getProperty("aucBidsTp.numPar"));
+        NewTopic aucBidsPar = new NewTopic(aucBidsTp, aucBidsTpNumPar, REPLICATION_FACTOR);
+
+        String maxBidsTp = prop.getProperty("maxBidsTp.name");
+        String maxBidsTpRepar = prop.getProperty("maxBidsTp.reparName");
+        int maxBidsTpNumPar = Integer.parseInt(prop.getProperty("maxBidsTp.numPar"));
+        NewTopic maxBidsTpPar = new NewTopic(maxBidsTp, maxBidsTpNumPar, REPLICATION_FACTOR);
+
+        List<NewTopic> nps = new ArrayList<NewTopic>(3);
+        nps.add(out);
+        nps.add(bidsByAucIDPar);
+        nps.add(aucsByIDPar);
+        nps.add(aucBidsPar);
+        nps.add(maxBidsTpPar);
+        StreamsUtils.createTopic(bootstrapServer, nps);
+
         StreamsBuilder builder = new StreamsBuilder();
+
         Serde<Event> eSerde;
         Serde<AucIdCategory> aicSerde;
         Serde<AuctionBid> abSerde;
@@ -72,13 +116,14 @@ public class Query4 implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde)
-                        .withTimestampExtractor(new EventTimestampExtractor())).peek(input);
+                        .withTimestampExtractor(new EventTimestampExtractor()))
+                .peek(input);
 
         KeyValueBytesStoreSupplier bidKVSupplier = Stores.inMemoryKeyValueStore("bidTab");
-        KTable<Long, Event> bid = inputs
+        KTable<Long, Event> bidsByAucID = inputs
                 .filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction)
-                .toTable(Named.as("bidTabNode"),
+                .toTable(Named.as(bidsByAucIDTab),
                         Materialized.<Long, Event>as(bidKVSupplier)
                                 .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>())
@@ -86,10 +131,10 @@ public class Query4 implements NexmarkQuery {
                                 .withValueSerde(eSerde));
 
         KeyValueBytesStoreSupplier auctionKVSupplier = Stores.inMemoryKeyValueStore("auctionTab");
-        KTable<Long, Event> auction = inputs
+        KTable<Long, Event> aucsByID = inputs
                 .filter((key, value) -> value.etype == Event.EType.AUCTION)
                 .selectKey((key, value) -> value.newAuction.id)
-                .toTable(Named.as("auctionTabNode"),
+                .toTable(Named.as(aucsByIDTab),
                         Materialized.<Long, Event>as(auctionKVSupplier)
                                 .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>())
@@ -97,14 +142,17 @@ public class Query4 implements NexmarkQuery {
                                 .withValueSerde(eSerde));
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
-        KTable<AucIdCategory, Long> maxBids = auction
-                .join(bid, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime,
+        KTable<AucIdCategory, Long> maxBids = aucsByID
+                .join(bidsByAucID, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime,
                         leftValue.newAuction.dateTimeMs, leftValue.newAuction.expiresMs,
                         rightValue.bid.price, leftValue.newAuction.category))
                 .filter((key, value) -> value.bidDateTimeMs >= value.aucDateTimeMs
                         && value.bidDateTimeMs <= value.aucExpiresMs)
                 .toStream()
                 .selectKey((key, value) -> new AucIdCategory(key, value.aucCategory))
+                .repartition(Repartitioned.with(aicSerde, abSerde)
+                        .withName(aucBidsTpRepar)
+                        .withNumberOfPartitions(aucBidsTpNumPar))
                 .groupByKey(Grouped.with(aicSerde, abSerde))
                 .aggregate(() -> 0L, (key, value, aggregate) -> {
                     if (value.bidPrice > aggregate) {
@@ -121,6 +169,8 @@ public class Query4 implements NexmarkQuery {
         KeyValueBytesStoreSupplier sumCountKV = Stores.inMemoryKeyValueStore("sumCountKVStore");
         maxBids.toStream()
                 .selectKey((key, value) -> key.category)
+                .repartition(Repartitioned.with(Serdes.Long(), Serdes.Long()).withName(maxBidsTpRepar)
+                        .withNumberOfPartitions(maxBidsTpNumPar))
                 .groupByKey(Grouped.with(Serdes.Long(), Serdes.Long()))
                 .aggregate(() -> new SumAndCount(0, 0),
                         (key, value, aggregate) -> new SumAndCount(aggregate.sum + value, aggregate.count + 1),
@@ -132,14 +182,14 @@ public class Query4 implements NexmarkQuery {
                 .mapValues((key, value) -> (double) value.sum / (double) value.count)
                 .toStream()
                 .transformValues(lcts, Named.as("latency-measure"))
-                .to("q4-out", Produced.with(Serdes.Long(), Serdes.Double()));
+                .to(outTp, Produced.with(Serdes.Long(), Serdes.Double()));
         return builder;
     }
 
     @Override
     public Properties getProperties(String bootstrapServer, int duration, int flushms) {
         Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration, flushms);
-        props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "nexmark-q4");
+        props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q4");
         return props;
     }
 
