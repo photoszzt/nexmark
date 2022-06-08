@@ -63,7 +63,7 @@ public class Query4 implements NexmarkQuery {
         int maxBidsTpNumPar = Integer.parseInt(prop.getProperty("maxBidsTp.numPar"));
         NewTopic maxBidsTpPar = new NewTopic(maxBidsTp, maxBidsTpNumPar, REPLICATION_FACTOR);
 
-        List<NewTopic> nps = new ArrayList<NewTopic>(3);
+        List<NewTopic> nps = new ArrayList<NewTopic>(5);
         nps.add(out);
         nps.add(bidsByAucIDPar);
         nps.add(aucsByIDPar);
@@ -144,7 +144,7 @@ public class Query4 implements NexmarkQuery {
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
         KTable<AucIdCategory, Long> maxBids = aucsByID
                 .join(bidsByAucID, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime,
-                        leftValue.newAuction.dateTimeMs, leftValue.newAuction.expiresMs,
+                        leftValue.newAuction.dateTime, leftValue.newAuction.expires,
                         rightValue.bid.price, leftValue.newAuction.category))
                 .filter((key, value) -> value.bidDateTimeMs >= value.aucDateTimeMs
                         && value.bidDateTimeMs <= value.aucExpiresMs)

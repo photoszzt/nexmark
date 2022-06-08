@@ -45,7 +45,7 @@ public class Query7 implements NexmarkQuery {
         int maxBidsByPriceTpPar = Integer.parseInt(prop.getProperty("maxBidsByPrice.numPar"));
         NewTopic maxBidsByPriceRepar = new NewTopic(maxBidsByPriceTp, maxBidsByPriceTpPar, REPLICATION_FACTOR);
 
-        List<NewTopic> nps = new ArrayList<>(2);
+        List<NewTopic> nps = new ArrayList<>(4);
         nps.add(out);
         nps.add(bidsByWinRepar);
         nps.add(bidsByPriceRepar);
@@ -159,7 +159,14 @@ public class Query7 implements NexmarkQuery {
                 .withKeySerde(Serdes.Long())
                 .withValueSerde(eSerde)
                 .withOtherValueSerde(twSerde)
-                .withLoggingEnabled(new HashMap<>())).to(outTp, Produced.with(Serdes.Long(), bmSerde));
+                .withLoggingEnabled(new HashMap<>()))
+                .filter(new Predicate<Long,BidAndMax>() {
+                    @Override
+                    public boolean test(Long key, BidAndMax value) {
+                        return value.dateTimeMs >= value.wStartMs && value.dateTimeMs <= value.wEndMs;
+                    }
+                })
+                .to(outTp, Produced.with(Serdes.Long(), bmSerde));
 
         return builder;
     }

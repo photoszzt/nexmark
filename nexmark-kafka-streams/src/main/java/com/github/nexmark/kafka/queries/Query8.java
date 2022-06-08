@@ -83,18 +83,27 @@ public class Query8 implements NexmarkQuery {
 
         KStream<Long, Event> person = inputs
                 .filter((key, value) -> value != null && value.etype == Event.EType.PERSON)
-                .selectKey((key, value) -> value.newPerson.id)
+                .selectKey((key, value) -> {
+                    System.out.printf("key: %d, ts: %d, name: %s\n", value.newPerson.id, value.newPerson.dateTime,
+                            value.newPerson.name);
+                    return value.newPerson.id;
+                })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(personsByIDTpRepar)
                         .withNumberOfPartitions(personsByIDTpPar));
 
         KStream<Long, Event> auction = inputs
                 .filter((key, value) -> value != null && value.etype == Event.EType.AUCTION)
-                .selectKey((key, value) -> value.newAuction.seller)
+                .selectKey((key, value) -> {
+                    System.out.printf("key: %d, ts: %d, name: %s\n", value.newAuction.seller, value.newAuction.dateTime,
+                            value.newAuction.itemName);
+                    return value.newAuction.seller;
+                })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucBySellerIDTpRepar)
                         .withNumberOfPartitions(aucBySellerIDTpPar));
 
+        long windowSizeMs = 10 * 1000;
         JoinWindows jw = JoinWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5));
         WindowBytesStoreSupplier auctionStoreSupplier = Stores.inMemoryWindowStore(
                 "auction-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
@@ -102,20 +111,39 @@ public class Query8 implements NexmarkQuery {
         WindowBytesStoreSupplier personStoreSupplier = Stores.inMemoryWindowStore(
                 "person-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
                 Duration.ofMillis(jw.size()), true);
-        auction.join(person, new ValueJoiner<Event, Event, PersonTime>() {
-            @Override
-            public PersonTime apply(Event event, Event event2) {
-                if (event2.etype == EType.PERSON) {
-                    return new PersonTime(event2.newPerson.id, event2.newPerson.name, 0);
-                } else {
-                    return new PersonTime(event.newPerson.id, event.newPerson.name, 0);
-                }
-            }
-        }, jw, StreamJoined.<Long, Event, Event>with(auctionStoreSupplier, personStoreSupplier)
+        StreamJoined<Long, Event, Event> sj = StreamJoined
+                .<Long, Event, Event>with(auctionStoreSupplier, personStoreSupplier)
                 .withKeySerde(Serdes.Long())
                 .withValueSerde(eSerde)
                 .withOtherValueSerde(eSerde)
-                .withLoggingEnabled(new HashMap<>()))
+                .withLoggingEnabled(new HashMap<>());
+        auction.join(person, new ValueJoiner<Event, Event, PersonTime>() {
+            @Override
+            public PersonTime apply(Event event, Event event2) {
+                long id = 0;
+                String name = "";
+                long ts = 0;
+                if (event2.etype == EType.PERSON) {
+                    // System.out.println("auc itemName: " + event.newAuction.itemName +
+                    //         " seller: " + event.newAuction.seller +
+                    //         " per id: " + event2.newPerson.id +
+                    //         " per name: " + event2.newPerson.name);
+                    id = event2.newPerson.id;
+                    name = event2.newPerson.name;
+                    ts = event2.newPerson.dateTime;
+                } else {
+                    // System.out.println("auc itemName: " + event2.newAuction.itemName +
+                    //         " seller: " + event2.newAuction.seller +
+                    //         " per id: " + event.newPerson.id +
+                    //         " per name: " + event.newPerson.name);
+                    id = event.newPerson.id;
+                    name = event.newPerson.name;
+                    ts = event.newPerson.dateTime;
+                }
+                long windowStart = (Math.max(0, ts - windowSizeMs + windowSizeMs) / windowSizeMs) * windowSizeMs;
+                return new PersonTime(id, name, windowStart);
+            }
+        }, jw, sj)
                 .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(Serdes.Long(), ptSerde));
         return builder;

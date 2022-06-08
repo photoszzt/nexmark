@@ -5,6 +5,7 @@ import com.github.nexmark.kafka.model.AuctionIdCount;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.StartEndTime;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -53,7 +54,7 @@ public class Query5 implements NexmarkQuery {
         int auctionBidsTpPar = Integer.parseInt(prop.getProperty("auctionBids.numPar"));
         NewTopic auctionBidsRepar = new NewTopic(auctionBidsTp, auctionBidsTpPar, REPLICATION_FACTOR);
 
-        List<NewTopic> nps = new ArrayList<>();
+        List<NewTopic> nps = new ArrayList<>(3);
         nps.add(out);
         nps.add(bidsRepar);
         nps.add(auctionBidsRepar);
@@ -108,23 +109,35 @@ public class Query5 implements NexmarkQuery {
                 .filter((key, value) -> value != null && value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction);
 
-        TimeWindows ts = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5))
+        TimeWindows tws = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(20))
                 .advanceBy(Duration.ofSeconds(2));
         WindowBytesStoreSupplier auctionBidsWSSupplier = Stores.inMemoryWindowStore("auctionBidsCountStore",
-                Duration.ofMillis(ts.gracePeriodMs() + ts.size()), Duration.ofMillis(ts.size()), true);
+                Duration.ofMillis(tws.gracePeriodMs() + tws.size()), Duration.ofMillis(tws.size()), false);
 
         KStream<StartEndTime, AuctionIdCount> auctionBids = bid
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsTpRepar)
                         .withNumberOfPartitions(bidsTpPar))
                 .groupByKey(Grouped.with(Serdes.Long(), eSerde))
-                .windowedBy(ts)
-                .count(Named.as("auctionBidsCount"),
+                .windowedBy(tws)
+                .aggregate(new Initializer<Long>() {
+                    @Override
+                    public Long apply() {
+                        return 0L;
+                    }
+                }, new Aggregator<Long, Event, Long>() {
+                    @Override
+                    public Long apply(Long key, Event value, Long aggregate) {
+                        // TODO Auto-generated method stub
+                        // System.out.println("key: " + key + " ts: " + value.bid.dateTime + " agg: " + aggregate);
+                        return aggregate + 1;
+                    }
+                }, Named.as("auctionBidsCount"),
                         Materialized.<Long, Long>as(auctionBidsWSSupplier)
-                                .withCachingEnabled()
-                                .withLoggingEnabled(new HashMap<>())
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(Serdes.Long()))
+                                .withValueSerde(Serdes.Long())
+                                .withCachingEnabled()
+                                .withLoggingEnabled(new HashMap<>()))
                 .toStream()
                 .mapValues((key, value) -> new AuctionIdCount(key.key(), value))
                 .selectKey((key, value) -> new StartEndTime(key.window().start(), key.window().end()))
@@ -138,6 +151,9 @@ public class Query5 implements NexmarkQuery {
                 .groupByKey(Grouped.with(seSerde, aicSerde))
                 .aggregate(() -> 0L,
                         (key, value, aggregate) -> {
+                            // System.out.println("start " + key.startTime + " end: " + key.endTime +
+                            //         " aucId: " + value.aucId + " count: " + value.count +
+                            //         " aggregate: " + aggregate);
                             if (value.count > aggregate) {
                                 return value.count;
                             } else {
