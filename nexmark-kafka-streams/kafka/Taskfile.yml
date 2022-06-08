@@ -8,6 +8,7 @@ tasks:
       - task --list
 
   download-kafka:
+    desc: "download kafka"
     cmds:
       - wget -O kafka_2.13-3.0.0.tgz https://dlcdn.apache.org/kafka/3.0.0/kafka_2.13-3.0.0.tgz
       - tar -xvf kafka_2.13-3.0.0.tgz    
@@ -16,28 +17,33 @@ tasks:
       - test -d kafka_2.13-3.0.0
 
   run-zookeeper:
+    desc: "run zookeeper"
     deps: [download-kafka]
     dir: ./kafka_2.13-3.0.0
     cmds:
       - bin/zookeeper-server-start.sh config/zookeeper.properties
 
   run-kafka:
+    desc: "run a single instance kafka"
     dir: ./kafka_2.13-3.0.0
     cmds:
       - bin/kafka-server-start.sh config/server.properties
 
   delete-topic:
+    desc: "delete topic"
     dir: ./kafka_2.13-3.0.0
     vars:
       TOPIC: '{{default "nexmark_src" .TOPIC}}'
+      ZOOKEEPER: '{{default "localhost:2181" .ZOOKEEPER}}'
     cmds:
-      - ./bin/kafka-topics.sh --zookeeper localhost:2181 --delete --topic {{.TOPIC}}
+      - ./bin/kafka-topics.sh --zookeeper {{.ZOOKEEPER}} --delete --topic {{.TOPIC}}
 
-  print-nexmark-topic:
+  print-topic:
+    desc: "print a topic"
     dir: ./kafka_2.13-3.0.0
     vars:
       TOPIC: '{{default "nexmark_src" .TOPIC}}'
+      BOOTSTRAP: '{{default "localhost:9092" .BOOTSTRAP}}'
     cmds:
-      - ./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092
-        --topic {{.TOPIC}} --from-beginning
-        --formatter kafka.tools.DefaultMessageFormatter
+      - ./bin/kafka-console-consumer.sh --bootstrap-server {{.BOOTSTRAP}}
+        --topic {{.TOPIC}} --from-beginning {{.CLI_ARGS}}
