@@ -12,7 +12,7 @@ public class EventTimestampExtractor implements TimestampExtractor {
         if (record.value() instanceof Event) {
             Event e = (Event) record.value();
             if (e.etype == Event.EType.AUCTION) {
-                return e.newAuction.dateTimeMs;
+                return e.newAuction.dateTime;
             } else if (e.etype == Event.EType.PERSON) {
                 return e.newPerson.dateTime;
             } else if (e.etype == Event.EType.BID) {

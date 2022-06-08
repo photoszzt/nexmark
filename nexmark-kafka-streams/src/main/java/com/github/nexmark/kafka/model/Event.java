@@ -99,7 +99,7 @@ public class Event implements Serializable, TimestampFromValue<Event> {
 	@Override
 	public long extract() {
 		if (etype == Event.EType.AUCTION) {
-			return newAuction.dateTimeMs;
+			return newAuction.dateTime;
 		} else if (etype == Event.EType.PERSON) {
 			return newPerson.dateTime;
 		} else if (etype == Event.EType.BID) {

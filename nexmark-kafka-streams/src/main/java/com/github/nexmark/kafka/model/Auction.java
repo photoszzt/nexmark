@@ -22,11 +22,11 @@ public class Auction implements Serializable {
 	public long reserve;
 
 	@JsonProperty("dateTime")
-	public long dateTimeMs;
+	public long dateTime;
 
 	/** When does auction expire? (ms since epoch). Bids at or after this time are ignored. */
 	@JsonProperty("expires")
-	public long expiresMs;
+	public long expires;
 
 	/** Id of person who instigated auction. */
 	public long seller; // foreign key: Person.id
@@ -54,8 +54,8 @@ public class Auction implements Serializable {
 		this.description = description;
 		this.initialBid = initialBid;
 		this.reserve = reserve;
-		this.dateTimeMs = dateTime;
-		this.expiresMs = expires;
+		this.dateTime = dateTime;
+		this.expires = expires;
 		this.seller = seller;
 		this.category = category;
 		this.extra = extra;
@@ -69,8 +69,8 @@ public class Auction implements Serializable {
 				", description='" + description + '\'' +
 				", initialBid=" + initialBid +
 				", reserve=" + reserve +
-				", dateTime=" + dateTimeMs +
-				", expires=" + expiresMs +
+				", dateTime=" + dateTime +
+				", expires=" + expires +
 				", seller=" + seller +
 				", category=" + category +
 				", extra='" + extra + '\'' +
@@ -89,8 +89,8 @@ public class Auction implements Serializable {
 		return id == auction.id
 			&& initialBid == auction.initialBid
 			&& reserve == auction.reserve
-			&& Objects.equal(dateTimeMs, auction.dateTimeMs)
-			&& Objects.equal(expiresMs, auction.expiresMs)
+			&& Objects.equal(dateTime, auction.dateTime)
+			&& Objects.equal(expires, auction.expires)
 			&& seller == auction.seller
 			&& category == auction.category
 			&& Objects.equal(itemName, auction.itemName)
@@ -101,7 +101,7 @@ public class Auction implements Serializable {
 	@Override
 	public int hashCode() {
 		return Objects.hashCode(
-			id, itemName, description, initialBid, reserve, dateTimeMs, expiresMs, seller, category, extra);
+			id, itemName, description, initialBid, reserve, dateTime, expires, seller, category, extra);
 	}
     
 }
