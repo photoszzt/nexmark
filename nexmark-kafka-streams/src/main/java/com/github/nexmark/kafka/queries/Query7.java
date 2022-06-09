@@ -20,6 +20,13 @@ import java.util.*;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query7 implements NexmarkQuery {
+    public CountAction<String, Event> input;
+    public LatencyCountTransformerSupplier<BidAndMax> lcts;
+    public Query7() {
+        input = new CountAction<>();
+        lcts = new LatencyCountTransformerSupplier<>();
+    }
+
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
         Properties prop = new Properties();
@@ -85,7 +92,7 @@ public class Query7 implements NexmarkQuery {
         }
         StreamsBuilder builder = new StreamsBuilder();
         KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(Serdes.String(), eSerde).withTimestampExtractor(new EventTimestampExtractor()));
+                Consumed.with(Serdes.String(), eSerde).withTimestampExtractor(new EventTimestampExtractor())).peek(input);
 
         Duration windowSize = Duration.ofSeconds(10);
         Duration grace = Duration.ofSeconds(5);
@@ -166,6 +173,7 @@ public class Query7 implements NexmarkQuery {
                         return value.dateTimeMs >= value.wStartMs && value.dateTimeMs <= value.wEndMs;
                     }
                 })
+                .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(Serdes.Long(), bmSerde));
 
         return builder;
@@ -180,15 +188,16 @@ public class Query7 implements NexmarkQuery {
 
     @Override
     public long getInputCount() {
-        return 0;
+        return input.GetProcessedRecords();
     }
 
     @Override
     public void setAfterWarmup() {
+        lcts.SetAfterWarmup();
     }
 
     @Override
     public List<Long> getRecordE2ELatency() {
-        return null;
+        return lcts.GetLatency();
     }
 }

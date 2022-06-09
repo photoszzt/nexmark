@@ -23,4 +23,15 @@ public class AuctionBid {
         this.bidPrice = bidPrice;
         this.aucCategory = aucCategory;
     }
+
+    @Override
+	public String toString() {
+		return "AuctionBid{" +
+				"bidDateTimeMs=" + bidDateTimeMs +
+				", aucDateTimeMs=" + aucDateTimeMs +
+				", aucExpiresMs=" + aucExpiresMs +
+				", bidPrice=" + bidPrice +
+				", aucCategory=" + aucCategory + 
+				'}';
+	}
 }
