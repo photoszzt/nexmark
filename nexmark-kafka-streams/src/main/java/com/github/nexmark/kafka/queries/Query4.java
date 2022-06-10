@@ -8,11 +8,13 @@ import org.apache.kafka.clients.admin.NewTopic;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
+import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,12 +22,14 @@ import java.util.List;
 import java.util.Properties;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.time.Duration;
 
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query4 implements NexmarkQuery {
     public CountAction<String, Event> input;
     public LatencyCountTransformerSupplier<Double> lcts;
+    private static final Duration auctionDurationUpperS = Duration.ofSeconds(1800);
 
     public Query4() {
         input = new CountAction<>();
@@ -43,21 +47,22 @@ public class Query4 implements NexmarkQuery {
         int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
         NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
 
-        String bidsByAucIDTab = prop.getProperty("bidsByAucIDTab.name");
         String bidsByAucIDTp = prop.getProperty("bidsByAucIDTp.name");
-        numPar = Integer.parseInt(prop.getProperty("bidsByAucIDTp.numPar"));
-        NewTopic bidsByAucIDPar = new NewTopic(bidsByAucIDTp, numPar, REPLICATION_FACTOR);
+        String bidsByAucIDTpRepar = prop.getProperty("bidsByAucIDTp.reparName");
+        int bidsByAucIDTpNumPar = Integer.parseInt(prop.getProperty("bidsByAucIDTp.numPar"));
+        NewTopic bidsByAucIDPar = new NewTopic(bidsByAucIDTp, bidsByAucIDTpNumPar, REPLICATION_FACTOR);
 
-        String aucsByIDTab = prop.getProperty("aucsByIDTab.name");
         String aucsByIDTp = prop.getProperty("aucsByIDTp.name");
-        numPar = Integer.parseInt(prop.getProperty("aucsByIDTp.numPar"));
-        NewTopic aucsByIDPar = new NewTopic(aucsByIDTp, numPar, REPLICATION_FACTOR);
+        int aucsByIDTpNumPar = Integer.parseInt(prop.getProperty("aucsByIDTp.numPar"));
+        String aucsByIDTpRepar = prop.getProperty("aucsByIDTp.reparName");
+        NewTopic aucsByIDPar = new NewTopic(aucsByIDTp, aucsByIDTpNumPar, REPLICATION_FACTOR);
 
         String aucBidsTp = prop.getProperty("aucBidsTp.name");
         String aucBidsTpRepar = prop.getProperty("aucBidsTp.reparName");
         int aucBidsTpNumPar = Integer.parseInt(prop.getProperty("aucBidsTp.numPar"));
         NewTopic aucBidsPar = new NewTopic(aucBidsTp, aucBidsTpNumPar, REPLICATION_FACTOR);
 
+        String maxBidsGroupByTab = prop.getProperty("maxBidsGroupByTab");
         String maxBidsTp = prop.getProperty("maxBidsTp.name");
         String maxBidsTpRepar = prop.getProperty("maxBidsTp.reparName");
         int maxBidsTpNumPar = Integer.parseInt(prop.getProperty("maxBidsTp.numPar"));
@@ -119,46 +124,73 @@ public class Query4 implements NexmarkQuery {
                         .withTimestampExtractor(new EventTimestampExtractor()))
                 .peek(input);
 
-        KeyValueBytesStoreSupplier bidKVSupplier = Stores.inMemoryKeyValueStore("bidTab");
-        KTable<Long, Event> bidsByAucID = inputs
+        // System.out.printf("bisByAucID par: %s\n", bidsByAucIDTpRepar);
+        // System.out.printf("aucsByID par: %s\n", aucsByIDTpRepar);
+        KStream<Long, Event> bidsByAucID = inputs
                 .filter((key, value) -> value.etype == Event.EType.BID)
                 .selectKey((key, value) -> value.bid.auction)
-                .toTable(Named.as(bidsByAucIDTab),
-                        Materialized.<Long, Event>as(bidKVSupplier)
-                                .withCachingEnabled()
-                                .withLoggingEnabled(new HashMap<>())
-                                .withKeySerde(Serdes.Long())
-                                .withValueSerde(eSerde));
+                .repartition(Repartitioned.with(Serdes.Long(), eSerde)
+                        .withName(bidsByAucIDTpRepar)
+                        .withNumberOfPartitions(bidsByAucIDTpNumPar));
 
-        KeyValueBytesStoreSupplier auctionKVSupplier = Stores.inMemoryKeyValueStore("auctionTab");
-        KTable<Long, Event> aucsByID = inputs
+        KStream<Long, Event> aucsByID = inputs
                 .filter((key, value) -> value.etype == Event.EType.AUCTION)
                 .selectKey((key, value) -> value.newAuction.id)
-                .toTable(Named.as(aucsByIDTab),
-                        Materialized.<Long, Event>as(auctionKVSupplier)
-                                .withCachingEnabled()
-                                .withLoggingEnabled(new HashMap<>())
-                                .withKeySerde(Serdes.Long())
-                                .withValueSerde(eSerde));
+                .repartition(Repartitioned.with(Serdes.Long(), eSerde)
+                        .withName(aucsByIDTpRepar)
+                        .withNumberOfPartitions(aucsByIDTpNumPar));
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
-        KTable<AucIdCategory, Long> maxBids = aucsByID
-                .join(bidsByAucID, (leftValue, rightValue) -> new AuctionBid(rightValue.bid.dateTime,
-                        leftValue.newAuction.dateTime, leftValue.newAuction.expires,
-                        rightValue.bid.price, leftValue.newAuction.category))
+
+        JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(auctionDurationUpperS);
+        WindowBytesStoreSupplier aucsByIDStoreSupplier = Stores.inMemoryWindowStore(
+                "aucsByID-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
+                Duration.ofMillis(jw.size()), true);
+        WindowBytesStoreSupplier bidsByAucIDStoreSupplier = Stores.inMemoryWindowStore(
+                "bidsByID-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
+                Duration.ofMillis(jw.size()), true);
+
+        KTable<AucIdCategory, Long> maxBids = aucsByID.join(bidsByAucID, (leftValue, rightValue) -> {
+            AuctionBid ab = new AuctionBid(rightValue.bid.dateTime,
+                    leftValue.newAuction.dateTime, leftValue.newAuction.expires,
+                    rightValue.bid.price, leftValue.newAuction.category);
+            // System.out.println(ab.toString());
+            return ab;
+        }, jw, StreamJoined.<Long, Event, Event>with(aucsByIDStoreSupplier, bidsByAucIDStoreSupplier)
+                .withKeySerde(Serdes.Long())
+                .withValueSerde(eSerde)
+                .withOtherValueSerde(eSerde)
+                .withLoggingEnabled(new HashMap<>()))
                 .filter((key, value) -> value.bidDateTimeMs >= value.aucDateTimeMs
                         && value.bidDateTimeMs <= value.aucExpiresMs)
-                .toStream()
-                .selectKey((key, value) -> new AucIdCategory(key, value.aucCategory))
+                .filter((key, value) -> {
+                    // System.out.println("filuterNull, key: " + key + " value: " + value);
+                    return value != null;
+                })
+                .selectKey(new KeyValueMapper<Long, AuctionBid, AucIdCategory>() {
+                    @Override
+                    public AucIdCategory apply(Long key, AuctionBid value) {
+                        // System.out.println("selectKey, key: " + key + " value: " + value);
+                        return new AucIdCategory(key, value.aucCategory);
+                    }
+                })
                 .repartition(Repartitioned.with(aicSerde, abSerde)
-                        .withName(aucBidsTpRepar)
-                        .withNumberOfPartitions(aucBidsTpNumPar))
-                .groupByKey(Grouped.with(aicSerde, abSerde))
-                .aggregate(() -> 0L, (key, value, aggregate) -> {
-                    if (value.bidPrice > aggregate) {
-                        return value.bidPrice;
-                    } else {
-                        return aggregate;
+                        .withName(aucBidsTpRepar).withNumberOfPartitions(aucBidsTpNumPar))
+                .groupByKey()
+                .aggregate(new Initializer<Long>() {
+                    @Override
+                    public Long apply() {
+                        // TODO Auto-generated method stub
+                        return 0L;
+                    }
+                }, new Aggregator<AucIdCategory, AuctionBid, Long>() {
+                    @Override
+                    public Long apply(AucIdCategory key, AuctionBid value, Long aggregate) {
+                        if (value.bidPrice > aggregate) {
+                            return value.bidPrice;
+                        } else {
+                            return aggregate;
+                        }
                     }
                 }, Named.as("maxBidPrice"), Materialized.<AucIdCategory, Long>as(maxBidsKV)
                         .withCachingEnabled()
@@ -167,18 +199,31 @@ public class Query4 implements NexmarkQuery {
                         .withValueSerde(Serdes.Long()));
 
         KeyValueBytesStoreSupplier sumCountKV = Stores.inMemoryKeyValueStore("sumCountKVStore");
-        maxBids.toStream()
-                .selectKey((key, value) -> key.category)
-                .repartition(Repartitioned.with(Serdes.Long(), Serdes.Long()).withName(maxBidsTpRepar)
-                        .withNumberOfPartitions(maxBidsTpNumPar))
-                .groupByKey(Grouped.with(Serdes.Long(), Serdes.Long()))
-                .aggregate(() -> new SumAndCount(0, 0),
-                        (key, value, aggregate) -> new SumAndCount(aggregate.sum + value, aggregate.count + 1),
-                        Named.as("sumCount"), Materialized.<Long, SumAndCount>as(sumCountKV)
-                                .withCachingEnabled()
-                                .withLoggingEnabled(new HashMap<>())
+        maxBids.groupBy(new KeyValueMapper<AucIdCategory, Long, KeyValue<Long, Long>>() {
+            @Override
+            public KeyValue<Long, Long> apply(AucIdCategory key, Long value) {
+                // TODO Auto-generated method stub
+                // System.out.println("max, key: " + key + " value: " + value);
+                return new KeyValue<Long, Long>(key.category, value);
+            }
+        }, Grouped.with(Serdes.Long(), Serdes.Long())
+                .withName(maxBidsGroupByTab))
+                .aggregate(() -> new SumAndCount(0, 0), new Aggregator<Long, Long, SumAndCount>() {
+                    @Override
+                    public SumAndCount apply(Long key, Long value, SumAndCount aggregate) {
+                        return new SumAndCount(aggregate.sum + value, aggregate.count + 1);
+                    }
+                }, new Aggregator<Long, Long, SumAndCount>() {
+                    @Override
+                    public SumAndCount apply(Long key, Long value, SumAndCount aggregate) {
+                        return new SumAndCount(aggregate.sum - value, aggregate.count - 1);
+                    }
+                }, Named.as("sumCount"),
+                        Materialized.<Long, SumAndCount>as(sumCountKV)
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(scSerde))
+                                .withValueSerde(scSerde)
+                                .withCachingEnabled()
+                                .withLoggingEnabled(new HashMap<>()))
                 .mapValues((key, value) -> (double) value.sum / (double) value.count)
                 .toStream()
                 .transformValues(lcts, Named.as("latency-measure"))
