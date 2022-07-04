@@ -90,8 +90,6 @@ public class Query3 implements NexmarkQuery {
                 .selectKey((key, value) -> value.newAuction.seller)
                 .toTable(Named.as(aucBySellerIDTab),
                         Materialized.<Long, Event>as(auctionsBySellerIdKVStoreSupplier)
-                                .withLoggingEnabled(new HashMap<>())
-                                .withCachingEnabled()
                                 .withKeySerde(Serdes.Long())
                                 .withValueSerde(eSerde));
 
@@ -104,8 +102,6 @@ public class Query3 implements NexmarkQuery {
                 .selectKey((key, value) -> value.newPerson.id)
                 .toTable(Named.as(personsByIDTab),
                         Materialized.<Long, Event>as(personsByIdKVStoreSupplier)
-                                .withLoggingEnabled(new HashMap<>())
-                                .withCachingEnabled()
                                 .withKeySerde(Serdes.Long())
                                 .withValueSerde(eSerde));
 

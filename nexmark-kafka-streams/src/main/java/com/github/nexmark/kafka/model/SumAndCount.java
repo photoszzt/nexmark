@@ -13,4 +13,10 @@ public class SumAndCount {
         this.sum = sum;
         this.count = count;
     }
+
+    @Override
+    public String toString() {
+        // TODO Auto-generated method stub
+        return "SumAndCount: {Sum: " + sum + ", Count: " + count + "}"; 
+    }
 }

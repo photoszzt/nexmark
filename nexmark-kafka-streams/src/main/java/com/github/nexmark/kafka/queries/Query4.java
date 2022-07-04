@@ -64,7 +64,6 @@ public class Query4 implements NexmarkQuery {
 
         String maxBidsGroupByTab = prop.getProperty("maxBidsGroupByTab");
         String maxBidsTp = prop.getProperty("maxBidsTp.name");
-        String maxBidsTpRepar = prop.getProperty("maxBidsTp.reparName");
         int maxBidsTpNumPar = Integer.parseInt(prop.getProperty("maxBidsTp.numPar"));
         NewTopic maxBidsTpPar = new NewTopic(maxBidsTp, maxBidsTpNumPar, REPLICATION_FACTOR);
 
@@ -151,11 +150,9 @@ public class Query4 implements NexmarkQuery {
                 Duration.ofMillis(jw.size()), true);
 
         KTable<AucIdCategory, Long> maxBids = aucsByID.join(bidsByAucID, (leftValue, rightValue) -> {
-            AuctionBid ab = new AuctionBid(rightValue.bid.dateTime,
+            return new AuctionBid(rightValue.bid.dateTime,
                     leftValue.newAuction.dateTime, leftValue.newAuction.expires,
                     rightValue.bid.price, leftValue.newAuction.category);
-            // System.out.println(ab.toString());
-            return ab;
         }, jw, StreamJoined.<Long, Event, Event>with(aucsByIDStoreSupplier, bidsByAucIDStoreSupplier)
                 .withKeySerde(Serdes.Long())
                 .withValueSerde(eSerde)
@@ -181,11 +178,14 @@ public class Query4 implements NexmarkQuery {
                     @Override
                     public Long apply() {
                         // TODO Auto-generated method stub
-                        return 0L;
+                        return null;
                     }
                 }, new Aggregator<AucIdCategory, AuctionBid, Long>() {
                     @Override
                     public Long apply(AucIdCategory key, AuctionBid value, Long aggregate) {
+                        if (aggregate == null) {
+                            return value.bidPrice;
+                        }
                         if (value.bidPrice > aggregate) {
                             return value.bidPrice;
                         } else {
@@ -206,17 +206,24 @@ public class Query4 implements NexmarkQuery {
                 // System.out.println("max, key: " + key + " value: " + value);
                 return new KeyValue<Long, Long>(key.category, value);
             }
-        }, Grouped.with(Serdes.Long(), Serdes.Long())
-                .withName(maxBidsGroupByTab))
+        }, Grouped.with(Serdes.Long(), Serdes.Long()).withName(maxBidsGroupByTab))
                 .aggregate(() -> new SumAndCount(0, 0), new Aggregator<Long, Long, SumAndCount>() {
                     @Override
                     public SumAndCount apply(Long key, Long value, SumAndCount aggregate) {
-                        return new SumAndCount(aggregate.sum + value, aggregate.count + 1);
+                        if (value != null) {
+                            return new SumAndCount(aggregate.sum + value, aggregate.count + 1);
+                        } else {
+                            return aggregate;
+                        }
                     }
                 }, new Aggregator<Long, Long, SumAndCount>() {
                     @Override
                     public SumAndCount apply(Long key, Long value, SumAndCount aggregate) {
-                        return new SumAndCount(aggregate.sum - value, aggregate.count - 1);
+                        if (value != null) {
+                            return new SumAndCount(aggregate.sum - value, aggregate.count - 1);
+                        } else {
+                            return aggregate;
+                        }
                     }
                 }, Named.as("sumCount"),
                         Materialized.<Long, SumAndCount>as(sumCountKV)

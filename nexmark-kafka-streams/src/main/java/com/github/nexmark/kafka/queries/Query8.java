@@ -122,26 +122,9 @@ public class Query8 implements NexmarkQuery {
             public PersonTime apply(Event event, Event event2) {
                 long id = 0;
                 String name = "";
-                long ts = 0;
-                if (event2.etype == EType.PERSON) {
-                    // System.out.println("auc itemName: " + event.newAuction.itemName +
-                    //         " seller: " + event.newAuction.seller +
-                    //         " per id: " + event2.newPerson.id +
-                    //         " per name: " + event2.newPerson.name);
-                    id = event2.newPerson.id;
-                    name = event2.newPerson.name;
-                    ts = event2.newPerson.dateTime;
-                } else {
-                    // System.out.println("auc itemName: " + event2.newAuction.itemName +
-                    //         " seller: " + event2.newAuction.seller +
-                    //         " per id: " + event.newPerson.id +
-                    //         " per name: " + event.newPerson.name);
-                    id = event.newPerson.id;
-                    name = event.newPerson.name;
-                    ts = event.newPerson.dateTime;
-                }
+                long ts = event2.newPerson.dateTime;
                 long windowStart = (Math.max(0, ts - windowSizeMs + windowSizeMs) / windowSizeMs) * windowSizeMs;
-                return new PersonTime(id, name, windowStart);
+                return new PersonTime(event2.newPerson.id, event2.newPerson.name, windowStart);
             }
         }, jw, sj)
                 .transformValues(lcts, Named.as("latency-measure"))

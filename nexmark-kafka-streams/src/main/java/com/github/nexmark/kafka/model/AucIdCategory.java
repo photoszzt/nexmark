@@ -14,4 +14,10 @@ public class AucIdCategory {
         this.id = id;
         this.category = category;
     }
+
+    @Override
+    public String toString() {
+        // TODO Auto-generated method stub
+        return "AucIdCat: {id: " + id + ", cat: " + category + "}";
+    }
 }
