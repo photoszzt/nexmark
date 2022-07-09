@@ -152,7 +152,8 @@ public class Query4 implements NexmarkQuery {
         KTable<AucIdCategory, Long> maxBids = aucsByID.join(bidsByAucID, (leftValue, rightValue) -> {
             return new AuctionBid(rightValue.bid.dateTime,
                     leftValue.newAuction.dateTime, leftValue.newAuction.expires,
-                    rightValue.bid.price, leftValue.newAuction.category);
+                    rightValue.bid.price, leftValue.newAuction.category, 
+                    leftValue.newAuction.seller);
         }, jw, StreamJoined.<Long, Event, Event>with(aucsByIDStoreSupplier, bidsByAucIDStoreSupplier)
                 .withKeySerde(Serdes.Long())
                 .withValueSerde(eSerde)

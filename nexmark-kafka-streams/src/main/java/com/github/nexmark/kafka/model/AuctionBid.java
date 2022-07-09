@@ -9,6 +9,7 @@ public class AuctionBid {
     public long aucExpiresMs;
     public long bidPrice;
     public long aucCategory;
+    public long seller;
 
     @JsonCreator
     public AuctionBid(
@@ -16,12 +17,14 @@ public class AuctionBid {
             @JsonProperty("aucDateTime") long aucDateTime,
             @JsonProperty("aucExpires") long aucExpires,
             @JsonProperty("bidPrice") long bidPrice,
-            @JsonProperty("aucCategory") long aucCategory) {
+            @JsonProperty("aucCategory") long aucCategory,
+            @JsonProperty("seller") long seller) {
         this.bidDateTimeMs = bidDateTime;
         this.aucDateTimeMs = aucDateTime;
         this.aucExpiresMs = aucExpires;
         this.bidPrice = bidPrice;
         this.aucCategory = aucCategory;
+        this.seller = seller;
     }
 
     @Override
@@ -32,6 +35,7 @@ public class AuctionBid {
 				", aucExpiresMs=" + aucExpiresMs +
 				", bidPrice=" + bidPrice +
 				", aucCategory=" + aucCategory + 
+                ", seller=" + seller +
 				'}';
 	}
 }

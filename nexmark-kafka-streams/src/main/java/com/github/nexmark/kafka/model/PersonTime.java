@@ -16,4 +16,11 @@ public class PersonTime {
         this.name = name;
         this.startTime = startTime;
     }
+
+    @Override
+    public String toString() {
+        return "PersonTime: {name: " + name +
+                ", id: " + id +
+                ", startTime: " + startTime + "}";
+    }
 }
