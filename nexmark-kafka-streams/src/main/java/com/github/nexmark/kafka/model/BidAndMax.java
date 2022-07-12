@@ -1,5 +1,7 @@
 package com.github.nexmark.kafka.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -24,5 +26,22 @@ public class BidAndMax {
         this.dateTimeMs = dateTime;
         this.wStartMs = wStartMs;
         this.wEndMs = wEndMs;
+    }
+
+    @Override
+    public String toString() {
+        // TODO Auto-generated method stub
+        return "BidAndMax: {auction: " + auction +
+                ", price: " + price +
+                ", bidder: " + bidder +
+                ", dateTimeMs: " + dateTimeMs +
+                ", wStartMs: " + wStartMs +
+                ", wEndMs: " + wEndMs + "}";
+    }
+
+    @Override
+    public int hashCode() {
+        // TODO Auto-generated method stub
+        return Objects.hash(auction, price, bidder, dateTimeMs, wStartMs, wEndMs);
     }
 }

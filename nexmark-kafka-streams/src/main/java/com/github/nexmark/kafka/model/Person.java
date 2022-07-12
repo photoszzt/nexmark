@@ -70,13 +70,13 @@ public class Person implements Serializable {
         }
         Person person = (Person) o;
         return id == person.id
-                && Objects.equals(dateTime, person.dateTime)
-                && Objects.equals(name, person.name)
-                && Objects.equals(emailAddress, person.emailAddress)
-                && Objects.equals(creditCard, person.creditCard)
-                && Objects.equals(city, person.city)
-                && Objects.equals(state, person.state)
-                && Objects.equals(extra, person.extra);
+                &&dateTime == person.dateTime
+                && name.equals(person.name)
+                && emailAddress.equals(person.emailAddress)
+                && creditCard.equals(person.creditCard)
+                && city.equals(person.city)
+                && state.equals(person.state)
+                && extra.equals(person.extra);
     }
 
     @Override

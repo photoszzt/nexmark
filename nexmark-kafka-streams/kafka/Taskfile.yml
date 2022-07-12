@@ -46,4 +46,4 @@ tasks:
       BOOTSTRAP: '{{default "localhost:9092" .BOOTSTRAP}}'
     cmds:
       - ./bin/kafka-console-consumer.sh --bootstrap-server {{.BOOTSTRAP}}
-        --topic {{.TOPIC}} --from-beginning {{.CLI_ARGS}}
+        --topic {{.TOPIC}} --property print.timestamp=true --from-beginning {{.CLI_ARGS}}

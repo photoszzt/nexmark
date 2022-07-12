@@ -1,5 +1,7 @@
 package com.github.nexmark.kafka.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -22,5 +24,23 @@ public class PersonTime {
         return "PersonTime: {name: " + name +
                 ", id: " + id +
                 ", startTime: " + startTime + "}";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final PersonTime other = (PersonTime) o;
+        return this.id == other.id && this.startTime == other.startTime &&
+                this.name.equals(other.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, startTime);
     }
 }

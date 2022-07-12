@@ -59,13 +59,13 @@ public class Bid implements Serializable {
 		}
 
 		Bid other = (Bid) otherObject;
-		return Objects.equal(auction, other.auction)
-			&& Objects.equal(bidder, other.bidder)
-			&& Objects.equal(price, other.price)
-			&& Objects.equal(channel, other.channel)
-			&& Objects.equal(url, other.url)
-			&& Objects.equal(dateTime, other.dateTime)
-			&& Objects.equal(extra, other.extra);
+		return auction == other.auction
+			&& bidder == other.bidder
+			&& price == other.price
+			&& channel.equals(other.channel)
+			&& url.equals(other.url)
+			&& dateTime == other.dateTime
+			&& extra.equals(other.extra);
 	}
 
 	@Override

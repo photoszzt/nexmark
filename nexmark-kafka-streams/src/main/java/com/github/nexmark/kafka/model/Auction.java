@@ -89,13 +89,13 @@ public class Auction implements Serializable {
 		return id == auction.id
 			&& initialBid == auction.initialBid
 			&& reserve == auction.reserve
-			&& Objects.equal(dateTime, auction.dateTime)
-			&& Objects.equal(expires, auction.expires)
+			&& dateTime == auction.dateTime
+			&& expires == auction.expires
 			&& seller == auction.seller
 			&& category == auction.category
-			&& Objects.equal(itemName, auction.itemName)
-			&& Objects.equal(description, auction.description)
-			&& Objects.equal(extra, auction.extra);
+			&& itemName.equals(auction.itemName)
+			&& description.equals(auction.description)
+			&& extra.equals(auction.extra);
 	}
 
 	@Override

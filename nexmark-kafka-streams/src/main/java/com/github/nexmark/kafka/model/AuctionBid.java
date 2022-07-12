@@ -1,5 +1,7 @@
 package com.github.nexmark.kafka.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -38,4 +40,10 @@ public class AuctionBid {
                 ", seller=" + seller +
 				'}';
 	}
+
+    @Override
+    public int hashCode() {
+        // TODO Auto-generated method stub
+        return Objects.hash(bidDateTimeMs, aucDateTimeMs, aucExpiresMs, bidPrice, aucCategory, seller);
+    }
 }

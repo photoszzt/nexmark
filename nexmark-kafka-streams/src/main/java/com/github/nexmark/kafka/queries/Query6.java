@@ -219,7 +219,7 @@ public class Query6 implements NexmarkQuery {
                     @Override
                     public ArrayList<PriceTime> apply() {
                         // TODO Auto-generated method stub
-                        return new ArrayList<>();
+                        return new ArrayList<>(12);
                     }
                 }, new Aggregator<Long, PriceTime, List<PriceTime>>() {
                     @Override
@@ -227,16 +227,22 @@ public class Query6 implements NexmarkQuery {
                             List<PriceTime> aggregate) {
                         aggregate.add(value);
                         aggregate.sort(PriceTime.ASCENDING_TIME_THEN_PRICE);
-                        if (aggregate.size() > maxSize) {
+                        // System.out.println("[ADD] agg before rm: " + aggregate);
+                        if (aggregate.size() > maxSize + 1) {
                             aggregate.remove(0);
                         }
+                        // System.out.println("[ADD] agg after rm: " + aggregate);
                         return aggregate;
                     }
                 }, new Aggregator<Long, PriceTime, List<PriceTime>>() {
                     @Override
                     public List<PriceTime> apply(Long key, PriceTime value,
                             List<PriceTime> aggregate) {
-                        aggregate.remove(value);
+                        // System.out.println("[RM] val to rm: " + value);
+                        if (aggregate.size() > 0) {
+                            aggregate.remove(value);
+                        }
+                        // System.out.println("[RM] agg after rm: " + aggregate);
                         return aggregate;
                     }
                 }, Named.as("collect-val"),
@@ -245,10 +251,21 @@ public class Query6 implements NexmarkQuery {
                                 .withValueSerde(lSerde));
                 KTable<Long, Double> avgTab = aggTab.mapValues((key, value) -> {
                     long sum = 0;
-                    for (PriceTime pt : value) {
-                        sum += pt.price;
+                    int l = value.size();
+                    int start = 0;
+                    int count = l;
+                    if (l > maxSize) {
+                        start = l - maxSize;
+                        count = maxSize;
                     }
-                    return (double) sum / value.size();
+                    for (int i = start; i < l; i++) {
+                        sum += value.get(i).price;
+                    }
+                    double avg = (double) sum / (double)count;
+                    // System.out.println("val to sum: " + value +
+                    //         ", sum: " + sum + ", count: " + count +
+                    //         ", avg: " + avg);
+                    return avg;
                 });
                 avgTab.toStream()
                 .transformValues(lcts, Named.as("latency-measure"))

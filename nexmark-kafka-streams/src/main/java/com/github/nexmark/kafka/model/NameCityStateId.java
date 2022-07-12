@@ -32,11 +32,11 @@ public class NameCityStateId implements Serializable {
             return false;
         }
 
-        NameCityStateId other = (NameCityStateId) otherObject;
-        return Objects.equal(name, other.name)
-                && Objects.equal(city, other.city)
-                && Objects.equal(state, other.state)
-                && Objects.equal(id, other.id);
+        final NameCityStateId other = (NameCityStateId) otherObject;
+        return name.equals(other.name)
+                && city.equals(other.city)
+                && state.equals(other.state)
+                && id == other.id;
     }
 
     @Override

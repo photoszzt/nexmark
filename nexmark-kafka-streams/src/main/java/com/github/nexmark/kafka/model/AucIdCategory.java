@@ -1,5 +1,7 @@
 package com.github.nexmark.kafka.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -17,7 +19,11 @@ public class AucIdCategory {
 
     @Override
     public String toString() {
-        // TODO Auto-generated method stub
         return "AucIdCat: {id: " + id + ", cat: " + category + "}";
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, category);
     }
 }
