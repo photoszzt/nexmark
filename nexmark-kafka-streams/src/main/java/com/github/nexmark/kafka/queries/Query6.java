@@ -228,7 +228,7 @@ public class Query6 implements NexmarkQuery {
                         aggregate.add(value);
                         aggregate.sort(PriceTime.ASCENDING_TIME_THEN_PRICE);
                         // System.out.println("[ADD] agg before rm: " + aggregate);
-                        if (aggregate.size() > maxSize + 1) {
+                        if (aggregate.size() > maxSize) {
                             aggregate.remove(0);
                         }
                         // System.out.println("[ADD] agg after rm: " + aggregate);
@@ -252,20 +252,10 @@ public class Query6 implements NexmarkQuery {
                 KTable<Long, Double> avgTab = aggTab.mapValues((key, value) -> {
                     long sum = 0;
                     int l = value.size();
-                    int start = 0;
-                    int count = l;
-                    if (l > maxSize) {
-                        start = l - maxSize;
-                        count = maxSize;
+                    for (PriceTime pt : value) {
+                        sum += pt.price;
                     }
-                    for (int i = start; i < l; i++) {
-                        sum += value.get(i).price;
-                    }
-                    double avg = (double) sum / (double)count;
-                    // System.out.println("val to sum: " + value +
-                    //         ", sum: " + sum + ", count: " + count +
-                    //         ", avg: " + avg);
-                    return avg;
+                    return (double) sum / (double)l;
                 });
                 avgTab.toStream()
                 .transformValues(lcts, Named.as("latency-measure"))
