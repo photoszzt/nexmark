@@ -219,7 +219,7 @@ public class Query6 implements NexmarkQuery {
                     @Override
                     public ArrayList<PriceTime> apply() {
                         // TODO Auto-generated method stub
-                        return new ArrayList<>(12);
+                        return new ArrayList<>(11);
                     }
                 }, new Aggregator<Long, PriceTime, List<PriceTime>>() {
                     @Override
@@ -248,16 +248,18 @@ public class Query6 implements NexmarkQuery {
                 }, Named.as("collect-val"),
                         Materialized.<Long, List<PriceTime>>as(collectValKV)
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(lSerde));
-                KTable<Long, Double> avgTab = aggTab.mapValues((key, value) -> {
+                                .withValueSerde(lSerde)
+                                .withLoggingEnabled(new HashMap<>())
+                                .withCachingDisabled());
+                aggTab.mapValues((key, value) -> {
                     long sum = 0;
                     int l = value.size();
                     for (PriceTime pt : value) {
                         sum += pt.price;
                     }
                     return (double) sum / (double)l;
-                });
-                avgTab.toStream()
+                })
+                .toStream()
                 .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(Serdes.Long(), Serdes.Double()));
         return builder;
