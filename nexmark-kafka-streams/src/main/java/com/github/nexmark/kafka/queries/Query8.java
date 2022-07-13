@@ -80,25 +80,21 @@ public class Query8 implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor())).peek(input);
+        Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
+                .branch((key, value) -> value != null && value.etype == Event.EType.PERSON, Branched.as("persons"))
+                .branch((key, value) -> value != null && value.etype == Event.EType.AUCTION, Branched.as("auctions"))
+                .noDefaultBranch();
 
-        KStream<Long, Event> person = inputs
-                .filter((key, value) -> value != null && value.etype == Event.EType.PERSON)
-                .selectKey((key, value) -> {
-                    System.out.printf("key: %d, ts: %d, name: %s\n", value.newPerson.id, value.newPerson.dateTime,
-                            value.newPerson.name);
-                    return value.newPerson.id;
-                })
+        KStream<Long, Event> person = ksMap.get("Branch-persons").selectKey((key, value) -> {
+            return value.newPerson.id;
+        })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(personsByIDTpRepar)
                         .withNumberOfPartitions(personsByIDTpPar));
 
-        KStream<Long, Event> auction = inputs
-                .filter((key, value) -> value != null && value.etype == Event.EType.AUCTION)
-                .selectKey((key, value) -> {
-                    System.out.printf("key: %d, ts: %d, name: %s\n", value.newAuction.seller, value.newAuction.dateTime,
-                            value.newAuction.itemName);
-                    return value.newAuction.seller;
-                })
+        KStream<Long, Event> auction = ksMap.get("Branch-auctions").selectKey((key, value) -> {
+            return value.newAuction.seller;
+        })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucBySellerIDTpRepar)
                         .withNumberOfPartitions(aucBySellerIDTpPar));
@@ -120,8 +116,6 @@ public class Query8 implements NexmarkQuery {
         auction.join(person, new ValueJoiner<Event, Event, PersonTime>() {
             @Override
             public PersonTime apply(Event event, Event event2) {
-                long id = 0;
-                String name = "";
                 long ts = event2.newPerson.dateTime;
                 long windowStart = (Math.max(0, ts - windowSizeMs + windowSizeMs) / windowSizeMs) * windowSizeMs;
                 return new PersonTime(event2.newPerson.id, event2.newPerson.name, windowStart);

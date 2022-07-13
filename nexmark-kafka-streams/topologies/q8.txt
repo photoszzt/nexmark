@@ -1,28 +1,31 @@
 Topologies:
    Sub-topology: 0
     Source: KSTREAM-SOURCE-0000000000 (topics: [nexmark_src])
-      --> KSTREAM-FILTER-0000000007, KSTREAM-PEEK-0000000001
+      --> KSTREAM-PEEK-0000000001
     Processor: KSTREAM-PEEK-0000000001 (stores: [])
-      --> KSTREAM-FILTER-0000000002
+      --> Branch-
       <-- KSTREAM-SOURCE-0000000000
-    Processor: KSTREAM-FILTER-0000000002 (stores: [])
-      --> KSTREAM-KEY-SELECT-0000000003
+    Processor: Branch- (stores: [])
+      --> Branch-auctions, Branch-persons
       <-- KSTREAM-PEEK-0000000001
-    Processor: KSTREAM-FILTER-0000000007 (stores: [])
-      --> KSTREAM-KEY-SELECT-0000000008
-      <-- KSTREAM-SOURCE-0000000000
-    Processor: KSTREAM-KEY-SELECT-0000000003 (stores: [])
+    Processor: Branch-auctions (stores: [])
+      --> KSTREAM-KEY-SELECT-0000000009
+      <-- Branch-
+    Processor: Branch-persons (stores: [])
+      --> KSTREAM-KEY-SELECT-0000000005
+      <-- Branch-
+    Processor: KSTREAM-KEY-SELECT-0000000005 (stores: [])
       --> person-repartition-filter
-      <-- KSTREAM-FILTER-0000000002
-    Processor: KSTREAM-KEY-SELECT-0000000008 (stores: [])
+      <-- Branch-persons
+    Processor: KSTREAM-KEY-SELECT-0000000009 (stores: [])
       --> auction-repartition-filter
-      <-- KSTREAM-FILTER-0000000007
+      <-- Branch-auctions
     Processor: auction-repartition-filter (stores: [])
       --> auction-repartition-sink
-      <-- KSTREAM-KEY-SELECT-0000000008
+      <-- KSTREAM-KEY-SELECT-0000000009
     Processor: person-repartition-filter (stores: [])
       --> person-repartition-sink
-      <-- KSTREAM-KEY-SELECT-0000000003
+      <-- KSTREAM-KEY-SELECT-0000000005
     Sink: auction-repartition-sink (topic: auction-repartition)
       <-- auction-repartition-filter
     Sink: person-repartition-sink (topic: person-repartition)
@@ -30,26 +33,26 @@ Topologies:
 
   Sub-topology: 1
     Source: auction-repartition-source (topics: [auction-repartition])
-      --> KSTREAM-WINDOWED-0000000012
-    Source: person-repartition-source (topics: [person-repartition])
       --> KSTREAM-WINDOWED-0000000013
-    Processor: KSTREAM-WINDOWED-0000000012 (stores: [auction-join-store])
-      --> KSTREAM-JOINTHIS-0000000014
+    Source: person-repartition-source (topics: [person-repartition])
+      --> KSTREAM-WINDOWED-0000000014
+    Processor: KSTREAM-WINDOWED-0000000013 (stores: [auction-join-store])
+      --> KSTREAM-JOINTHIS-0000000015
       <-- auction-repartition-source
-    Processor: KSTREAM-WINDOWED-0000000013 (stores: [person-join-store])
-      --> KSTREAM-JOINOTHER-0000000015
+    Processor: KSTREAM-WINDOWED-0000000014 (stores: [person-join-store])
+      --> KSTREAM-JOINOTHER-0000000016
       <-- person-repartition-source
-    Processor: KSTREAM-JOINOTHER-0000000015 (stores: [auction-join-store])
-      --> KSTREAM-MERGE-0000000016
+    Processor: KSTREAM-JOINOTHER-0000000016 (stores: [auction-join-store])
+      --> KSTREAM-MERGE-0000000017
+      <-- KSTREAM-WINDOWED-0000000014
+    Processor: KSTREAM-JOINTHIS-0000000015 (stores: [person-join-store])
+      --> KSTREAM-MERGE-0000000017
       <-- KSTREAM-WINDOWED-0000000013
-    Processor: KSTREAM-JOINTHIS-0000000014 (stores: [person-join-store])
-      --> KSTREAM-MERGE-0000000016
-      <-- KSTREAM-WINDOWED-0000000012
-    Processor: KSTREAM-MERGE-0000000016 (stores: [])
-      --> KSTREAM-PEEK-0000000017
-      <-- KSTREAM-JOINTHIS-0000000014, KSTREAM-JOINOTHER-0000000015
-    Processor: KSTREAM-PEEK-0000000017 (stores: [])
-      --> KSTREAM-SINK-0000000018
-      <-- KSTREAM-MERGE-0000000016
-    Sink: KSTREAM-SINK-0000000018 (topic: nexmark-q8-out)
-      <-- KSTREAM-PEEK-0000000017
+    Processor: KSTREAM-MERGE-0000000017 (stores: [])
+      --> latency-measure
+      <-- KSTREAM-JOINTHIS-0000000015, KSTREAM-JOINOTHER-0000000016
+    Processor: latency-measure (stores: [])
+      --> KSTREAM-SINK-0000000019
+      <-- KSTREAM-MERGE-0000000017
+    Sink: KSTREAM-SINK-0000000019 (topic: q8-out)
+      <-- latency-measure

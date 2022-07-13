@@ -4,6 +4,7 @@ import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Aggregator;
+import org.apache.kafka.streams.kstream.Branched;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.Grouped;
 import org.apache.kafka.streams.kstream.Initializer;
@@ -28,6 +29,7 @@ import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.PriceTime;
 
 import java.util.List;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Properties;
@@ -132,14 +134,16 @@ public class Query6 implements NexmarkQuery {
                 Consumed.with(Serdes.String(), eSerde)
                         .withTimestampExtractor(new EventTimestampExtractor()))
                 .peek(input);
-        KStream<Long, Event> bidsByAucID = inputs
-                .filter((key, value) -> value.etype == Event.EType.BID)
+        Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
+                .branch((key, value) -> value.etype == Event.EType.BID, Branched.as("bids"))
+                .branch((key, value) -> value.etype == Event.EType.AUCTION, Branched.as("auctions"))
+                .noDefaultBranch();
+        KStream<Long, Event> bidsByAucID = ksMap.get("Branch-bids")
                 .selectKey((key, value) -> value.bid.auction)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsByAucIDTpRepar)
                         .withNumberOfPartitions(bidsByAucIDTpNumPar));
-        KStream<Long, Event> aucsByID = inputs
-                .filter((key, value) -> value.etype == Event.EType.AUCTION)
+        KStream<Long, Event> aucsByID = ksMap.get("Branch-auctions")
                 .selectKey((key, value) -> value.newAuction.id)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucsByIDTpRepar)

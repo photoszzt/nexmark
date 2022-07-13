@@ -19,6 +19,7 @@ import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -122,18 +123,17 @@ public class Query4 implements NexmarkQuery {
                 Consumed.with(Serdes.String(), eSerde)
                         .withTimestampExtractor(new EventTimestampExtractor()))
                 .peek(input);
+        Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
+                .branch((key, value) -> value.etype == Event.EType.BID, Branched.as("bids"))
+                .branch((key, value) -> value.etype == Event.EType.AUCTION, Branched.as("auctions"))
+                .noDefaultBranch();
 
-        // System.out.printf("bisByAucID par: %s\n", bidsByAucIDTpRepar);
-        // System.out.printf("aucsByID par: %s\n", aucsByIDTpRepar);
-        KStream<Long, Event> bidsByAucID = inputs
-                .filter((key, value) -> value.etype == Event.EType.BID)
-                .selectKey((key, value) -> value.bid.auction)
+        KStream<Long, Event> bidsByAucID = ksMap.get("Branch-bids").selectKey((key, value) -> value.bid.auction)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsByAucIDTpRepar)
                         .withNumberOfPartitions(bidsByAucIDTpNumPar));
 
-        KStream<Long, Event> aucsByID = inputs
-                .filter((key, value) -> value.etype == Event.EType.AUCTION)
+        KStream<Long, Event> aucsByID = ksMap.get("Branch-auctions")
                 .selectKey((key, value) -> value.newAuction.id)
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucsByIDTpRepar)
@@ -230,7 +230,7 @@ public class Query4 implements NexmarkQuery {
                         Materialized.<Long, SumAndCount>as(sumCountKV)
                                 .withKeySerde(Serdes.Long())
                                 .withValueSerde(scSerde)
-                                .withCachingEnabled()
+                                .withCachingDisabled() // match the behavior of golang sys
                                 .withLoggingEnabled(new HashMap<>()))
                 .mapValues((key, value) -> (double) value.sum / (double) value.count)
                 .toStream()

@@ -16,6 +16,7 @@ import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
@@ -82,11 +83,19 @@ public class Query3 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor())).peek(input);
 
+        Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
+                .branch((key, value) -> value != null && value.etype == Event.EType.AUCTION
+                        && value.newAuction.category == 10,
+                        Branched.as("aucBySeller"))
+                .branch((key, value) -> value != null && value.etype == Event.EType.PERSON
+                        && (value.newPerson.state.equals("OR") ||
+                                value.newPerson.state.equals("ID") ||
+                                value.newPerson.state.equals("CA")), Branched.as("personsById"))
+                .noDefaultBranch();
+
         KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores
                 .inMemoryKeyValueStore("auctionBySellerIdKV");
-        KTable<Long, Event> auctionsBySellerId = inputs
-                .filter((key, value) -> value != null && value.etype == Event.EType.AUCTION
-                        && value.newAuction.category == 10)
+        KTable<Long, Event> auctionsBySellerId = ksMap.get("Branch-aucBySeller")
                 .selectKey((key, value) -> value.newAuction.seller)
                 .toTable(Named.as(aucBySellerIDTab),
                         Materialized.<Long, Event>as(auctionsBySellerIdKVStoreSupplier)
@@ -94,11 +103,7 @@ public class Query3 implements NexmarkQuery {
                                 .withValueSerde(eSerde));
 
         KeyValueBytesStoreSupplier personsByIdKVStoreSupplier = Stores.inMemoryKeyValueStore("personsByIdKV");
-        KTable<Long, Event> personsById = inputs
-                .filter((key, value) -> value != null && value.etype == Event.EType.PERSON
-                        && (value.newPerson.state.equals("OR") ||
-                                value.newPerson.state.equals("ID") ||
-                                value.newPerson.state.equals("CA")))
+        KTable<Long, Event> personsById = ksMap.get("Branch-personsById") 
                 .selectKey((key, value) -> value.newPerson.id)
                 .toTable(Named.as(personsByIDTab),
                         Materialized.<Long, Event>as(personsByIdKVStoreSupplier)

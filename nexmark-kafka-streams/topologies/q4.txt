@@ -3,26 +3,29 @@ Topologies:
     Source: KSTREAM-SOURCE-0000000000 (topics: [nexmark_src])
       --> KSTREAM-PEEK-0000000001
     Processor: KSTREAM-PEEK-0000000001 (stores: [])
-      --> KSTREAM-FILTER-0000000002, KSTREAM-FILTER-0000000007
+      --> Branch-
       <-- KSTREAM-SOURCE-0000000000
-    Processor: KSTREAM-FILTER-0000000002 (stores: [])
-      --> KSTREAM-KEY-SELECT-0000000003
+    Processor: Branch- (stores: [])
+      --> Branch-auctions, Branch-bids
       <-- KSTREAM-PEEK-0000000001
-    Processor: KSTREAM-FILTER-0000000007 (stores: [])
-      --> KSTREAM-KEY-SELECT-0000000008
-      <-- KSTREAM-PEEK-0000000001
-    Processor: KSTREAM-KEY-SELECT-0000000003 (stores: [])
+    Processor: Branch-auctions (stores: [])
+      --> KSTREAM-KEY-SELECT-0000000009
+      <-- Branch-
+    Processor: Branch-bids (stores: [])
+      --> KSTREAM-KEY-SELECT-0000000005
+      <-- Branch-
+    Processor: KSTREAM-KEY-SELECT-0000000005 (stores: [])
       --> bidsByAucID-repartition-filter
-      <-- KSTREAM-FILTER-0000000002
-    Processor: KSTREAM-KEY-SELECT-0000000008 (stores: [])
+      <-- Branch-bids
+    Processor: KSTREAM-KEY-SELECT-0000000009 (stores: [])
       --> aucsByID-repartition-filter
-      <-- KSTREAM-FILTER-0000000007
+      <-- Branch-auctions
     Processor: aucsByID-repartition-filter (stores: [])
       --> aucsByID-repartition-sink
-      <-- KSTREAM-KEY-SELECT-0000000008
+      <-- KSTREAM-KEY-SELECT-0000000009
     Processor: bidsByAucID-repartition-filter (stores: [])
       --> bidsByAucID-repartition-sink
-      <-- KSTREAM-KEY-SELECT-0000000003
+      <-- KSTREAM-KEY-SELECT-0000000005
     Sink: aucsByID-repartition-sink (topic: aucsByID-repartition)
       <-- aucsByID-repartition-filter
     Sink: bidsByAucID-repartition-sink (topic: bidsByAucID-repartition)
@@ -30,36 +33,36 @@ Topologies:
 
   Sub-topology: 1
     Source: aucsByID-repartition-source (topics: [aucsByID-repartition])
-      --> KSTREAM-WINDOWED-0000000012
-    Source: bidsByAucID-repartition-source (topics: [bidsByAucID-repartition])
       --> KSTREAM-WINDOWED-0000000013
-    Processor: KSTREAM-WINDOWED-0000000012 (stores: [aucsByID-join-store])
-      --> KSTREAM-JOINTHIS-0000000014
+    Source: bidsByAucID-repartition-source (topics: [bidsByAucID-repartition])
+      --> KSTREAM-WINDOWED-0000000014
+    Processor: KSTREAM-WINDOWED-0000000013 (stores: [aucsByID-join-store])
+      --> KSTREAM-JOINTHIS-0000000015
       <-- aucsByID-repartition-source
-    Processor: KSTREAM-WINDOWED-0000000013 (stores: [bidsByID-join-store])
-      --> KSTREAM-JOINOTHER-0000000015
+    Processor: KSTREAM-WINDOWED-0000000014 (stores: [bidsByID-join-store])
+      --> KSTREAM-JOINOTHER-0000000016
       <-- bidsByAucID-repartition-source
-    Processor: KSTREAM-JOINOTHER-0000000015 (stores: [aucsByID-join-store])
-      --> KSTREAM-MERGE-0000000016
+    Processor: KSTREAM-JOINOTHER-0000000016 (stores: [aucsByID-join-store])
+      --> KSTREAM-MERGE-0000000017
+      <-- KSTREAM-WINDOWED-0000000014
+    Processor: KSTREAM-JOINTHIS-0000000015 (stores: [bidsByID-join-store])
+      --> KSTREAM-MERGE-0000000017
       <-- KSTREAM-WINDOWED-0000000013
-    Processor: KSTREAM-JOINTHIS-0000000014 (stores: [bidsByID-join-store])
-      --> KSTREAM-MERGE-0000000016
-      <-- KSTREAM-WINDOWED-0000000012
-    Processor: KSTREAM-MERGE-0000000016 (stores: [])
-      --> KSTREAM-FILTER-0000000017
-      <-- KSTREAM-JOINTHIS-0000000014, KSTREAM-JOINOTHER-0000000015
-    Processor: KSTREAM-FILTER-0000000017 (stores: [])
+    Processor: KSTREAM-MERGE-0000000017 (stores: [])
       --> KSTREAM-FILTER-0000000018
-      <-- KSTREAM-MERGE-0000000016
+      <-- KSTREAM-JOINTHIS-0000000015, KSTREAM-JOINOTHER-0000000016
     Processor: KSTREAM-FILTER-0000000018 (stores: [])
-      --> KSTREAM-KEY-SELECT-0000000019
-      <-- KSTREAM-FILTER-0000000017
-    Processor: KSTREAM-KEY-SELECT-0000000019 (stores: [])
-      --> aucBids-repartition-filter
+      --> KSTREAM-FILTER-0000000019
+      <-- KSTREAM-MERGE-0000000017
+    Processor: KSTREAM-FILTER-0000000019 (stores: [])
+      --> KSTREAM-KEY-SELECT-0000000020
       <-- KSTREAM-FILTER-0000000018
+    Processor: KSTREAM-KEY-SELECT-0000000020 (stores: [])
+      --> aucBids-repartition-filter
+      <-- KSTREAM-FILTER-0000000019
     Processor: aucBids-repartition-filter (stores: [])
       --> aucBids-repartition-sink
-      <-- KSTREAM-KEY-SELECT-0000000019
+      <-- KSTREAM-KEY-SELECT-0000000020
     Sink: aucBids-repartition-sink (topic: aucBids-repartition)
       <-- aucBids-repartition-filter
 
@@ -79,16 +82,16 @@ Topologies:
     Source: sumCount-source (topics: [maxBids-repartition])
       --> sumCount
     Processor: sumCount (stores: [sumCountKVStore])
-      --> KTABLE-MAPVALUES-0000000028
+      --> KTABLE-MAPVALUES-0000000029
       <-- sumCount-source
-    Processor: KTABLE-MAPVALUES-0000000028 (stores: [])
-      --> KTABLE-TOSTREAM-0000000029
+    Processor: KTABLE-MAPVALUES-0000000029 (stores: [])
+      --> KTABLE-TOSTREAM-0000000030
       <-- sumCount
-    Processor: KTABLE-TOSTREAM-0000000029 (stores: [])
+    Processor: KTABLE-TOSTREAM-0000000030 (stores: [])
       --> latency-measure
-      <-- KTABLE-MAPVALUES-0000000028
+      <-- KTABLE-MAPVALUES-0000000029
     Processor: latency-measure (stores: [])
-      --> KSTREAM-SINK-0000000031
-      <-- KTABLE-TOSTREAM-0000000029
-    Sink: KSTREAM-SINK-0000000031 (topic: q4-out)
+      --> KSTREAM-SINK-0000000032
+      <-- KTABLE-TOSTREAM-0000000030
+    Sink: KSTREAM-SINK-0000000032 (topic: q4-out)
       <-- latency-measure
