@@ -2,7 +2,6 @@ package com.github.nexmark.kafka.queries;
 
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.PersonTime;
-import com.github.nexmark.kafka.model.Event.EType;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serde;

@@ -1,34 +1,3 @@
-without explicit repartition
-Topologies:
-   Sub-topology: 0
-    Source: KSTREAM-SOURCE-0000000000 (topics: [nexmark-input])
-      --> KSTREAM-FILTER-0000000001
-    Processor: KSTREAM-FILTER-0000000001 (stores: [])
-      --> KSTREAM-KEY-SELECT-0000000002
-      <-- KSTREAM-SOURCE-0000000000
-    Processor: KSTREAM-KEY-SELECT-0000000002 (stores: [])
-      --> KSTREAM-TRANSFORMVALUES-0000000007, max-bid-repartition-filter
-      <-- KSTREAM-FILTER-0000000001
-    Processor: KSTREAM-TRANSFORMVALUES-0000000007 (stores: [max-bid])
-      --> KSTREAM-FILTER-0000000008
-      <-- KSTREAM-KEY-SELECT-0000000002
-    Processor: KSTREAM-FILTER-0000000008 (stores: [])
-      --> KSTREAM-SINK-0000000009
-      <-- KSTREAM-TRANSFORMVALUES-0000000007
-    Processor: max-bid-repartition-filter (stores: [])
-      --> max-bid-repartition-sink
-      <-- KSTREAM-KEY-SELECT-0000000002
-    Source: max-bid-repartition-source (topics: [max-bid-repartition])
-      --> KSTREAM-AGGREGATE-0000000003
-    Processor: KSTREAM-AGGREGATE-0000000003 (stores: [max-bid])
-      --> none
-      <-- max-bid-repartition-source
-    Sink: KSTREAM-SINK-0000000009 (topic: nexmark-q7)
-      <-- KSTREAM-FILTER-0000000008
-    Sink: max-bid-repartition-sink (topic: max-bid-repartition)
-      <-- max-bid-repartition-filter
-
-q7 topo after adding repartition
 Topologies:
    Sub-topology: 0
     Source: KSTREAM-SOURCE-0000000000 (topics: [nexmark_src])
@@ -37,31 +6,68 @@ Topologies:
       --> KSTREAM-FILTER-0000000002
       <-- KSTREAM-SOURCE-0000000000
     Processor: KSTREAM-FILTER-0000000002 (stores: [])
-      --> KSTREAM-KEY-SELECT-0000000003
+      --> KSTREAM-KEY-SELECT-0000000003, KSTREAM-KEY-SELECT-0000000007
       <-- KSTREAM-PEEK-0000000001
     Processor: KSTREAM-KEY-SELECT-0000000003 (stores: [])
-      --> bid-repartition-filter
+      --> bidsByWin-repartition-filter
       <-- KSTREAM-FILTER-0000000002
-    Processor: bid-repartition-filter (stores: [])
-      --> bid-repartition-sink
+    Processor: KSTREAM-KEY-SELECT-0000000007 (stores: [])
+      --> bidsByPrice-repartition-filter
+      <-- KSTREAM-FILTER-0000000002
+    Processor: bidsByPrice-repartition-filter (stores: [])
+      --> bidsByPrice-repartition-sink
+      <-- KSTREAM-KEY-SELECT-0000000007
+    Processor: bidsByWin-repartition-filter (stores: [])
+      --> bidsByWin-repartition-sink
       <-- KSTREAM-KEY-SELECT-0000000003
-    Sink: bid-repartition-sink (topic: bid-repartition)
-      <-- bid-repartition-filter
+    Sink: bidsByPrice-repartition-sink (topic: bidsByPrice-repartition)
+      <-- bidsByPrice-repartition-filter
+    Sink: bidsByWin-repartition-sink (topic: bidsByWin-repartition)
+      <-- bidsByWin-repartition-filter
 
   Sub-topology: 1
-    Source: bid-repartition-source (topics: [bid-repartition])
-      --> KSTREAM-AGGREGATE-0000000007, KSTREAM-TRANSFORM-0000000008
-    Processor: KSTREAM-TRANSFORM-0000000008 (stores: [max-bid-tab])
-      --> KSTREAM-FILTER-0000000009
-      <-- bid-repartition-source
-    Processor: KSTREAM-FILTER-0000000009 (stores: [])
-      --> KSTREAM-PEEK-0000000010
-      <-- KSTREAM-TRANSFORM-0000000008
-    Processor: KSTREAM-PEEK-0000000010 (stores: [])
-      --> KSTREAM-SINK-0000000011
-      <-- KSTREAM-FILTER-0000000009
-    Processor: KSTREAM-AGGREGATE-0000000007 (stores: [max-bid-tab])
-      --> none
-      <-- bid-repartition-source
-    Sink: KSTREAM-SINK-0000000011 (topic: nexmark-q7-out)
-      <-- KSTREAM-PEEK-0000000010
+    Source: bidsByWin-repartition-source (topics: [bidsByWin-repartition])
+      --> KSTREAM-AGGREGATE-0000000011
+    Processor: KSTREAM-AGGREGATE-0000000011 (stores: [maxBidByWinTab])
+      --> KTABLE-TOSTREAM-0000000012
+      <-- bidsByWin-repartition-source
+    Processor: KTABLE-TOSTREAM-0000000012 (stores: [])
+      --> KSTREAM-MAP-0000000013
+      <-- KSTREAM-AGGREGATE-0000000011
+    Processor: KSTREAM-MAP-0000000013 (stores: [])
+      --> maxBidsByPrice-repartition-filter
+      <-- KTABLE-TOSTREAM-0000000012
+    Processor: maxBidsByPrice-repartition-filter (stores: [])
+      --> maxBidsByPrice-repartition-sink
+      <-- KSTREAM-MAP-0000000013
+    Sink: maxBidsByPrice-repartition-sink (topic: maxBidsByPrice-repartition)
+      <-- maxBidsByPrice-repartition-filter
+
+  Sub-topology: 2
+    Source: bidsByPrice-repartition-source (topics: [bidsByPrice-repartition])
+      --> KSTREAM-WINDOWED-0000000017
+    Source: maxBidsByPrice-repartition-source (topics: [maxBidsByPrice-repartition])
+      --> KSTREAM-WINDOWED-0000000018
+    Processor: KSTREAM-WINDOWED-0000000017 (stores: [bidsByPrice-join-store])
+      --> KSTREAM-JOINTHIS-0000000019
+      <-- bidsByPrice-repartition-source
+    Processor: KSTREAM-WINDOWED-0000000018 (stores: [maxBidsByPrice-join-store])
+      --> KSTREAM-JOINOTHER-0000000020
+      <-- maxBidsByPrice-repartition-source
+    Processor: KSTREAM-JOINOTHER-0000000020 (stores: [bidsByPrice-join-store])
+      --> KSTREAM-MERGE-0000000021
+      <-- KSTREAM-WINDOWED-0000000018
+    Processor: KSTREAM-JOINTHIS-0000000019 (stores: [maxBidsByPrice-join-store])
+      --> KSTREAM-MERGE-0000000021
+      <-- KSTREAM-WINDOWED-0000000017
+    Processor: KSTREAM-MERGE-0000000021 (stores: [])
+      --> KSTREAM-FILTER-0000000022
+      <-- KSTREAM-JOINTHIS-0000000019, KSTREAM-JOINOTHER-0000000020
+    Processor: KSTREAM-FILTER-0000000022 (stores: [])
+      --> latency-measure
+      <-- KSTREAM-MERGE-0000000021
+    Processor: latency-measure (stores: [])
+      --> KSTREAM-SINK-0000000024
+      <-- KSTREAM-FILTER-0000000022
+    Sink: KSTREAM-SINK-0000000024 (topic: q7-out)
+      <-- latency-measure
