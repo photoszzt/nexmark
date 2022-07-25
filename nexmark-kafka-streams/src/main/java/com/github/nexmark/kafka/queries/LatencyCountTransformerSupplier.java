@@ -10,12 +10,19 @@ import org.apache.kafka.streams.processor.ProcessorContext;
 public class LatencyCountTransformerSupplier<V> implements ValueTransformerSupplier<V, V>{
 
     List<LatencyHolder> holders = new ArrayList<>();
+    String tag;
+    int numHolders;
+
+    public LatencyCountTransformerSupplier(String tag) {
+        this.tag = tag;
+    }
 
     @Override
     public ValueTransformer<V, V> get() {
         // TODO Auto-generated method stub
-        LatencyHolder holder = new LatencyHolder();
+        LatencyHolder holder = new LatencyHolder(tag+"-"+numHolders);
         holders.add(holder);
+        numHolders += 1;
         return new LatencyCountTransformer<V>(holder);
     }
 
@@ -25,15 +32,15 @@ public class LatencyCountTransformerSupplier<V> implements ValueTransformerSuppl
         }
     }
 
-    public List<Long> GetLatency() {
+    public void printCount() {
         if (holders.size() == 1) {
-            return holders.get(0).GetLatency();
+            LatencyHolder holder = holders.get(0);
+            System.out.println(holder.tag + ": " + holder.getCount());
         } else {
-            List<Long> lats = new ArrayList<>();
             for (LatencyHolder lh: holders) {
-                lats.addAll(lh.GetLatency());
+               long count = lh.getCount();
+               System.out.println(lh.tag + ": " + count);
             }
-            return lats;
         }
     }
 

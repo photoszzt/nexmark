@@ -26,7 +26,7 @@ public class Query3 implements NexmarkQuery {
 
     public Query3() {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<NameCityStateId>();
+        lcts = new LatencyCountTransformerSupplier<NameCityStateId>("q3_sink_ets");
     }
 
     @Override
@@ -141,7 +141,7 @@ public class Query3 implements NexmarkQuery {
     }
 
     @Override
-    public List<Long> getRecordE2ELatency() {
-        return lcts.GetLatency();
+    public void printCount() {
+        lcts.printCount();
     }
 }

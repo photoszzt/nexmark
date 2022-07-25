@@ -13,7 +13,6 @@ import org.apache.kafka.streams.kstream.Named;
 import org.apache.kafka.streams.kstream.Produced;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Properties;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -25,7 +24,7 @@ public class Query1 implements NexmarkQuery {
 
     public Query1() {
         input = new CountAction<>();
-        latCount = new LatencyCount<>();
+        latCount = new LatencyCount<>("q1_sink_ets");
     }
 
     @Override
@@ -84,7 +83,7 @@ public class Query1 implements NexmarkQuery {
     }
 
     @Override
-    public List<Long> getRecordE2ELatency() {
-        return latCount.GetLatencies();
+    public void printCount() {
+        latCount.printCount();
     }
 }

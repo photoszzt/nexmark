@@ -178,12 +178,9 @@ public class RunQuery {
             if (warmupDuration != 0) {
                 System.out.println("Duration after warmup: " + (timeEnd - afterWarmStart) / 1000.0);
             }
-            List<Long> latencies = query.getRecordE2ELatency();
-            System.out.println("Latencies: " + Arrays.toString(latencies.toArray()));
+            System.out.println("Num output: ");
+            query.printCount();
             System.out.println();
-            // Collections.sort(latencies);
-            // System.out.println("latency p50: " + percentile(latencies, 50) +
-            // " ms p99: " + percentile(latencies, 99) + " ms");
             latch.countDown();
         });
         streams.start();

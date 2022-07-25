@@ -24,7 +24,7 @@ public class Query8 implements NexmarkQuery {
 
     public Query8() {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>();
+        lcts = new LatencyCountTransformerSupplier<>("q8_sink_ets");
     }
 
     @Override
@@ -143,7 +143,7 @@ public class Query8 implements NexmarkQuery {
     }
 
     @Override
-    public List<Long> getRecordE2ELatency() {
-        return lcts.GetLatency();
+    public void printCount() {
+        lcts.printCount();
     }
 }

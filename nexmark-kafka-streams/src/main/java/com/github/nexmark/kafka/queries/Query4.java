@@ -34,7 +34,7 @@ public class Query4 implements NexmarkQuery {
 
     public Query4() {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>();
+        lcts = new LatencyCountTransformerSupplier<>("q4_sink_ets");
     }
 
     @Override
@@ -257,7 +257,7 @@ public class Query4 implements NexmarkQuery {
     }
 
     @Override
-    public List<Long> getRecordE2ELatency() {
-        return lcts.GetLatency();
+    public void printCount() {
+        lcts.printCount();
     }
 }

@@ -5,7 +5,6 @@ import com.github.nexmark.kafka.model.AuctionIdCount;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.StartEndTime;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -30,7 +29,7 @@ public class Query5 implements NexmarkQuery {
 
     public Query5() {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>();
+        lcts = new LatencyCountTransformerSupplier<>("q5_sink_ets");
     }
 
     @Override
@@ -192,7 +191,7 @@ public class Query5 implements NexmarkQuery {
     }
 
     @Override
-    public List<Long> getRecordE2ELatency() {
-        return lcts.GetLatency();
+    public void printCount() {
+        lcts.printCount();
     }
 }

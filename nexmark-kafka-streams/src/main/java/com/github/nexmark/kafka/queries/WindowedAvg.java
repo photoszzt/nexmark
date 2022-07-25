@@ -14,7 +14,6 @@ import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Properties;
 
 public class WindowedAvg implements NexmarkQuery {
@@ -95,7 +94,6 @@ public class WindowedAvg implements NexmarkQuery {
     }
 
     @Override
-    public List<Long> getRecordE2ELatency() {
-        return null;
+    public void printCount() {
     }
 }

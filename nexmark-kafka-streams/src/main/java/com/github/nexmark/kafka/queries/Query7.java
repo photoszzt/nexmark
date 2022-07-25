@@ -2,6 +2,7 @@ package com.github.nexmark.kafka.queries;
 
 import com.github.nexmark.kafka.model.BidAndMax;
 import com.github.nexmark.kafka.model.Event;
+import com.github.nexmark.kafka.model.StartEndTime;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serde;
@@ -24,7 +25,7 @@ public class Query7 implements NexmarkQuery {
     public LatencyCountTransformerSupplier<BidAndMax> lcts;
     public Query7() {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>();
+        lcts = new LatencyCountTransformerSupplier<>("q7_sink_ets");
     }
 
     @Override
@@ -61,7 +62,7 @@ public class Query7 implements NexmarkQuery {
 
         Serde<Event> eSerde;
         Serde<BidAndMax> bmSerde;
-        Serde<TimeWindow> twSerde;
+        Serde<StartEndTime> seSerde;
         if (serde.equals("json")) {
             JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
             eSerdeJSON.setClass(Event.class);
@@ -71,9 +72,9 @@ public class Query7 implements NexmarkQuery {
             bmSerdeJSON.setClass(BidAndMax.class);
             bmSerde = bmSerdeJSON;
 
-            JSONPOJOSerde<TimeWindow> twSerdeJSON = new JSONPOJOSerde<>();
-            twSerdeJSON.setClass(TimeWindow.class);
-            twSerde = twSerdeJSON;
+            JSONPOJOSerde<StartEndTime> seSerdeJSON = new JSONPOJOSerde<>();
+            seSerdeJSON.setClass(StartEndTime.class);
+            seSerde = seSerdeJSON;
 
         } else if (serde.equals("msgp")) {
             MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
@@ -84,9 +85,9 @@ public class Query7 implements NexmarkQuery {
             bmSerdeMsgp.setClass(BidAndMax.class);
             bmSerde = bmSerdeMsgp;
 
-            MsgpPOJOSerde<TimeWindow> twSerdeMsgp = new MsgpPOJOSerde<>();
-            twSerdeMsgp.setClass(TimeWindow.class);
-            twSerde = twSerdeMsgp;
+            MsgpPOJOSerde<StartEndTime> seSerdeMsgp = new MsgpPOJOSerde<>();
+            seSerdeMsgp.setClass(StartEndTime.class);
+            seSerde = seSerdeMsgp;
         } else {
             throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
         }
@@ -100,20 +101,20 @@ public class Query7 implements NexmarkQuery {
         TimeWindows tw = TimeWindows.ofSizeAndGrace(windowSize, grace);
 
         KStream<String, Event> bids = inputs.filter((key, value) -> value != null && value.etype == Event.EType.BID);
-        KStream<TimeWindow, Event> bidsByWin = bids
-                .selectKey(new KeyValueMapper<String, Event, TimeWindow>() {
+        KStream<StartEndTime, Event> bidsByWin = bids
+                .selectKey(new KeyValueMapper<String, Event, StartEndTime>() {
                     @Override
-                    public TimeWindow apply(String key, Event value) {
+                    public StartEndTime apply(String key, Event value) {
                         long sizeMs = tw.sizeMs;
                         long advanceMs = tw.advanceMs;
                         long windowStart = (Math.max(0, value.bid.dateTime - sizeMs + advanceMs) / advanceMs)
                                 * advanceMs;
                         long wEnd = windowStart + sizeMs;
-                        return new TimeWindow(windowStart, wEnd);
+                        return new StartEndTime(windowStart, wEnd);
                     }
 
                 })
-                .repartition(Repartitioned.<TimeWindow, Event>with(twSerde, eSerde)
+                .repartition(Repartitioned.<StartEndTime, Event>with(seSerde, eSerde)
                         .withName(bidsByWinTpRepar)
                         .withNumberOfPartitions(bidsByWinTpPar));
         KStream<Long, Event> bidsByPrice = bids
@@ -124,28 +125,28 @@ public class Query7 implements NexmarkQuery {
 
         String maxBidPerWindowTabName = "maxBidByWinTab";
         KeyValueBytesStoreSupplier maxBidPerWindowTabSupplier = Stores.inMemoryKeyValueStore(maxBidPerWindowTabName);
-        KStream<TimeWindow, Long> maxBidPerWin = bidsByWin
-                .groupByKey(Grouped.with(twSerde, eSerde))
+        KStream<StartEndTime, Long> maxBidPerWin = bidsByWin
+                .groupByKey(Grouped.with(seSerde, eSerde))
                 .aggregate(() -> 0L, (key, value, aggregate) -> {
                     if (value.bid.price > aggregate) {
                         return value.bid.price;
                     } else {
                         return aggregate;
                     }
-                }, Materialized.<TimeWindow, Long>as(maxBidPerWindowTabSupplier)
+                }, Materialized.<StartEndTime, Long>as(maxBidPerWindowTabSupplier)
                         .withCachingEnabled()
                         .withLoggingEnabled(new HashMap<>())
-                        .withKeySerde(twSerde)
+                        .withKeySerde(seSerde)
                         .withValueSerde(Serdes.Long()))
                 .toStream();
-        KStream<Long, TimeWindow> maxBidsByPrice = maxBidPerWin
-                .map(new KeyValueMapper<TimeWindow, Long, KeyValue<Long, TimeWindow>>() {
+        KStream<Long, StartEndTime> maxBidsByPrice = maxBidPerWin
+                .map(new KeyValueMapper<StartEndTime, Long, KeyValue<Long, StartEndTime>>() {
                     @Override
-                    public KeyValue<Long, TimeWindow> apply(TimeWindow key, Long value) {
-                        return new KeyValue<Long, TimeWindow>(value, key);
+                    public KeyValue<Long, StartEndTime> apply(StartEndTime key, Long value) {
+                        return new KeyValue<Long, StartEndTime>(value, key);
                     }
                 })
-                .repartition(Repartitioned.with(Serdes.Long(), twSerde)
+                .repartition(Repartitioned.with(Serdes.Long(), seSerde)
                         .withName(maxBidsByPriceTpRepar)
                         .withNumberOfPartitions(maxBidsByPriceTpPar));
 
@@ -156,16 +157,16 @@ public class Query7 implements NexmarkQuery {
                 "bidsByPrice-join-store", retension, winSize, true);
         WindowBytesStoreSupplier maxBidsByPStoreSupplier = Stores.inMemoryWindowStore(
                 "maxBidsByPrice-join-store", retension, winSize, true);
-        bidsByPrice.join(maxBidsByPrice, new ValueJoiner<Event, TimeWindow, BidAndMax>() {
+        bidsByPrice.join(maxBidsByPrice, new ValueJoiner<Event, StartEndTime, BidAndMax>() {
             @Override
-            public BidAndMax apply(Event value1, TimeWindow value2) {
+            public BidAndMax apply(Event value1, StartEndTime value2) {
                 return new BidAndMax(value1.bid.auction, value1.bid.price,
-                        value1.bid.bidder, value1.bid.dateTime, value2.start(), value2.end());
+                        value1.bid.bidder, value1.bid.dateTime, value2.startTime, value2.endTime);
             }
-        }, jw, StreamJoined.<Long, Event, TimeWindow>with(bByPStoreSupplier, maxBidsByPStoreSupplier)
+        }, jw, StreamJoined.<Long, Event, StartEndTime>with(bByPStoreSupplier, maxBidsByPStoreSupplier)
                 .withKeySerde(Serdes.Long())
                 .withValueSerde(eSerde)
-                .withOtherValueSerde(twSerde)
+                .withOtherValueSerde(seSerde)
                 .withLoggingEnabled(new HashMap<>()))
                 .filter(new Predicate<Long,BidAndMax>() {
                     @Override
@@ -197,7 +198,7 @@ public class Query7 implements NexmarkQuery {
     }
 
     @Override
-    public List<Long> getRecordE2ELatency() {
-        return lcts.GetLatency();
+    public void printCount() {
+        lcts.printCount();
     }
 }

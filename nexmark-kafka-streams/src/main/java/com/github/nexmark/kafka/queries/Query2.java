@@ -14,7 +14,6 @@ import org.apache.kafka.streams.kstream.Named;
 import java.io.IOException;
 import java.io.FileInputStream;
 import java.util.Collections;
-import java.util.List;
 import java.util.Properties;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
@@ -24,7 +23,7 @@ public class Query2 implements NexmarkQuery {
 
     public Query2() {
         input = new CountAction<>();
-        latCount = new LatencyCount<>();
+        latCount = new LatencyCount<>("q2_sink_ets");
     }
 
     @Override
@@ -82,7 +81,7 @@ public class Query2 implements NexmarkQuery {
     }
 
     @Override
-    public List<Long> getRecordE2ELatency() {
-        return latCount.GetLatencies();
+    public void printCount() {
+        latCount.printCount();
     }
 }

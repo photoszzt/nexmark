@@ -47,7 +47,7 @@ public class Query6 implements NexmarkQuery {
 
     public Query6() {
         this.input = new CountAction<>();
-        this.lcts = new LatencyCountTransformerSupplier<>();
+        this.lcts = new LatencyCountTransformerSupplier<>("q6_sink_ets");
     }
 
     @Override
@@ -287,8 +287,8 @@ public class Query6 implements NexmarkQuery {
     }
 
     @Override
-    public List<Long> getRecordE2ELatency() {
+    public void printCount() {
         // TODO Auto-generated method stub
-        return lcts.GetLatency();
+        lcts.printCount();
     }
 }
