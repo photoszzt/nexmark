@@ -44,6 +44,12 @@ public class LatencyCountTransformerSupplier<V> implements ValueTransformerSuppl
         }
     }
 
+    public void printRemainingStats() {
+        for (LatencyHolder lh: holders) {
+            lh.printRemainingStats();
+        }
+    }
+
     class LatencyCountTransformer<V1> implements ValueTransformer<V1, V1> {
         ProcessorContext ctx;
         LatencyHolder lh;

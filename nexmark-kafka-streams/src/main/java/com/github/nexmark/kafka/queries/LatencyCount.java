@@ -47,6 +47,18 @@ public class LatencyCount<K, V extends TimestampFromValue<V>> implements Foreach
         System.out.println(tag + ": " + counter);
     }
 
+    public void printRemainingStats() {
+        if (latencies.size() > 0) {
+            latencies.sort( (a, b) -> (int) (a - b));
+            long p50 = PCalc.p(latencies, 0.5);
+            long p90 = PCalc.p(latencies, 0.9);
+            long p99 = PCalc.p(latencies, 0.99);
+            Duration dur = rt.Mark();
+            System.out.printf("%s stats (%d samples): dur=%d ms, p50=%d, p90=%d, p99=%d%n",
+                    tag, latencies.size(), dur.toMillis(), p50, p90, p99);
+        }
+    }
+
     public void SetAfterWarmup() {
         afterWarmup.set(true);
     }

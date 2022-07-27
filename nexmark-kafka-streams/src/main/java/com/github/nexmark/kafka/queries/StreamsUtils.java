@@ -16,7 +16,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 public class StreamsUtils {
-    public static Properties getStreamsConfig(String bootstrapServer, int duration, int flushms) {
+    public static Properties getExactlyOnceStreamsConfig(String bootstrapServer, int duration, int flushms) {
         final Properties props = new Properties();
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
         props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
@@ -36,6 +36,18 @@ public class StreamsUtils {
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, Integer.toString(flushms));
         // props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, Integer.toString(duration*1000));
+        props.put(StreamsConfig.METRICS_RECORDING_LEVEL_CONFIG, "INFO");
+        return props;
+    }
+
+    public static Properties getAtLeastOnceStreamsConfig(String bootstrapServer, int duration, int flushms) {
+        final Properties props = new Properties();
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
+        props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
+        props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), Integer.toString(128*1024));
+        props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(flushms));
+        props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, Integer.toString(flushms));
         props.put(StreamsConfig.METRICS_RECORDING_LEVEL_CONFIG, "INFO");
         return props;
     }

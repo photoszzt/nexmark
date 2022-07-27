@@ -241,7 +241,7 @@ public class Query4 implements NexmarkQuery {
 
     @Override
     public Properties getProperties(String bootstrapServer, int duration, int flushms) {
-        Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration, flushms);
+        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q4");
         return props;
     }
@@ -259,5 +259,10 @@ public class Query4 implements NexmarkQuery {
     @Override
     public void printCount() {
         lcts.printCount();
+    }
+
+    @Override
+    public void printRemainingStats() {
+        lcts.printRemainingStats();
     }
 }

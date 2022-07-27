@@ -11,4 +11,5 @@ public interface NexmarkQuery {
     long getInputCount();
     void setAfterWarmup();
     void printCount();
+    void printRemainingStats();
 }

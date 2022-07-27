@@ -271,7 +271,7 @@ public class Query6 implements NexmarkQuery {
 
     @Override
     public Properties getProperties(String bootstrapServer, int duration, int flushms) {
-        Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration, flushms);
+        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q6");
         return props;
     }
@@ -290,5 +290,10 @@ public class Query6 implements NexmarkQuery {
     public void printCount() {
         // TODO Auto-generated method stub
         lcts.printCount();
+    }
+
+    @Override
+    public void printRemainingStats() {
+        lcts.printRemainingStats();
     }
 }

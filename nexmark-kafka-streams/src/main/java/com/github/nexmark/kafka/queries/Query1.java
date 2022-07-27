@@ -66,7 +66,7 @@ public class Query1 implements NexmarkQuery {
 
     @Override
     public Properties getProperties(String bootstrapServer, int duration, int flushms) {
-        Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration, flushms);
+        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q1");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q1-client");
         return props;
@@ -85,5 +85,10 @@ public class Query1 implements NexmarkQuery {
     @Override
     public void printCount() {
         latCount.printCount();
+    }
+
+    @Override
+    public void printRemainingStats() {
+        latCount.printRemainingStats();
     }
 }

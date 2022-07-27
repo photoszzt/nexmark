@@ -79,7 +79,7 @@ public class WindowedAvg implements NexmarkQuery {
 
     @Override
     public Properties getProperties(String bootstrapServer, int duration, int flushms) {
-        Properties props = StreamsUtils.getStreamsConfig(bootstrapServer, duration, flushms);
+        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "windowedAvg");
         return props;
     }
@@ -95,5 +95,9 @@ public class WindowedAvg implements NexmarkQuery {
 
     @Override
     public void printCount() {
+    }
+
+    @Override
+    public void printRemainingStats() {
     }
 }

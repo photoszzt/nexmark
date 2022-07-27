@@ -166,6 +166,7 @@ public class RunQuery {
 
             streams.close();
             long timeEnd = System.currentTimeMillis();
+            query.printRemainingStats();
             System.out.println();
             System.out.println();
             Map<MetricName, ? extends Metric> metric = streams.metrics();
