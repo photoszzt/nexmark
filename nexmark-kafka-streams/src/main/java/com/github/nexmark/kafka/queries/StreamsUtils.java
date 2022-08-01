@@ -51,6 +51,7 @@ public class StreamsUtils {
         props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(flushms));
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, Integer.toString(flushms));
+        props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, "5000");
         props.put(StreamsConfig.METRICS_RECORDING_LEVEL_CONFIG, "INFO");
         return props;
     }
