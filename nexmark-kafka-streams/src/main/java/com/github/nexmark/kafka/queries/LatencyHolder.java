@@ -31,7 +31,7 @@ public class LatencyHolder {
         // if (afterWarmup.get()) {
         counter += 1;
         latencies.add(lat);
-        if (latencies.size() >= MIN_COLLECT && rt.Check()) {
+        if (rt.Check() && latencies.size() >= MIN_COLLECT) {
             latencies.sort( (a, b) -> (int) (a - b));
             long p50 = PCalc.p(latencies, 0.5);
             long p90 = PCalc.p(latencies, 0.9);

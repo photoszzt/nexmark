@@ -30,7 +30,7 @@ public class LatencyCount<K, V extends TimestampFromValue<V>> implements Foreach
         long ts = value.extract();
         long lat = System.currentTimeMillis() - ts;
         latencies.add(lat);
-        if (latencies.size() >= MIN_COLLECT && rt.Check()) {
+        if (rt.Check() && latencies.size() >= MIN_COLLECT) {
             latencies.sort( (a, b) -> (int) (a - b));
             long p50 = PCalc.p(latencies, 0.5);
             long p90 = PCalc.p(latencies, 0.9);
