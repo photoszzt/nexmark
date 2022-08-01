@@ -17,6 +17,7 @@ import java.util.concurrent.ExecutionException;
 
 public class StreamsUtils {
     public static Properties getExactlyOnceStreamsConfig(String bootstrapServer, int duration, int flushms) {
+        System.out.println("using exactly once config");
         final Properties props = new Properties();
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
         props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
@@ -41,9 +42,11 @@ public class StreamsUtils {
     }
 
     public static Properties getAtLeastOnceStreamsConfig(String bootstrapServer, int duration, int flushms) {
+        System.out.println("using at least once config");
         final Properties props = new Properties();
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
+        props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), Integer.toString(128*1024));
         props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(flushms));
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);

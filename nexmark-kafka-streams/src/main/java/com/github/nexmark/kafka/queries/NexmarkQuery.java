@@ -7,7 +7,8 @@ import java.util.Properties;
 
 public interface NexmarkQuery {
     StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException;
-    Properties getProperties(String bootstrapServer, int duration, int flushms);
+    Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms);
+    Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms);
     long getInputCount();
     void setAfterWarmup();
     void printCount();

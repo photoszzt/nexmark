@@ -33,6 +33,7 @@ public class RunQuery {
             true, "number of src events");
     private static final Option PORT = new Option("p", "port", true, "port to listen");
     private static final Option FLUSHMS = new Option("f", "flushms", true, "flush interval in ms");
+    private static final Option GUARANTEE = new Option("g", "guarantee", true, "guarantee");
 
     private static NexmarkQuery getNexmarkQuery(String appName) {
         switch (appName) {
@@ -83,6 +84,8 @@ public class RunQuery {
         String warmupTime = line.getOptionValue(WARMUP_TIME.getOpt());
         String portStr = line.getOptionValue(PORT.getOpt());
         String flushStr = line.getOptionValue(FLUSHMS.getOpt());
+        String guarantee = line.getOptionValue(GUARANTEE.getOpt());
+        
         int durationMs = durStr == null ? 0 : Integer.parseInt(durStr) * 1000;
         int warmupDuration = warmupTime == null ? 0 : Integer.parseInt(warmupTime) * 1000;
         int port = portStr == null ? 8090 : Integer.parseInt(portStr);
@@ -93,7 +96,11 @@ public class RunQuery {
         System.out.println("appName: " + appName + " serde: " + serde +
                 " configFile: " + configFile + " duration(ms): "
                 + durationMs + "warmup(ms): " + warmupDuration +
-                " numSrcEvents: " + srcEvents + " flushMs: " + flushms);
+                " numSrcEvents: " + srcEvents + " flushMs: " + flushms + " guarantee: " + guarantee);
+        if (!guarantee.equals("alo") && !guarantee.equals("eo")) {
+            System.out.printf("unrecognized guarantee: %s; expected either alo or eo\n", guarantee);
+            return;
+        }
 
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
 
@@ -111,7 +118,12 @@ public class RunQuery {
             return;
         }
 
-        Properties props = query.getProperties(bootstrapServers, durationMs, flushms);
+        Properties props;
+        if (guarantee.equals("alo")) {
+            props = query.getAtLeastOnceProperties(bootstrapServers, durationMs, flushms);
+        } else {
+            props = query.getExactlyOnceProperties(bootstrapServers, durationMs, flushms);
+        }
         Topology tp = builder.build();
         System.out.println(tp.describe());
 
@@ -228,6 +240,7 @@ public class RunQuery {
         options.addOption(WARMUP_TIME);
         options.addOption(PORT);
         options.addOption(FLUSHMS);
+        options.addOption(GUARANTEE);
         return options;
     }
 }
