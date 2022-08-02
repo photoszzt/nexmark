@@ -95,7 +95,7 @@ public class RunQuery {
         int srcEvents = srcEventStr == null ? 0 : Integer.parseInt(srcEventStr);
         System.out.println("appName: " + appName + " serde: " + serde +
                 " configFile: " + configFile + " duration(ms): "
-                + durationMs + "warmup(ms): " + warmupDuration +
+                + durationMs + " warmup(ms): " + warmupDuration +
                 " numSrcEvents: " + srcEvents + " flushMs: " + flushms + " guarantee: " + guarantee);
         if (!guarantee.equals("alo") && !guarantee.equals("eo")) {
             System.out.printf("unrecognized guarantee: %s; expected either alo or eo\n", guarantee);
