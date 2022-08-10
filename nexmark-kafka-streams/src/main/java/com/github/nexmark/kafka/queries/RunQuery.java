@@ -13,7 +13,6 @@ import org.apache.kafka.streams.Topology;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -34,6 +33,7 @@ public class RunQuery {
     private static final Option PORT = new Option("p", "port", true, "port to listen");
     private static final Option FLUSHMS = new Option("f", "flushms", true, "flush interval in ms");
     private static final Option GUARANTEE = new Option("g", "guarantee", true, "guarantee");
+    private static final Option DISABLE_CACHE = new Option("xc", "disable_cache", false, "disable cache");
 
     private static NexmarkQuery getNexmarkQuery(String appName) {
         switch (appName) {
@@ -90,13 +90,15 @@ public class RunQuery {
         int warmupDuration = warmupTime == null ? 0 : Integer.parseInt(warmupTime) * 1000;
         int port = portStr == null ? 8090 : Integer.parseInt(portStr);
         int flushms = flushStr == null ? 100 : Integer.parseInt(flushStr);
+        boolean disableCache = line.hasOption(DISABLE_CACHE.getOpt());
 
         String srcEventStr = line.getOptionValue(NUM_SRC_EVENTS.getOpt());
         int srcEvents = srcEventStr == null ? 0 : Integer.parseInt(srcEventStr);
         System.out.println("appName: " + appName + " serde: " + serde +
                 " configFile: " + configFile + " duration(ms): "
                 + durationMs + " warmup(ms): " + warmupDuration +
-                " numSrcEvents: " + srcEvents + " flushMs: " + flushms + " guarantee: " + guarantee);
+                " numSrcEvents: " + srcEvents + " flushMs: " + flushms + 
+                " guarantee: " + guarantee + " disableCache: " + disableCache);
         if (!guarantee.equals("alo") && !guarantee.equals("eo")) {
             System.out.printf("unrecognized guarantee: %s; expected either alo or eo\n", guarantee);
             return;
@@ -120,9 +122,9 @@ public class RunQuery {
 
         Properties props;
         if (guarantee.equals("alo")) {
-            props = query.getAtLeastOnceProperties(bootstrapServers, durationMs, flushms);
+            props = query.getAtLeastOnceProperties(bootstrapServers, durationMs, flushms, disableCache);
         } else {
-            props = query.getExactlyOnceProperties(bootstrapServers, durationMs, flushms);
+            props = query.getExactlyOnceProperties(bootstrapServers, durationMs, flushms, disableCache);
         }
         Topology tp = builder.build();
         System.out.println(tp.describe());
@@ -241,6 +243,7 @@ public class RunQuery {
         options.addOption(PORT);
         options.addOption(FLUSHMS);
         options.addOption(GUARANTEE);
+        options.addOption(DISABLE_CACHE);
         return options;
     }
 }
