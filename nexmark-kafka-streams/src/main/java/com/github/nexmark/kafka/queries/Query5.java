@@ -27,9 +27,9 @@ public class Query5 implements NexmarkQuery {
     public CountAction<String, Event> input;
     public LatencyCountTransformerSupplier<AuctionIdCntMax> lcts;
 
-    public Query5() {
+    public Query5(String baseDir) {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>("q5_sink_ets");
+        lcts = new LatencyCountTransformerSupplier<>("q5_sink_ets", baseDir);
     }
 
     @Override
@@ -127,8 +127,8 @@ public class Query5 implements NexmarkQuery {
                 }, new Aggregator<Long, Event, Long>() {
                     @Override
                     public Long apply(Long key, Event value, Long aggregate) {
-                        // TODO Auto-generated method stub
-                        // System.out.println("key: " + key + " ts: " + value.bid.dateTime + " agg: " + aggregate);
+                        // System.out.println("key: " + key + " ts: " + value.bid.dateTime + " agg: " +
+                        // aggregate);
                         return aggregate + 1;
                     }
                 }, Named.as("auctionBidsCount"),
@@ -151,8 +151,8 @@ public class Query5 implements NexmarkQuery {
                 .aggregate(() -> 0L,
                         (key, value, aggregate) -> {
                             // System.out.println("start " + key.startTime + " end: " + key.endTime +
-                            //         " aucId: " + value.aucId + " count: " + value.count +
-                            //         " aggregate: " + aggregate);
+                            // " aucId: " + value.aucId + " count: " + value.count +
+                            // " aggregate: " + aggregate);
                             if (value.count > aggregate) {
                                 return value.count;
                             } else {
@@ -174,14 +174,16 @@ public class Query5 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q5");
         return props;
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q5");
         return props;
@@ -202,8 +204,17 @@ public class Query5 implements NexmarkQuery {
         lcts.printCount();
     }
 
+    // @Override
+    // public void waitForFinish() {
+    // lcts.waitForFinish();
+    // }
+
     @Override
-    public void printRemainingStats() {
-        lcts.printRemainingStats();
+    public void outputRemainingStats() {
+        lcts.outputRemainingStats();
     }
+    // @Override
+    // public void printRemainingStats() {
+    // lcts.printRemainingStats();
+    // }
 }

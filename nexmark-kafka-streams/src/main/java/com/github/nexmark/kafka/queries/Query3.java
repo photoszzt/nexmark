@@ -14,7 +14,6 @@ import org.apache.kafka.streams.state.Stores;
 import java.io.IOException;
 import java.io.FileInputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -24,9 +23,9 @@ public class Query3 implements NexmarkQuery {
     public CountAction<String, Event> input;
     public LatencyCountTransformerSupplier<NameCityStateId> lcts;
 
-    public Query3() {
+    public Query3(String baseDir) {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<NameCityStateId>("q3_sink_ets");
+        lcts = new LatencyCountTransformerSupplier<NameCityStateId>("q3_sink_ets", baseDir);
     }
 
     @Override
@@ -152,8 +151,18 @@ public class Query3 implements NexmarkQuery {
         lcts.printCount();
     }
 
-    @Override
-    public void printRemainingStats() {
-        lcts.printRemainingStats();
+    public void waitForFinish() {
+        lcts.waitForFinish();
     }
+
+    @Override
+    public void outputRemainingStats() {
+        lcts.outputRemainingStats();
+    }
+
+
+    // @Override
+    // public void printRemainingStats() {
+    //     lcts.printRemainingStats();
+    // }
 }

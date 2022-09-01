@@ -14,17 +14,22 @@ import org.apache.kafka.streams.kstream.Produced;
 
 import java.util.Collections;
 import java.util.Properties;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query1 implements NexmarkQuery {
     public CountAction<String, Event> input;
     public LatencyCount<String, Event> latCount;
 
-    public Query1() {
+    public Query1(File statsDir) {
         input = new CountAction<>();
-        latCount = new LatencyCount<>("q1_sink_ets");
+        String tag = "q1_sink_ets";
+        String fileName = statsDir + File.separator + tag;
+
+        latCount = new LatencyCount<>(tag, fileName);
     }
 
     @Override
@@ -96,7 +101,14 @@ public class Query1 implements NexmarkQuery {
     }
 
     @Override
-    public void printRemainingStats() {
-        latCount.printRemainingStats();
+    public void outputRemainingStats() {
+        latCount.outputRemainingStats();
     }
+
+
+    // @Override
+    // public void printRemainingStats() {
+    //     latCount.printRemainingStats();
+    // }
+    
 }

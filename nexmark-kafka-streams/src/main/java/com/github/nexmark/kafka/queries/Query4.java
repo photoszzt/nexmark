@@ -32,9 +32,9 @@ public class Query4 implements NexmarkQuery {
     public LatencyCountTransformerSupplier<Double> lcts;
     private static final Duration auctionDurationUpperS = Duration.ofSeconds(1800);
 
-    public Query4() {
+    public Query4(String baseDir) {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>("q4_sink_ets");
+        lcts = new LatencyCountTransformerSupplier<>("q4_sink_ets", baseDir);
     }
 
     @Override
@@ -268,8 +268,16 @@ public class Query4 implements NexmarkQuery {
         lcts.printCount();
     }
 
-    @Override
-    public void printRemainingStats() {
-        lcts.printRemainingStats();
+    public void waitForFinish() {
+        lcts.waitForFinish();
     }
+
+    @Override
+    public void outputRemainingStats() {
+        lcts.outputRemainingStats();
+    }
+    // @Override
+    // public void printRemainingStats() {
+    //     lcts.printRemainingStats();
+    // }
 }

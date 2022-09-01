@@ -45,9 +45,9 @@ public class Query6 implements NexmarkQuery {
     private static final Duration auctionDurationUpperS = Duration.ofSeconds(1800);
     public LatencyCountTransformerSupplier<Double> lcts;
 
-    public Query6() {
+    public Query6(String baseDir) {
         this.input = new CountAction<>();
-        this.lcts = new LatencyCountTransformerSupplier<>("q6_sink_ets");
+        this.lcts = new LatencyCountTransformerSupplier<>("q6_sink_ets", baseDir);
     }
 
     @Override
@@ -212,13 +212,14 @@ public class Query6 implements NexmarkQuery {
         @SuppressWarnings("unchecked")
         Serde<List<PriceTime>> lSerde = Serdes.ListSerde(ArrayList.class, ptSerde);
 
-        KTable<Long, List<PriceTime>> aggTab = maxBids.groupBy(new KeyValueMapper<AucIDSeller,PriceTime,KeyValue<Long,PriceTime>>() {
-            @Override
-            public KeyValue<Long, PriceTime> apply(AucIDSeller key, PriceTime value) {
-                // TODO Auto-generated method stub
-                return new KeyValue<Long, PriceTime>(key.seller, value);
-            }
-        }, Grouped.with(Serdes.Long(), ptSerde).withName(maxBidsGroupByTab))
+        KTable<Long, List<PriceTime>> aggTab = maxBids
+                .groupBy(new KeyValueMapper<AucIDSeller, PriceTime, KeyValue<Long, PriceTime>>() {
+                    @Override
+                    public KeyValue<Long, PriceTime> apply(AucIDSeller key, PriceTime value) {
+                        // TODO Auto-generated method stub
+                        return new KeyValue<Long, PriceTime>(key.seller, value);
+                    }
+                }, Grouped.with(Serdes.Long(), ptSerde).withName(maxBidsGroupByTab))
                 .aggregate(new Initializer<List<PriceTime>>() {
                     @Override
                     public ArrayList<PriceTime> apply() {
@@ -255,14 +256,14 @@ public class Query6 implements NexmarkQuery {
                                 .withValueSerde(lSerde)
                                 .withLoggingEnabled(new HashMap<>())
                                 .withCachingEnabled());
-                aggTab.mapValues((key, value) -> {
-                    long sum = 0;
-                    int l = value.size();
-                    for (PriceTime pt : value) {
-                        sum += pt.price;
-                    }
-                    return (double) sum / (double)l;
-                })
+        aggTab.mapValues((key, value) -> {
+            long sum = 0;
+            int l = value.size();
+            for (PriceTime pt : value) {
+                sum += pt.price;
+            }
+            return (double) sum / (double) l;
+        })
                 .toStream()
                 .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(Serdes.Long(), Serdes.Double()));
@@ -270,14 +271,16 @@ public class Query6 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q6");
         return props;
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q6");
         return props;
@@ -295,12 +298,20 @@ public class Query6 implements NexmarkQuery {
 
     @Override
     public void printCount() {
-        // TODO Auto-generated method stub
         lcts.printCount();
     }
 
+    // @Override
+    // public void waitForFinish() {
+    // lcts.waitForFinish();
+    // }
+
     @Override
-    public void printRemainingStats() {
-        lcts.printRemainingStats();
+    public void outputRemainingStats() {
+        lcts.outputRemainingStats();
     }
+    // @Override
+    // public void printRemainingStats() {
+    // lcts.printRemainingStats();
+    // }
 }

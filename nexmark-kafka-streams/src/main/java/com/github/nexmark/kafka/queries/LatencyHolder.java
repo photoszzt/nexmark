@@ -1,62 +1,88 @@
 package com.github.nexmark.kafka.queries;
-
-import java.util.ArrayList;
-import java.util.List;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.time.Duration;
+import java.util.Arrays;
 
 public class LatencyHolder {
-    List<Long> latencies;
+    long[] latencies;
+    int currentPos;
+    String fileName;
     long counter;
-    AtomicBoolean afterWarmup;
-    private static final int MIN_COLLECT = 200;
-    private static final Duration DEFAULT_COLLECT_INTERVAL = Duration.ofSeconds(10);
-    ReportTimer rt;
+    BufferedWriter bw;
+    ExecutorService es;
     String tag;
+    AtomicBoolean afterWarmup = new AtomicBoolean(false);
 
-    public LatencyHolder(String tag) {
-        latencies = new ArrayList<>();
-        afterWarmup = new AtomicBoolean(false);
+    public LatencyHolder(String tag, String filename) throws IOException {
         this.tag = tag;
-        rt = new ReportTimer(DEFAULT_COLLECT_INTERVAL);
-        latencies = new ArrayList<>(MIN_COLLECT);
+        this.fileName = filename; 
+    }
+
+    public void init() {
+        System.out.println(tag + " latencyHolder init");
+        latencies = new long[1024];
         counter = 0;
-    }
-
-    public void SetAfterWarmup() {
-        afterWarmup.set(true);
-    }
-
-    public void AppendLatency(long lat) {
-        // if (afterWarmup.get()) {
-        counter += 1;
-        latencies.add(lat);
-        if (rt.Check() && latencies.size() >= MIN_COLLECT) {
-            latencies.sort( (a, b) -> (int) (a - b));
-            long p50 = PCalc.p(latencies, 0.5);
-            long p90 = PCalc.p(latencies, 0.9);
-            long p99 = PCalc.p(latencies, 0.99);
-            Duration dur = rt.Mark();
-            System.out.printf("%s stats (%d samples): dur=%d ms, p50=%d, p90=%d, p99=%d%n",
-                    tag, latencies.size(), dur.toMillis(), p50, p90, p99);
-            latencies = new ArrayList<>(MIN_COLLECT);
+        currentPos = 0;
+        try {
+            bw = new BufferedWriter(new FileWriter(this.fileName));
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
-        // }
+        es = Executors.newSingleThreadExecutor();
     }
 
     public long getCount() {
         return counter;
     }
 
-    public void printRemainingStats() {
-        if (latencies.size() > 0) {
-            latencies.sort( (a, b) -> (int) (a - b));
-            long p50 = PCalc.p(latencies, 0.5);
-            long p90 = PCalc.p(latencies, 0.9);
-            long p99 = PCalc.p(latencies, 0.99);
-            Duration dur = rt.Mark();
-            System.out.printf("%s stats (%d samples): dur=%d ms, p50=%d, p90=%d, p99=%d%n",
-                    tag, latencies.size(), dur.toMillis(), p50, p90, p99);
+    public void SetAfterWarmup() {
+        afterWarmup.set(true);
+    }
+
+    public void appendLatency(long lat) {
+        counter += 1;
+        if (currentPos < latencies.length) {
+            latencies[currentPos] = lat;
+            currentPos++;
+        } else {
+            String s = Arrays.toString(latencies);
+            latencies = new long[1024];
+            currentPos = 0;
+            es.execute(() -> {
+                try {
+                    bw.write(s);
+                    bw.newLine();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
+    public void waitForFinish() {
+        try {
+            es.awaitTermination(60, java.util.concurrent.TimeUnit.SECONDS);
+            es.shutdown();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void outputRemainingStats() {
+        if (currentPos > 0) {
+            String s = Arrays.toString(Arrays.copyOfRange(latencies, 0, currentPos));
+            try {
+                bw.write(s);
+                bw.newLine();
+                bw.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

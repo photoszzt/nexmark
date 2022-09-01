@@ -1,65 +1,83 @@
 package com.github.nexmark.kafka.queries;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.time.Duration;
 
 import org.apache.kafka.streams.kstream.ForeachAction;
 
 public class LatencyCount<K, V extends TimestampFromValue<V>> implements ForeachAction<K, TimestampFromValue<V>> {
-    List<Long> latencies;
+    long[] latencies;
+    int currentPos;
     long counter;
-    AtomicBoolean afterWarmup = new AtomicBoolean(false);
-    private static final int MIN_COLLECT = 200;
-    private static final Duration DEFAULT_COLLECT_INTERVAL = Duration.ofSeconds(10);
-    ReportTimer rt;
     String tag;
+    AtomicBoolean afterWarmup = new AtomicBoolean(false);
+    BufferedWriter bw;
+    ExecutorService es;
 
-    public LatencyCount(String tag) {
-        rt = new ReportTimer(DEFAULT_COLLECT_INTERVAL);
+    public LatencyCount(String tag, String filename) {
+        try {
+            bw = new BufferedWriter(new FileWriter(filename));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        latencies = new long[1024];
+        currentPos = 0;
+        es = Executors.newSingleThreadExecutor();
         this.tag = tag;
-        latencies = new ArrayList<>(MIN_COLLECT);
-        counter = 0;
-    }
-
-    @Override
-    public void apply(K key, TimestampFromValue<V> value) {
-        // if (afterWarmup.get()) {
-        counter += 1;
-        long ts = value.extract();
-        long lat = System.currentTimeMillis() - ts;
-        latencies.add(lat);
-        if (rt.Check() && latencies.size() >= MIN_COLLECT) {
-            latencies.sort( (a, b) -> (int) (a - b));
-            long p50 = PCalc.p(latencies, 0.5);
-            long p90 = PCalc.p(latencies, 0.9);
-            long p99 = PCalc.p(latencies, 0.99);
-            Duration dur = rt.Mark();
-            System.out.printf("%s stats (%d samples): dur=%d ms, p50=%d, p90=%d, p99=%d%n",
-                    tag, latencies.size(), dur.toMillis(), p50, p90, p99);
-            latencies = new ArrayList<>(MIN_COLLECT);
-        }
-        // }
-    }
-
-    public void printCount() {
-        System.out.println(tag + ": " + counter);
-    }
-
-    public void printRemainingStats() {
-        if (latencies.size() > 0) {
-            latencies.sort( (a, b) -> (int) (a - b));
-            long p50 = PCalc.p(latencies, 0.5);
-            long p90 = PCalc.p(latencies, 0.9);
-            long p99 = PCalc.p(latencies, 0.99);
-            Duration dur = rt.Mark();
-            System.out.printf("%s stats (%d samples): dur=%d ms, p50=%d, p90=%d, p99=%d%n",
-                    tag, latencies.size(), dur.toMillis(), p50, p90, p99);
-        }
     }
 
     public void SetAfterWarmup() {
         afterWarmup.set(true);
+    }
+
+    @Override
+    public void apply(K key, TimestampFromValue<V> value) {
+        this.counter += 1;
+        long ts = value.extract();
+        long lat = System.currentTimeMillis() - ts;
+        if (currentPos < latencies.length) {
+            latencies[currentPos] = lat;
+            currentPos++;
+        } else {
+            String s = Arrays.toString(latencies);
+            latencies = new long[1024];
+            currentPos = 0;
+            es.execute(() -> {
+                try {
+                    bw.write(s);
+                    bw.newLine();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
+    public void outputRemainingStats() {
+        try {
+            es.awaitTermination(60, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException e1) {
+            e1.printStackTrace();
+        }
+        es.shutdown();
+        if (currentPos > 0) {
+            String s = Arrays.toString(Arrays.copyOfRange(latencies, 0, currentPos));
+            try {
+                bw.write(s);
+                bw.newLine();
+                bw.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void printCount() {
+        System.out.println(tag + ": " + counter);
     }
 }

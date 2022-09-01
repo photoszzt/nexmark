@@ -22,9 +22,9 @@ public class Query8 implements NexmarkQuery {
     public CountAction<String, Event> input;
     public LatencyCountTransformerSupplier<PersonTime> lcts;
 
-    public Query8() {
+    public Query8(String baseDir) {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>("q8_sink_ets");
+        lcts = new LatencyCountTransformerSupplier<>("q8_sink_ets", baseDir);
     }
 
     @Override
@@ -126,14 +126,16 @@ public class Query8 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q8");
         return props;
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q8");
         return props;
@@ -154,8 +156,18 @@ public class Query8 implements NexmarkQuery {
         lcts.printCount();
     }
 
+    // @Override
+    // public void waitForFinish() {
+    // lcts.waitForFinish();
+    // }
+
     @Override
-    public void printRemainingStats() {
-        lcts.printRemainingStats();
+    public void outputRemainingStats() {
+        lcts.outputRemainingStats();
     }
+
+    // @Override
+    // public void printRemainingStats() {
+    // lcts.printRemainingStats();
+    // }
 }

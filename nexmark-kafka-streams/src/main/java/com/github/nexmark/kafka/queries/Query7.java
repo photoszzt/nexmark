@@ -23,9 +23,10 @@ import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 public class Query7 implements NexmarkQuery {
     public CountAction<String, Event> input;
     public LatencyCountTransformerSupplier<BidAndMax> lcts;
-    public Query7() {
+
+    public Query7(String baseDir) {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>("q7_sink_ets");
+        lcts = new LatencyCountTransformerSupplier<>("q7_sink_ets", baseDir);
     }
 
     @Override
@@ -93,7 +94,8 @@ public class Query7 implements NexmarkQuery {
         }
         StreamsBuilder builder = new StreamsBuilder();
         KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(Serdes.String(), eSerde).withTimestampExtractor(new EventTimestampExtractor())).peek(input);
+                Consumed.with(Serdes.String(), eSerde).withTimestampExtractor(new EventTimestampExtractor()))
+                .peek(input);
 
         Duration windowSize = Duration.ofSeconds(10);
         Duration grace = Duration.ofSeconds(5);
@@ -168,7 +170,7 @@ public class Query7 implements NexmarkQuery {
                 .withValueSerde(eSerde)
                 .withOtherValueSerde(seSerde)
                 .withLoggingEnabled(new HashMap<>()))
-                .filter(new Predicate<Long,BidAndMax>() {
+                .filter(new Predicate<Long, BidAndMax>() {
                     @Override
                     public boolean test(Long key, BidAndMax value) {
                         return value.dateTimeMs >= value.wStartMs && value.dateTimeMs <= value.wEndMs;
@@ -181,14 +183,16 @@ public class Query7 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q7");
         return props;
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q7");
         return props;
@@ -209,8 +213,18 @@ public class Query7 implements NexmarkQuery {
         lcts.printCount();
     }
 
+    // @Override
+    // public void waitForFinish() {
+    // lcts.waitForFinish();
+    // }
+
     @Override
-    public void printRemainingStats() {
-        lcts.printRemainingStats();
+    public void outputRemainingStats() {
+        lcts.outputRemainingStats();
     }
+
+    // @Override
+    // public void printRemainingStats() {
+    // lcts.printRemainingStats();
+    // }
 }

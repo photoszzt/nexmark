@@ -10,9 +10,13 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.Topology;
+
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -34,27 +38,27 @@ public class RunQuery {
     private static final Option FLUSHMS = new Option("f", "flushms", true, "flush interval in ms");
     private static final Option GUARANTEE = new Option("g", "guarantee", true, "guarantee");
     private static final Option DISABLE_CACHE = new Option("xc", "disable_cache", false, "disable cache");
+    private static final Option STATS_DIR = new Option("sd", "stats_dir", true, "stats dir");
 
-    private static NexmarkQuery getNexmarkQuery(String appName) {
+    private static NexmarkQuery getNexmarkQuery(String appName, File statsDir) throws IOException {
+        String canStatsDir = statsDir.getCanonicalPath();
         switch (appName) {
             case "q1":
-                return new Query1();
+                return new Query1(statsDir);
             case "q2":
-                return new Query2();
+                return new Query2(statsDir);
             case "q3":
-                return new Query3();
+                return new Query3(canStatsDir);
             case "q4":
-                return new Query4();
+                return new Query4(canStatsDir);
             case "q5":
-                return new Query5();
+                return new Query5(canStatsDir);
             case "q6":
-                return new Query6();
+                return new Query6(canStatsDir);
             case "q7":
-                return new Query7();
+                return new Query7(canStatsDir);
             case "q8":
-                return new Query8();
-            case "windowedAvg":
-                return new WindowedAvg();
+                return new Query8(canStatsDir);
             default:
                 System.err.println("Unrecognized app name: " + appName);
                 return null;
@@ -85,12 +89,19 @@ public class RunQuery {
         String portStr = line.getOptionValue(PORT.getOpt());
         String flushStr = line.getOptionValue(FLUSHMS.getOpt());
         String guarantee = line.getOptionValue(GUARANTEE.getOpt());
+        String statsDirStr = line.getOptionValue(STATS_DIR.getOpt());
         
         int durationMs = durStr == null ? 0 : Integer.parseInt(durStr) * 1000;
         int warmupDuration = warmupTime == null ? 0 : Integer.parseInt(warmupTime) * 1000;
         int port = portStr == null ? 8090 : Integer.parseInt(portStr);
         int flushms = flushStr == null ? 100 : Integer.parseInt(flushStr);
         boolean disableCache = line.hasOption(DISABLE_CACHE.getOpt());
+        Path statsDirPath = Paths.get(statsDirStr);
+        Path absStatsDir = statsDirPath.toAbsolutePath();
+        File statsDir = absStatsDir.toFile();
+        if (!statsDir.exists()) {
+            statsDir.mkdirs();
+        }
 
         String srcEventStr = line.getOptionValue(NUM_SRC_EVENTS.getOpt());
         int srcEvents = srcEventStr == null ? 0 : Integer.parseInt(srcEventStr);
@@ -106,7 +117,7 @@ public class RunQuery {
 
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
 
-        NexmarkQuery query = getNexmarkQuery(appName);
+        NexmarkQuery query = getNexmarkQuery(appName, statsDir);
         if (query == null) {
             System.exit(1);
         }
@@ -115,7 +126,6 @@ public class RunQuery {
         try {
             builder = query.getStreamBuilder(bootstrapServers, serde, configFile);
         } catch (IOException e1) {
-            // TODO Auto-generated catch block
             e1.printStackTrace();
             return;
         }
@@ -180,9 +190,10 @@ public class RunQuery {
 
             streams.close();
             long timeEnd = System.currentTimeMillis();
-            query.printRemainingStats();
-            System.out.println();
-            System.out.println();
+            query.outputRemainingStats();
+            // query.printRemainingStats();
+            // System.out.println();
+            // System.out.println();
             Map<MetricName, ? extends Metric> metric = streams.metrics();
             metric.forEach((k, v) -> {
                 System.out.println(k.group() + " " + k.name() + ", tags: " + k.tags()
@@ -244,6 +255,7 @@ public class RunQuery {
         options.addOption(FLUSHMS);
         options.addOption(GUARANTEE);
         options.addOption(DISABLE_CACHE);
+        options.addOption(STATS_DIR);
         return options;
     }
 }

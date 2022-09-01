@@ -1,5 +1,7 @@
 package com.github.nexmark.kafka.queries;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -7,23 +9,15 @@ import org.apache.kafka.streams.kstream.ValueTransformer;
 import org.apache.kafka.streams.kstream.ValueTransformerSupplier;
 import org.apache.kafka.streams.processor.ProcessorContext;
 
-public class LatencyCountTransformerSupplier<V> implements ValueTransformerSupplier<V, V>{
+public class LatencyCountTransformerSupplier<V> implements ValueTransformerSupplier<V, V> {
 
     List<LatencyHolder> holders = new ArrayList<>();
     String tag;
-    int numHolders;
+    String baseDir;
 
-    public LatencyCountTransformerSupplier(String tag) {
+    public LatencyCountTransformerSupplier(String tag, String baseDir) {
         this.tag = tag;
-    }
-
-    @Override
-    public ValueTransformer<V, V> get() {
-        // TODO Auto-generated method stub
-        LatencyHolder holder = new LatencyHolder(tag+"-"+numHolders);
-        holders.add(holder);
-        numHolders += 1;
-        return new LatencyCountTransformer<V>(holder);
+        this.baseDir = baseDir;
     }
 
     public void SetAfterWarmup(){
@@ -32,21 +26,39 @@ public class LatencyCountTransformerSupplier<V> implements ValueTransformerSuppl
         }
     }
 
+    @Override
+    public ValueTransformer<V, V> get() {
+        String lhTag = tag + "-" + holders.size();
+        String path = baseDir + File.separator + lhTag;
+        try {
+            holders.add(new LatencyHolder(lhTag, path));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return new LatencyCountTransformer<V>(holders.get(holders.size() - 1));
+    }
+
     public void printCount() {
         if (holders.size() == 1) {
             LatencyHolder holder = holders.get(0);
             System.out.println(holder.tag + ": " + holder.getCount());
         } else {
-            for (LatencyHolder lh: holders) {
-               long count = lh.getCount();
-               System.out.println(lh.tag + ": " + count);
+            for (LatencyHolder lh : holders) {
+                long count = lh.getCount();
+                System.out.println(lh.tag + ": " + count);
             }
         }
     }
 
-    public void printRemainingStats() {
-        for (LatencyHolder lh: holders) {
-            lh.printRemainingStats();
+    public void waitForFinish() {
+        for (LatencyHolder lh : holders) {
+            lh.waitForFinish();
+        }
+    }
+
+    public void outputRemainingStats() {
+        for (LatencyHolder lh : holders) {
+            lh.outputRemainingStats();
         }
     }
 
@@ -61,21 +73,20 @@ public class LatencyCountTransformerSupplier<V> implements ValueTransformerSuppl
         @Override
         public void init(ProcessorContext context) {
             ctx = context;
+            lh.init();
         }
 
         @Override
         public V1 transform(V1 value) {
-            // TODO Auto-generated method stub
             long ts = ctx.timestamp();
-            long lat = System.currentTimeMillis() - ts;
-            this.lh.AppendLatency(lat);
+            long now = System.currentTimeMillis();
+            lh.appendLatency(now - ts);
             return value;
         }
 
         @Override
         public void close() {
+            lh.waitForFinish();
         }
-        
     }
-    
 }
