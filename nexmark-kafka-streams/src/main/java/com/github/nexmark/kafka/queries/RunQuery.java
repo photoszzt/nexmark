@@ -96,9 +96,7 @@ public class RunQuery {
         int port = portStr == null ? 8090 : Integer.parseInt(portStr);
         int flushms = flushStr == null ? 100 : Integer.parseInt(flushStr);
         boolean disableCache = line.hasOption(DISABLE_CACHE.getOpt());
-        Path statsDirPath = Paths.get(statsDirStr);
-        Path absStatsDir = statsDirPath.toAbsolutePath();
-        File statsDir = absStatsDir.toFile();
+        File statsDir = new File(statsDirStr);
         if (!statsDir.exists()) {
             statsDir.mkdirs();
         }
