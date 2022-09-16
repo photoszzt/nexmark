@@ -180,13 +180,17 @@ public class RunQuery {
                         System.out.println("emit metrics at " + elapsed);
                         Map<MetricName, ? extends Metric> metric = streams.metrics();
                         metric.forEach((k, v) -> {
-                            try {
-                                Double d = ((Number) v.metricValue()).doubleValue(); 
-                                if (!d.isNaN() && d != 0.0) {
-                                    System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
-                                            + ";val:" + d);
+                            String g = k.group();
+                            if (!(g.equals("app-info") || g.startsWith("admin-client") || 
+                                    g.equals("kafka-metrics-count"))) {
+                                try {
+                                    Double d = ((Number) v.metricValue()).doubleValue(); 
+                                    if (!d.isNaN() && d != 0.0) {
+                                        System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
+                                                + ";val:" + d);
+                                    }
+                                } catch (ClassCastException e) {
                                 }
-                            } catch (ClassCastException e) {
                             }
                         });
                         System.out.println();
@@ -220,9 +224,10 @@ public class RunQuery {
                     }
                 }
             }
+            long timeEnd = System.currentTimeMillis();
 
             streams.close();
-            long timeEnd = System.currentTimeMillis();
+            long timeEndAfterClose = System.currentTimeMillis();
             query.outputRemainingStats();
             // query.printRemainingStats();
             // System.out.println();
@@ -233,7 +238,8 @@ public class RunQuery {
                         + ";val:" + v.metricValue());
             });
             double durationSec = ((timeEnd - timeStart) / 1000.0);
-            System.out.println("Duration: " + durationSec);
+            double durationAfterStreamCloseSec = (timeEndAfterClose - timeStart) / 1000.0;
+            System.out.println("Duration: " + durationSec + " after streams close: " + durationAfterStreamCloseSec);
             if (warmupDuration != 0) {
                 System.out.println("Duration after warmup: " + (timeEnd - afterWarmStart) / 1000.0);
             }
