@@ -22,3 +22,20 @@ tasks:
     dir: ./build
     cmds:
       - java -cp ./libs/nexmark-kafka-streams-0.2-SNAPSHOT-uber.jar com.github.nexmark.kafka.queries.RunQuery {{.CLI_ARGS}}
+
+  run-query-metrics:
+    desc: "run query with metrics"
+    deps: [build]
+    dir: ./build
+    vars:
+      EXTERNAL_IP:
+        sh: hostname -I | awk '{print $1}'
+      CUR_DIR:
+        sh: pwd
+    cmds:
+      - java -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false 
+        -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname={{.EXTERNAL_IP}}
+        -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.rmi.port=9999 
+        -Dcom.sun.management.jmxremote.port=9999 -Djava.net.preferIPv4Stack=true 
+        -javaagent:{{.CUR_DIR}}/../shared-assets/jmx-exporter/jmx_prometheus_javaagent-0.16.1.jar=1234:{{.CUR_DIR}}/../shared-assets/jmx-exporter/kafka_streams.yml
+        -cp ./libs/nexmark-kafka-streams-0.2-SNAPSHOT-uber.jar com.github.nexmark.kafka.queries.RunQuery {{.CLI_ARGS}}

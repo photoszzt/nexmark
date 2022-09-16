@@ -47,7 +47,7 @@ public class LatencyCount<K, V extends TimestampFromValue<V>> implements Foreach
             String s = Arrays.toString(latencies);
             latencies = new long[1024];
             currentPos = 0;
-            es.execute(() -> {
+            es.submit(() -> {
                 try {
                     bw.write(s);
                     bw.newLine();

@@ -30,7 +30,6 @@ public class LatencyHolder {
         try {
             bw = new BufferedWriter(new FileWriter(this.fileName));
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
         es = Executors.newSingleThreadExecutor();
@@ -53,7 +52,7 @@ public class LatencyHolder {
             String s = Arrays.toString(latencies);
             latencies = new long[1024];
             currentPos = 0;
-            es.execute(() -> {
+            es.submit(() -> {
                 try {
                     bw.write(s);
                     bw.newLine();

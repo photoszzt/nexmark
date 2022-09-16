@@ -15,8 +15,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -151,10 +149,47 @@ public class RunQuery {
             long timeStart = System.currentTimeMillis();
             long afterWarmStart = 0;
             boolean afterWarmup = false;
+            long emitEveryS = 10000;
+            long emitMetricTimer = System.currentTimeMillis();
             if (durationMs != 0 && srcEvents == 0) {
                 while (true) {
-                    long elapsed = System.currentTimeMillis() - timeStart;
+                    long now = System.currentTimeMillis();
+                    long elapsed = now - timeStart;
+                    long elapsedMetric = now - emitMetricTimer;
+                    if (elapsedMetric >= emitEveryS) {
+                        System.out.println("emit metrics at " + elapsed);
+                        Map<MetricName, ? extends Metric> metric = streams.metrics();
+                        metric.forEach((k, v) -> {
+                            String g = k.group();
+                            if (!(g.equals("app-info") || g.startsWith("admin-client") || 
+                                    g.equals("kafka-metrics-count"))) {
+                                try {
+                                    Double d = ((Number) v.metricValue()).doubleValue(); 
+                                    if (!d.isNaN() && d != 0.0) {
+                                        System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
+                                                + ";val:" + d);
+                                    }
+                                } catch (ClassCastException e) {
+                                }
+                            }
+                        });
+                        System.out.println();
+                        emitMetricTimer = System.currentTimeMillis();
+                    }
                     if (elapsed >= durationMs) {
+                        System.out.println("emit metrics at " + elapsed);
+                        Map<MetricName, ? extends Metric> metric = streams.metrics();
+                        metric.forEach((k, v) -> {
+                            try {
+                                Double d = ((Number) v.metricValue()).doubleValue(); 
+                                if (!d.isNaN() && d != 0.0) {
+                                    System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
+                                            + ";val:" + d);
+                                }
+                            } catch (ClassCastException e) {
+                            }
+                        });
+                        System.out.println();
                         break;
                     }
                     if (!afterWarmup && elapsed >= warmupDuration) {
@@ -194,8 +229,8 @@ public class RunQuery {
             // System.out.println();
             Map<MetricName, ? extends Metric> metric = streams.metrics();
             metric.forEach((k, v) -> {
-                System.out.println(k.group() + " " + k.name() + ", tags: " + k.tags()
-                        + ", val: " + v.metricValue());
+                System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
+                        + ";val:" + v.metricValue());
             });
             double durationSec = ((timeEnd - timeStart) / 1000.0);
             System.out.println("Duration: " + durationSec);
