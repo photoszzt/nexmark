@@ -2,22 +2,27 @@ package com.github.nexmark.kafka.queries;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.kafka.streams.kstream.ValueMapper;
 import org.apache.kafka.streams.kstream.ValueTransformer;
 import org.apache.kafka.streams.kstream.ValueTransformerSupplier;
 import org.apache.kafka.streams.processor.ProcessorContext;
+import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
-public class LatencyCountTransformerSupplier<V> implements ValueTransformerSupplier<V, V> {
+public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implements ValueTransformerSupplier<V, V1> {
 
     List<LatencyHolder> holders = new ArrayList<>();
     String tag;
     String baseDir;
+    ValueMapper<V, V1> mapper;
 
-    public LatencyCountTransformerSupplier(String tag, String baseDir) {
+    public LatencyCountTransformerSupplier(String tag, String baseDir, ValueMapper<V, V1> mapper) {
         this.tag = tag;
         this.baseDir = baseDir;
+        this.mapper = mapper;
     }
 
     public void SetAfterWarmup(){
@@ -27,7 +32,7 @@ public class LatencyCountTransformerSupplier<V> implements ValueTransformerSuppl
     }
 
     @Override
-    public ValueTransformer<V, V> get() {
+    public ValueTransformer<V, V1> get() {
         String lhTag = tag + "-" + holders.size();
         String path = baseDir + File.separator + lhTag;
         try {
@@ -35,7 +40,7 @@ public class LatencyCountTransformerSupplier<V> implements ValueTransformerSuppl
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return new LatencyCountTransformer<V>(holders.get(holders.size() - 1));
+        return new LatencyCountTransformer<V, V1>(holders.get(holders.size() - 1), mapper);
     }
 
     public void printCount() {
@@ -62,11 +67,13 @@ public class LatencyCountTransformerSupplier<V> implements ValueTransformerSuppl
         }
     }
 
-    class LatencyCountTransformer<V1> implements ValueTransformer<V1, V1> {
+    class LatencyCountTransformer<VV extends StartProcTs, VV1> implements ValueTransformer<VV, VV1> {
         ProcessorContext ctx;
         LatencyHolder lh;
+        ArrayList<Long> procLat = new ArrayList<>(NUM_STATS);
+        ValueMapper<VV, VV1> mapper;
 
-        public LatencyCountTransformer(LatencyHolder lh) {
+        public LatencyCountTransformer(LatencyHolder lh, ValueMapper<VV, VV1> mapper) {
             this.lh = lh;
         }
 
@@ -77,11 +84,20 @@ public class LatencyCountTransformerSupplier<V> implements ValueTransformerSuppl
         }
 
         @Override
-        public V1 transform(V1 value) {
+        public VV1 transform(VV value) {
             long ts = ctx.timestamp();
-            long now = System.currentTimeMillis();
+            long now = Instant.now().toEpochMilli();
+            long startProc = value.startProcTsNano();
+            long lat = now = startProc;
+            if (procLat.size() < NUM_STATS) {
+                procLat.add(lat);
+            } else {
+                System.out.println("{\"" + lh.tag + "_proc" + "\": " + procLat + "}");
+                procLat.clear();
+                procLat.add(lat);
+            }
             lh.appendLatency(now - ts);
-            return value;
+            return mapper.apply(value);
         }
 
         @Override

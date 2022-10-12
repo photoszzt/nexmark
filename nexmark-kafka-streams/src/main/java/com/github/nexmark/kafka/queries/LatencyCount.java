@@ -3,6 +3,7 @@ package com.github.nexmark.kafka.queries;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,7 +40,7 @@ public class LatencyCount<K, V extends TimestampFromValue<V>> implements Foreach
     public void apply(K key, TimestampFromValue<V> value) {
         this.counter += 1;
         long ts = value.extract();
-        long lat = System.currentTimeMillis() - ts;
+        long lat = Instant.now().toEpochMilli() - ts;
         if (currentPos < latencies.length) {
             latencies[currentPos] = lat;
             currentPos++;

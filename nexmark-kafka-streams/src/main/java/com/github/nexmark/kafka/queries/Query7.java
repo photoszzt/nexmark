@@ -11,7 +11,6 @@ import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
-import org.apache.kafka.streams.kstream.internals.TimeWindow;
 import org.apache.kafka.streams.state.*;
 
 import java.io.IOException;
@@ -22,11 +21,11 @@ import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query7 implements NexmarkQuery {
     public CountAction<String, Event> input;
-    public LatencyCountTransformerSupplier<BidAndMax> lcts;
+    public LatencyCountTransformerSupplier<BidAndMax, BidAndMax> lcts;
 
     public Query7(String baseDir) {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>("q7_sink_ets", baseDir);
+        lcts = new LatencyCountTransformerSupplier<>("q7_sink_ets", baseDir, new IdentityValueMapper<BidAndMax>());
     }
 
     @Override

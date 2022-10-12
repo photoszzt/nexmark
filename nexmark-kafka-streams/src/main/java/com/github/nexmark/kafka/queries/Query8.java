@@ -13,18 +13,28 @@ import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.io.IOException;
 import java.io.FileInputStream;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
+import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query8 implements NexmarkQuery {
     public CountAction<String, Event> input;
-    public LatencyCountTransformerSupplier<PersonTime> lcts;
+    public LatencyCountTransformerSupplier<PersonTime, PersonTime> lcts;
+    public ArrayList<Long> aucProcLat;
+    public ArrayList<Long> perProcLat;
+    public ArrayList<Long> aucQueueTime;
+    public ArrayList<Long> perQueueTime;
 
     public Query8(String baseDir) {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>("q8_sink_ets", baseDir);
+        lcts = new LatencyCountTransformerSupplier<>("q8_sink_ets", baseDir, new IdentityValueMapper<PersonTime>());
+        aucProcLat = new ArrayList<Long>(NUM_STATS);
+        perProcLat = new ArrayList<Long>(NUM_STATS);
+        aucQueueTime = new ArrayList<Long>(NUM_STATS);
+        perQueueTime = new ArrayList<Long>(NUM_STATS);
     }
 
     @Override
@@ -85,18 +95,45 @@ public class Query8 implements NexmarkQuery {
                 .noDefaultBranch();
 
         KStream<Long, Event> person = ksMap.get("Branch-persons").selectKey((key, value) -> {
+            long procLat = System.nanoTime() - value.startProcTsNano();
+            StreamsUtils.appendLat(perProcLat, procLat, "subGPer_proc");
+            value.setInjTsMs(Instant.now().toEpochMilli());
             return value.newPerson.id;
-        })
-                .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName(personsByIDTpRepar)
-                        .withNumberOfPartitions(personsByIDTpPar));
+        }).repartition(Repartitioned.with(Serdes.Long(), eSerde)
+                .withName(personsByIDTpRepar)
+                .withNumberOfPartitions(personsByIDTpPar))
+                .peek(new ForeachAction<Long, Event>() {
+                    @Override
+                    public void apply(Long key, Event value) {
+                        value.setStartProcTsNano(System.nanoTime());
+                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                        StreamsUtils.appendLat(aucQueueTime, queueDelay, "perQueueDelay");
+                    }
+                });
 
-        KStream<Long, Event> auction = ksMap.get("Branch-auctions").selectKey((key, value) -> {
-            return value.newAuction.seller;
-        })
+        KStream<Long, Event> auction = ksMap.get("Branch-auctions")
+                .selectKey((key, value) -> {
+                    long procLat = System.nanoTime() - value.startProcTsNano();
+                    if (aucProcLat.size() < NUM_STATS) {
+                        aucProcLat.add(procLat);
+                    } else {
+                        System.out.println("{\"subGAuc_proc\": " + aucProcLat + "}");
+                        aucProcLat.clear();
+                        aucProcLat.add(procLat);
+                    }
+                    return value.newAuction.seller;
+                })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucBySellerIDTpRepar)
-                        .withNumberOfPartitions(aucBySellerIDTpPar));
+                        .withNumberOfPartitions(aucBySellerIDTpPar))
+                .peek(new ForeachAction<Long, Event>() {
+                    @Override
+                    public void apply(Long key, Event value) {
+                        value.setStartProcTsNano(System.nanoTime());
+                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                        StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
+                    }
+                });
 
         long windowSizeMs = 10 * 1000;
         JoinWindows jw = JoinWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5));

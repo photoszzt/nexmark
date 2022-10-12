@@ -12,20 +12,31 @@ import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
+import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query3 implements NexmarkQuery {
     public CountAction<String, Event> input;
-    public LatencyCountTransformerSupplier<NameCityStateId> lcts;
+    public LatencyCountTransformerSupplier<NameCityStateId, NameCityStateId> lcts;
+    public ArrayList<Long> aucProcLat;
+    public ArrayList<Long> perProcLat;
+    public ArrayList<Long> aucQueueTime;
+    public ArrayList<Long> perQueueTime;
 
     public Query3(String baseDir) {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<NameCityStateId>("q3_sink_ets", baseDir);
+        lcts = new LatencyCountTransformerSupplier<>("q3_sink_ets",
+                baseDir, new IdentityValueMapper<NameCityStateId>());
+        aucProcLat = new ArrayList<Long>(NUM_STATS);
+        perProcLat = new ArrayList<Long>(NUM_STATS);
+        aucQueueTime = new ArrayList<Long>(NUM_STATS);
+        perQueueTime = new ArrayList<Long>(NUM_STATS);
     }
 
     @Override
@@ -95,27 +106,58 @@ public class Query3 implements NexmarkQuery {
         KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores
                 .inMemoryKeyValueStore("auctionBySellerIdKV");
         KTable<Long, Event> auctionsBySellerId = ksMap.get("Branch-aucBySeller")
-                .selectKey((key, value) -> value.newAuction.seller)
+                .selectKey((key, value) -> {
+                    long procLat = System.nanoTime() - value.startProcTsNano();
+                    StreamsUtils.appendLat(aucProcLat, procLat, "subGAuc_proc");
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return value.newAuction.seller;
+                })
                 .toTable(Named.as(aucBySellerIDTab),
                         Materialized.<Long, Event>as(auctionsBySellerIdKVStoreSupplier)
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(eSerde));
+                                .withValueSerde(eSerde))
+                .mapValues(new ValueMapper<Event, Event>() {
+                    @Override
+                    public Event apply(Event value) {
+                        value.setStartProcTsNano(System.nanoTime());
+                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                        StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
+                        return value;
+                    }
+                });
 
         KeyValueBytesStoreSupplier personsByIdKVStoreSupplier = Stores.inMemoryKeyValueStore("personsByIdKV");
-        KTable<Long, Event> personsById = ksMap.get("Branch-personsById") 
-                .selectKey((key, value) -> value.newPerson.id)
+        KTable<Long, Event> personsById = ksMap.get("Branch-personsById")
+                .selectKey((key, value) -> {
+                    long procLat = System.nanoTime() - value.startProcTsNano();
+                    StreamsUtils.appendLat(perProcLat, procLat, "subGPer_proc");
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return value.newPerson.id;
+                })
                 .toTable(Named.as(personsByIDTab),
                         Materialized.<Long, Event>as(personsByIdKVStoreSupplier)
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(eSerde));
-
+                                .withValueSerde(eSerde))
+                .mapValues(new ValueMapper<Event, Event>() {
+                    @Override
+                    public Event apply(Event value) {
+                        value.setStartProcTsNano(System.nanoTime());
+                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                        StreamsUtils.appendLat(perQueueTime, queueDelay, "perQueueDelay");
+                        return value;
+                    }
+                });
         auctionsBySellerId
                 .join(personsById,
-                        (leftValue, rightValue) -> new NameCityStateId(
-                                rightValue.newPerson.name,
-                                rightValue.newPerson.city,
-                                rightValue.newPerson.state,
-                                rightValue.newPerson.id))
+                        (leftValue, rightValue) -> {
+                            NameCityStateId ret = new NameCityStateId(
+                                    rightValue.newPerson.name,
+                                    rightValue.newPerson.city,
+                                    rightValue.newPerson.state,
+                                    rightValue.newPerson.id);
+                            ret.setStartProcTsNano(rightValue.startProcTsNano());
+                            return ret;
+                        })
                 .toStream()
                 .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(Serdes.Long(), ncsiSerde));
@@ -123,14 +165,16 @@ public class Query3 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q3");
         return props;
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q3");
         return props;
@@ -160,9 +204,8 @@ public class Query3 implements NexmarkQuery {
         lcts.outputRemainingStats();
     }
 
-
     // @Override
     // public void printRemainingStats() {
-    //     lcts.printRemainingStats();
+    // lcts.printRemainingStats();
     // }
 }

@@ -3,15 +3,20 @@ package com.github.nexmark.kafka.model;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.nexmark.kafka.queries.StartProcTs;
 
-public class AuctionBid {
+public class AuctionBid implements StartProcTs {
     public long bidDateTimeMs;
     public long aucDateTimeMs;
     public long aucExpiresMs;
     public long bidPrice;
     public long aucCategory;
     public long seller;
+
+    @JsonIgnore
+    private long startExecNano;
 
     @JsonCreator
     public AuctionBid(
@@ -46,4 +51,15 @@ public class AuctionBid {
         // TODO Auto-generated method stub
         return Objects.hash(bidDateTimeMs, aucDateTimeMs, aucExpiresMs, bidPrice, aucCategory, seller);
     }
+
+    @Override
+    public long startProcTsNano() {
+        return startExecNano;
+    }
+
+    @Override
+    public void setStartProcTsNano(long ts) {
+       startExecNano = ts; 
+    }
+    
 }

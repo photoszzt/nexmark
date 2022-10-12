@@ -22,14 +22,28 @@ import java.util.Properties;
 import java.util.List;
 import java.util.ArrayList;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
+import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query5 implements NexmarkQuery {
     public CountAction<String, Event> input;
-    public LatencyCountTransformerSupplier<AuctionIdCntMax> lcts;
+    public LatencyCountTransformerSupplier<AuctionIdCntMax, AuctionIdCntMax> lcts;
+    public ArrayList<Long> topo1ProcLat;
 
     public Query5(String baseDir) {
         input = new CountAction<>();
-        lcts = new LatencyCountTransformerSupplier<>("q5_sink_ets", baseDir);
+        lcts = new LatencyCountTransformerSupplier<>("q5_sink_ets", baseDir,
+                new IdentityValueMapper<AuctionIdCntMax>());
+        topo1ProcLat = new ArrayList<>(NUM_STATS);
+    }
+
+    private void appendLat(ArrayList<Long> lat, long ts, String tag) {
+        if (lat.size() < NUM_STATS) {
+            lat.add(ts);
+        } else {
+            System.out.println("{\"" + tag + "\": " + lat + "}");
+            lat.clear();
+            lat.add(ts);
+        }
     }
 
     @Override
@@ -106,7 +120,11 @@ public class Query5 implements NexmarkQuery {
                 .withTimestampExtractor(new EventTimestampExtractor())).peek(input);
         KStream<Long, Event> bid = inputs
                 .filter((key, value) -> value != null && value.etype == Event.EType.BID)
-                .selectKey((key, value) -> value.bid.auction);
+                .selectKey((key, value) -> {
+                    long procLat = System.nanoTime() - value.startProcTsNano();
+                    appendLat(topo1ProcLat, procLat, "subG1ProcLat");
+                    return value.bid.auction;
+                });
 
         TimeWindows tws = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(20))
                 .advanceBy(Duration.ofSeconds(2));

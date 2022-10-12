@@ -1,16 +1,21 @@
 package com.github.nexmark.kafka.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.nexmark.kafka.queries.StartProcTs;
 import com.google.common.base.Objects;
 
 import java.io.Serializable;
 import javax.annotation.Nullable;
 
-public class NameCityStateId implements Serializable {
+public class NameCityStateId implements Serializable, StartProcTs {
     public String name;
     public String city;
     public String state;
     public long id;
+
+    @JsonIgnore
+    public long startExecNano;
 
     @JsonCreator
     public NameCityStateId(@JsonProperty("name") String name,
@@ -42,5 +47,15 @@ public class NameCityStateId implements Serializable {
     @Override
     public int hashCode() {
         return Objects.hashCode(name, city, state, id);
+    }
+
+    @Override
+    public long startProcTsNano() {
+        return startExecNano;
+    }
+
+    @Override
+    public void setStartProcTsNano(long ts) {
+        startExecNano = ts; 
     }
 }

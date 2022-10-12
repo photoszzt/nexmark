@@ -1,9 +1,12 @@
 package com.github.nexmark.kafka.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.github.nexmark.kafka.queries.InjTsMs;
+import com.github.nexmark.kafka.queries.StartProcTs;
 import com.github.nexmark.kafka.queries.TimestampFromValue;
 
 import javax.annotation.Nullable;
@@ -12,7 +15,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class Event implements Serializable, TimestampFromValue<Event> {
+public class Event implements Serializable, TimestampFromValue<Event>, StartProcTs, InjTsMs {
 	@JsonProperty("newPerson")
     public @Nullable Person newPerson;
 	@JsonProperty("newAuction")
@@ -21,6 +24,12 @@ public class Event implements Serializable, TimestampFromValue<Event> {
 	public @Nullable Bid bid;
 	@JsonProperty("etype")
 	public EType etype;
+
+	@JsonIgnore
+	private long startExecNano;
+
+	@JsonProperty("injTsMs")
+	public long injTsMs;
 
 	/** The type of object stored in this event. * */
 	public enum EType {
@@ -107,5 +116,26 @@ public class Event implements Serializable, TimestampFromValue<Event> {
 		} else {
 			throw new IllegalArgumentException("event type should be 0, 1 or 2; got " + etype);
 		}
+	}
+
+	@Override
+	public long startProcTsNano() {
+		return this.startExecNano;
+	}
+
+	@Override
+	public void setStartProcTsNano(long ts) {
+		startExecNano = ts;	
+	}
+
+	@Override
+	public long injTsMs() {
+		// TODO Auto-generated method stub
+		return injTsMs;
+	}
+
+	@Override
+	public void setInjTsMs(long ts) {
+		injTsMs = ts;
 	}
 }

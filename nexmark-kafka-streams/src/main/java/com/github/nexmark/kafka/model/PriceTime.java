@@ -4,11 +4,16 @@ import java.util.Comparator;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.nexmark.kafka.queries.StartProcTs;
 
-public class PriceTime {
+public class PriceTime implements StartProcTs {
     public long price;
     public long ts;
+
+    @JsonIgnore
+    private long startProcTsNano;
 
     @JsonCreator
     public PriceTime(
@@ -42,4 +47,14 @@ public class PriceTime {
 
     public static final Comparator<PriceTime> ASCENDING_TIME_THEN_PRICE =
       Comparator.comparing((PriceTime pt) -> pt.ts).thenComparingLong(pt -> pt.price);
+
+    @Override
+    public long startProcTsNano() {
+        return startProcTsNano;
+    }
+
+    @Override
+    public void setStartProcTsNano(long ts) {
+        this.startProcTsNano = ts; 
+    }
 }

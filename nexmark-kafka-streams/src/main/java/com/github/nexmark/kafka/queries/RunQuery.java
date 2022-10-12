@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
@@ -37,6 +38,8 @@ public class RunQuery {
     private static final Option GUARANTEE = new Option("g", "guarantee", true, "guarantee");
     private static final Option DISABLE_CACHE = new Option("xc", "disable_cache", false, "disable cache");
     private static final Option STATS_DIR = new Option("sd", "stats_dir", true, "stats dir");
+
+    private static final long TEN_SEC_NANO = TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS);
 
     private static NexmarkQuery getNexmarkQuery(String appName, File statsDir) throws IOException {
         String canStatsDir = statsDir.getCanonicalPath();
@@ -91,6 +94,7 @@ public class RunQuery {
         
         int durationMs = durStr == null ? 0 : Integer.parseInt(durStr) * 1000;
         int warmupDuration = warmupTime == null ? 0 : Integer.parseInt(warmupTime) * 1000;
+        int warmupDurNano = warmupDuration * 1000_000;
         int port = portStr == null ? 8090 : Integer.parseInt(portStr);
         int flushms = flushStr == null ? 100 : Integer.parseInt(flushStr);
         boolean disableCache = line.hasOption(DISABLE_CACHE.getOpt());
@@ -146,38 +150,40 @@ public class RunQuery {
             }
         });
         Thread t = new Thread(() -> {
-            long timeStart = System.currentTimeMillis();
-            long afterWarmStart = 0;
+            long timeStartNano = System.nanoTime();
+            long afterWarmStartNano = 0;
             boolean afterWarmup = false;
-            long emitEveryS = 10000;
-            long emitMetricTimer = System.currentTimeMillis();
+            // long emitEveryNano = TEN_SEC_NANO;
+            // long emitMetricTimer = System.nanoTime();
+            long durationNano = TimeUnit.NANOSECONDS.convert(durationMs, TimeUnit.MILLISECONDS);
             if (durationMs != 0 && srcEvents == 0) {
                 while (true) {
-                    long now = System.currentTimeMillis();
-                    long elapsed = now - timeStart;
-                    long elapsedMetric = now - emitMetricTimer;
-                    if (elapsedMetric >= emitEveryS) {
-                        System.out.println("emit metrics at " + elapsed);
-                        Map<MetricName, ? extends Metric> metric = streams.metrics();
-                        metric.forEach((k, v) -> {
-                            String g = k.group();
-                            if (!(g.equals("app-info") || g.startsWith("admin-client") || 
-                                    g.equals("kafka-metrics-count"))) {
-                                try {
-                                    Double d = ((Number) v.metricValue()).doubleValue(); 
-                                    if (!d.isNaN() && d != 0.0) {
-                                        System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
-                                                + ";val:" + d);
-                                    }
-                                } catch (ClassCastException e) {
-                                }
-                            }
-                        });
-                        System.out.println();
-                        emitMetricTimer = System.currentTimeMillis();
-                    }
-                    if (elapsed >= durationMs) {
-                        System.out.println("emit metrics at " + elapsed);
+                    long now = System.nanoTime();
+                    long elapsedNano = now - timeStartNano;
+
+                    // long elapsedMetricNano = now - emitMetricTimer;
+                    // if (elapsedMetricNano >= emitEveryNano) {
+                    //     System.out.println("emit metrics at (ns)" + elapsedNano);
+                    //     Map<MetricName, ? extends Metric> metric = streams.metrics();
+                    //     metric.forEach((k, v) -> {
+                    //         String g = k.group();
+                    //         if (!(g.equals("app-info") || g.startsWith("admin-client") || 
+                    //                 g.equals("kafka-metrics-count"))) {
+                    //             try {
+                    //                 Double d = ((Number) v.metricValue()).doubleValue(); 
+                    //                 if (!d.isNaN() && d != 0.0) {
+                    //                     System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
+                    //                             + ";val:" + d);
+                    //                 }
+                    //             } catch (ClassCastException e) {
+                    //             }
+                    //         }
+                    //     });
+                    //     System.out.println();
+                    //     emitMetricTimer = System.currentTimeMillis();
+                    // }
+                    if (elapsedNano >= durationNano) {
+                        System.out.println("emit metrics at " + elapsedNano);
                         Map<MetricName, ? extends Metric> metric = streams.metrics();
                         metric.forEach((k, v) -> {
                             String g = k.group();
@@ -196,10 +202,10 @@ public class RunQuery {
                         System.out.println();
                         break;
                     }
-                    if (!afterWarmup && elapsed >= warmupDuration) {
+                    if (!afterWarmup && elapsedNano >= warmupDurNano) {
                         afterWarmup = true;
                         query.setAfterWarmup();
-                        afterWarmStart = System.currentTimeMillis();
+                        afterWarmStartNano = System.nanoTime();
                     }
                     try {
                         Thread.sleep(10);
@@ -210,8 +216,8 @@ public class RunQuery {
             } else {
                 boolean done = false;
                 while (!done) {
-                    long cur = System.currentTimeMillis();
-                    if (cur - timeStart >= 10000) {
+                    long cur = System.nanoTime();
+                    if (cur - timeStartNano >= TEN_SEC_NANO) {
                         long currentCount = query.getInputCount();
                         if (currentCount == srcEvents) {
                             done = true;
@@ -224,10 +230,10 @@ public class RunQuery {
                     }
                 }
             }
-            long timeEnd = System.currentTimeMillis();
+            long timeEndNano = System.nanoTime();
 
             streams.close();
-            long timeEndAfterClose = System.currentTimeMillis();
+            long timeEndAfterClose = System.nanoTime();
             query.outputRemainingStats();
             // query.printRemainingStats();
             // System.out.println();
@@ -237,11 +243,11 @@ public class RunQuery {
                 System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
                         + ";val:" + v.metricValue());
             });
-            double durationSec = ((timeEnd - timeStart) / 1000.0);
-            double durationAfterStreamCloseSec = (timeEndAfterClose - timeStart) / 1000.0;
+            double durationSec = ((timeEndNano - timeStartNano) / 1000_000_000.0);
+            double durationAfterStreamCloseSec = (timeEndAfterClose - timeStartNano) / 1000_000_000.0;
             System.out.println("Duration: " + durationSec + " after streams close: " + durationAfterStreamCloseSec);
             if (warmupDuration != 0) {
-                System.out.println("Duration after warmup: " + (timeEnd - afterWarmStart) / 1000.0);
+                System.out.println("Duration after warmup: " + (timeEndNano - afterWarmStartNano) / 1000_000_000.0);
             }
             System.out.println("Num output: ");
             query.printCount();

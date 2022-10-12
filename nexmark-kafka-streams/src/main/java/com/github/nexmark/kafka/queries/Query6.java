@@ -17,6 +17,7 @@ import org.apache.kafka.streams.kstream.Named;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.kstream.Repartitioned;
 import org.apache.kafka.streams.kstream.StreamJoined;
+import org.apache.kafka.streams.kstream.ValueMapper;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
@@ -25,6 +26,7 @@ import org.apache.kafka.common.serialization.Serdes;
 
 import com.github.nexmark.kafka.model.AucIDSeller;
 import com.github.nexmark.kafka.model.AuctionBid;
+import com.github.nexmark.kafka.model.DoubleAndTime;
 import com.github.nexmark.kafka.model.Event;
 import com.github.nexmark.kafka.model.PriceTime;
 
@@ -43,11 +45,17 @@ import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 public class Query6 implements NexmarkQuery {
     public CountAction<String, Event> input;
     private static final Duration auctionDurationUpperS = Duration.ofSeconds(1800);
-    public LatencyCountTransformerSupplier<Double> lcts;
+    public LatencyCountTransformerSupplier<DoubleAndTime, Double> lcts;
 
     public Query6(String baseDir) {
         this.input = new CountAction<>();
-        this.lcts = new LatencyCountTransformerSupplier<>("q6_sink_ets", baseDir);
+        this.lcts = new LatencyCountTransformerSupplier<>("q6_sink_ets", baseDir,
+                new ValueMapper<DoubleAndTime, Double>() {
+                    @Override
+                    public Double apply(DoubleAndTime value) {
+                        return value.avg;
+                    }
+                });
     }
 
     @Override
@@ -223,7 +231,6 @@ public class Query6 implements NexmarkQuery {
                 .aggregate(new Initializer<List<PriceTime>>() {
                     @Override
                     public ArrayList<PriceTime> apply() {
-                        // TODO Auto-generated method stub
                         return new ArrayList<>(11);
                     }
                 }, new Aggregator<Long, PriceTime, List<PriceTime>>() {
@@ -262,11 +269,12 @@ public class Query6 implements NexmarkQuery {
             for (PriceTime pt : value) {
                 sum += pt.price;
             }
-            return (double) sum / (double) l;
-        })
-                .toStream()
-                .transformValues(lcts, Named.as("latency-measure"))
-                .to(outTp, Produced.with(Serdes.Long(), Serdes.Double()));
+            double avg =  (double) sum / (double) l;
+            DoubleAndTime dt = new DoubleAndTime(avg);
+            return dt;
+        }).toStream()
+        .transformValues(lcts, Named.as("latency-measure"))
+        .to(outTp, Produced.with(Serdes.Long(), Serdes.Double()));
         return builder;
     }
 

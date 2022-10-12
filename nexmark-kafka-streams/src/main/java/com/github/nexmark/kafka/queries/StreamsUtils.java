@@ -10,10 +10,12 @@ import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.streams.StreamsConfig;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
+import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class StreamsUtils {
     public static Properties getExactlyOnceStreamsConfig(String bootstrapServer, int duration, int flushms, boolean disableCache) {
@@ -83,4 +85,15 @@ public class StreamsUtils {
             }
         });
     }
+
+    public static void appendLat(ArrayList<Long> lat, long ts, String tag) {
+        if (lat.size() < NUM_STATS) {
+            lat.add(ts);
+        } else {
+            System.out.println("{\"" + tag + "\": " + lat + "}");
+            lat.clear();
+            lat.add(ts);
+        }
+    }
+
 }

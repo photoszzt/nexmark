@@ -3,12 +3,17 @@ package com.github.nexmark.kafka.model;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.nexmark.kafka.queries.StartProcTs;
 
-public class PersonTime {
+public class PersonTime implements StartProcTs {
     public long id;
     public String name;
     public long startTime;
+
+    @JsonIgnore
+    public long startExecNano;
 
     @JsonCreator
     public PersonTime(@JsonProperty("id") long id,
@@ -42,5 +47,15 @@ public class PersonTime {
     @Override
     public int hashCode() {
         return Objects.hash(id, name, startTime);
+    }
+
+    @Override
+    public long startProcTsNano() {
+        return startExecNano;
+    }
+
+    @Override
+    public void setStartProcTsNano(long ts) {
+        startExecNano = ts; 
     }
 }
