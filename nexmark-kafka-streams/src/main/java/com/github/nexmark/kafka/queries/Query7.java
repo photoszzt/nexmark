@@ -2,6 +2,7 @@ package com.github.nexmark.kafka.queries;
 
 import com.github.nexmark.kafka.model.BidAndMax;
 import com.github.nexmark.kafka.model.Event;
+import com.github.nexmark.kafka.model.LongAndTime;
 import com.github.nexmark.kafka.model.StartEndTime;
 
 import org.apache.kafka.clients.admin.NewTopic;
@@ -16,16 +17,30 @@ import org.apache.kafka.streams.state.*;
 import java.io.IOException;
 import java.io.FileInputStream;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
+import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query7 implements NexmarkQuery {
     public CountAction<String, Event> input;
     public LatencyCountTransformerSupplier<BidAndMax, BidAndMax> lcts;
+    private ArrayList<Long> bidsByWinProcLat;
+    private ArrayList<Long> bidsByPriceProcLat;
+    private ArrayList<Long> bidsByWinQueueTime;
+    private ArrayList<Long> bidsByPriceQueueTime;
+    private ArrayList<Long> maxBidsQeueTime;
+    private ArrayList<Long> topo2ProcLat;
 
     public Query7(String baseDir) {
         input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q7_sink_ets", baseDir, new IdentityValueMapper<BidAndMax>());
+        bidsByWinProcLat = new ArrayList<>(NUM_STATS);
+        bidsByPriceProcLat = new ArrayList<>(NUM_STATS);
+        bidsByWinQueueTime = new ArrayList<>(NUM_STATS);
+        bidsByPriceQueueTime = new ArrayList<>(NUM_STATS);
+        topo2ProcLat = new ArrayList<>(NUM_STATS);
+        maxBidsQeueTime = new ArrayList<>(NUM_STATS);
     }
 
     @Override
@@ -63,6 +78,7 @@ public class Query7 implements NexmarkQuery {
         Serde<Event> eSerde;
         Serde<BidAndMax> bmSerde;
         Serde<StartEndTime> seSerde;
+        Serde<LongAndTime> latSerde;
         if (serde.equals("json")) {
             JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
             eSerdeJSON.setClass(Event.class);
@@ -76,6 +92,10 @@ public class Query7 implements NexmarkQuery {
             seSerdeJSON.setClass(StartEndTime.class);
             seSerde = seSerdeJSON;
 
+            JSONPOJOSerde<LongAndTime> latSerdeJSON = new JSONPOJOSerde<>();
+            latSerdeJSON.setClass(LongAndTime.class);
+            latSerde = latSerdeJSON;
+
         } else if (serde.equals("msgp")) {
             MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
             eSerdeMsgp.setClass(Event.class);
@@ -88,6 +108,10 @@ public class Query7 implements NexmarkQuery {
             MsgpPOJOSerde<StartEndTime> seSerdeMsgp = new MsgpPOJOSerde<>();
             seSerdeMsgp.setClass(StartEndTime.class);
             seSerde = seSerdeMsgp;
+
+            MsgpPOJOSerde<LongAndTime> latSerdeMsgp = new MsgpPOJOSerde<>();
+            latSerdeMsgp.setClass(LongAndTime.class);
+            latSerde = latSerdeMsgp;
         } else {
             throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
         }
@@ -111,45 +135,73 @@ public class Query7 implements NexmarkQuery {
                         long windowStart = (Math.max(0, value.bid.dateTime - sizeMs + advanceMs) / advanceMs)
                                 * advanceMs;
                         long wEnd = windowStart + sizeMs;
+                        value.setInjTsMs(Instant.now().toEpochMilli());
+                        long procLat = System.nanoTime() - value.startProcTsNano();
+                        StreamsUtils.appendLat(bidsByWinProcLat, procLat, "subGBidsByWin_proc");
                         return new StartEndTime(windowStart, wEnd);
                     }
-
                 })
                 .repartition(Repartitioned.<StartEndTime, Event>with(seSerde, eSerde)
                         .withName(bidsByWinTpRepar)
                         .withNumberOfPartitions(bidsByWinTpPar));
         KStream<Long, Event> bidsByPrice = bids
-                .selectKey((key, value) -> value.bid.price)
+                .selectKey((key, value) -> {
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    long procLat = System.nanoTime() - value.startProcTsNano();
+                    StreamsUtils.appendLat(bidsByPriceProcLat, procLat, "subGBidsByPrice_proc");
+                    return value.bid.price;
+                })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsByPriceTpRepar)
-                        .withNumberOfPartitions(bidsByPriceTpPar));
+                        .withNumberOfPartitions(bidsByPriceTpPar))
+                .peek((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(bidsByPriceQueueTime, queueDelay, "bidsByPriceQueueDelay");
+                });
 
         String maxBidPerWindowTabName = "maxBidByWinTab";
         KeyValueBytesStoreSupplier maxBidPerWindowTabSupplier = Stores.inMemoryKeyValueStore(maxBidPerWindowTabName);
-        KStream<StartEndTime, Long> maxBidPerWin = bidsByWin
+        KStream<StartEndTime, LongAndTime> maxBidPerWin = bidsByWin
+                .peek((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(bidsByWinQueueTime, queueDelay, "bidsByWinQueueDelay");
+                })
                 .groupByKey(Grouped.with(seSerde, eSerde))
-                .aggregate(() -> 0L, (key, value, aggregate) -> {
-                    if (value.bid.price > aggregate) {
-                        return value.bid.price;
+                .aggregate(() -> new LongAndTime(0), (key, value, aggregate) -> {
+                    if (value.bid.price > aggregate.val) {
+                        LongAndTime lt = new LongAndTime(value.bid.price);
+                        lt.setStartProcTsNano(value.startProcTsNano());
+                        return lt;
                     } else {
+                        aggregate.setStartProcTsNano(value.startProcTsNano());
                         return aggregate;
                     }
-                }, Materialized.<StartEndTime, Long>as(maxBidPerWindowTabSupplier)
+                }, Materialized.<StartEndTime, LongAndTime>as(maxBidPerWindowTabSupplier)
                         .withCachingEnabled()
                         .withLoggingEnabled(new HashMap<>())
                         .withKeySerde(seSerde)
-                        .withValueSerde(Serdes.Long()))
+                        .withValueSerde(latSerde))
                 .toStream();
         KStream<Long, StartEndTime> maxBidsByPrice = maxBidPerWin
-                .map(new KeyValueMapper<StartEndTime, Long, KeyValue<Long, StartEndTime>>() {
+                .map(new KeyValueMapper<StartEndTime, LongAndTime, KeyValue<Long, StartEndTime>>() {
                     @Override
-                    public KeyValue<Long, StartEndTime> apply(StartEndTime key, Long value) {
-                        return new KeyValue<Long, StartEndTime>(value, key);
+                    public KeyValue<Long, StartEndTime> apply(StartEndTime key, LongAndTime value) {
+                        key.setInjTsMs(Instant.now().toEpochMilli());
+                        long procLat = System.nanoTime() - value.startProcTsNano();
+                        StreamsUtils.appendLat(topo2ProcLat, procLat, "subG2_proc");
+                        return new KeyValue<Long, StartEndTime>(value.val, key);
                     }
                 })
                 .repartition(Repartitioned.with(Serdes.Long(), seSerde)
                         .withName(maxBidsByPriceTpRepar)
-                        .withNumberOfPartitions(maxBidsByPriceTpPar));
+                        .withNumberOfPartitions(maxBidsByPriceTpPar))
+                .peek((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(maxBidsQeueTime, queueDelay, "maxBidsQueueDelay");
+                });
 
         JoinWindows jw = JoinWindows.ofTimeDifferenceAndGrace(windowSize, grace);
         Duration retension = Duration.ofMillis(jw.size() + jw.gracePeriodMs());

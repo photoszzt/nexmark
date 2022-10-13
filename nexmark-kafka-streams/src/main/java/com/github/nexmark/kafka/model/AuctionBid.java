@@ -5,9 +5,10 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.nexmark.kafka.queries.InjTsMs;
 import com.github.nexmark.kafka.queries.StartProcTs;
 
-public class AuctionBid implements StartProcTs {
+public class AuctionBid implements StartProcTs, InjTsMs {
     public long bidDateTimeMs;
     public long aucDateTimeMs;
     public long aucExpiresMs;
@@ -17,6 +18,9 @@ public class AuctionBid implements StartProcTs {
 
     @JsonIgnore
     private long startExecNano;
+
+    @JsonProperty("injTsMs")
+    public long injTsMs;
 
     @JsonCreator
     public AuctionBid(
@@ -61,5 +65,14 @@ public class AuctionBid implements StartProcTs {
     public void setStartProcTsNano(long ts) {
        startExecNano = ts; 
     }
-    
+
+    @Override
+    public long injTsMs() {
+        return injTsMs;
+    }
+
+    @Override
+    public void setInjTsMs(long ts) {
+        injTsMs = ts; 
+    }
 }

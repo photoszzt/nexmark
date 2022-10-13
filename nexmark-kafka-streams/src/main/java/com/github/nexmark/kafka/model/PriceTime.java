@@ -6,14 +6,18 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.nexmark.kafka.queries.InjTsMs;
 import com.github.nexmark.kafka.queries.StartProcTs;
 
-public class PriceTime implements StartProcTs {
+public class PriceTime implements StartProcTs, InjTsMs {
     public long price;
     public long ts;
 
     @JsonIgnore
     private long startProcTsNano;
+
+    @JsonProperty("injTsMs")
+    public long injTsMs;
 
     @JsonCreator
     public PriceTime(
@@ -56,5 +60,15 @@ public class PriceTime implements StartProcTs {
     @Override
     public void setStartProcTsNano(long ts) {
         this.startProcTsNano = ts; 
+    }
+
+    @Override
+    public long injTsMs() {
+        return injTsMs;
+    }
+
+    @Override
+    public void setInjTsMs(long ts) {
+        injTsMs = ts; 
     }
 }

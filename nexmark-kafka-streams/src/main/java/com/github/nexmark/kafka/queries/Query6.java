@@ -28,7 +28,9 @@ import com.github.nexmark.kafka.model.AucIDSeller;
 import com.github.nexmark.kafka.model.AuctionBid;
 import com.github.nexmark.kafka.model.DoubleAndTime;
 import com.github.nexmark.kafka.model.Event;
+import com.github.nexmark.kafka.model.LongAndTime;
 import com.github.nexmark.kafka.model.PriceTime;
+import com.github.nexmark.kafka.model.PriceTimeList;
 
 import java.util.List;
 import java.util.Map;
@@ -38,14 +40,23 @@ import java.util.Properties;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
+import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;;
 
 public class Query6 implements NexmarkQuery {
     public CountAction<String, Event> input;
     private static final Duration auctionDurationUpperS = Duration.ofSeconds(1800);
     public LatencyCountTransformerSupplier<DoubleAndTime, Double> lcts;
+    private ArrayList<Long> aucProcLat;
+    private ArrayList<Long> bidProcLat;
+    private ArrayList<Long> aucQueueTime;
+    private ArrayList<Long> bidQueueTime;
+    private ArrayList<Long> topo2ProcLat;
+    private ArrayList<Long> topo3ProcLat;
+    private ArrayList<Long> aucBidsQueueTime;
 
     public Query6(String baseDir) {
         this.input = new CountAction<>();
@@ -56,6 +67,12 @@ public class Query6 implements NexmarkQuery {
                         return value.avg;
                     }
                 });
+        aucProcLat = new ArrayList<>(NUM_STATS);
+        bidProcLat = new ArrayList<>(NUM_STATS);
+        aucQueueTime = new ArrayList<>(NUM_STATS);
+        bidQueueTime = new ArrayList<>(NUM_STATS);
+        topo2ProcLat = new ArrayList<>(NUM_STATS);
+        topo3ProcLat = new ArrayList<>(NUM_STATS);
     }
 
     @Override
@@ -101,6 +118,8 @@ public class Query6 implements NexmarkQuery {
         Serde<AuctionBid> abSerde;
         Serde<AucIDSeller> asSerde;
         Serde<PriceTime> ptSerde;
+        Serde<LongAndTime> ltSerde;
+        Serde<PriceTimeList> ptlSerde;
 
         if (serde.equals("json")) {
             JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
@@ -118,6 +137,14 @@ public class Query6 implements NexmarkQuery {
             JSONPOJOSerde<PriceTime> ptSerdeJSON = new JSONPOJOSerde<>();
             ptSerdeJSON.setClass(PriceTime.class);
             ptSerde = ptSerdeJSON;
+
+            JSONPOJOSerde<LongAndTime> ltSerdeJSON = new JSONPOJOSerde<>();
+            ltSerdeJSON.setClass(LongAndTime.class);
+            ltSerde = ltSerdeJSON;
+
+            JSONPOJOSerde<PriceTimeList> ptlSerdeJSON = new JSONPOJOSerde<>();
+            ptlSerdeJSON.setClass(PriceTimeList.class);
+            ptlSerde = ptlSerdeJSON;
         } else if (serde.equals("msgp")) {
             MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
             eSerdeMsgp.setClass(Event.class);
@@ -134,6 +161,14 @@ public class Query6 implements NexmarkQuery {
             MsgpPOJOSerde<PriceTime> ptSerdeMsgp = new MsgpPOJOSerde<>();
             ptSerdeMsgp.setClass(PriceTime.class);
             ptSerde = ptSerdeMsgp;
+
+            MsgpPOJOSerde<LongAndTime> ltSerdeMsgp = new MsgpPOJOSerde<>();
+            ltSerdeMsgp.setClass(LongAndTime.class);
+            ltSerde = ltSerdeMsgp;
+
+            MsgpPOJOSerde<PriceTimeList> ptlSerdeMsgp = new MsgpPOJOSerde<>();
+            ptlSerdeMsgp.setClass(PriceTimeList.class);
+            ptlSerde = ptlSerdeMsgp;
         } else {
             throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
         }
@@ -147,15 +182,35 @@ public class Query6 implements NexmarkQuery {
                 .branch((key, value) -> value.etype == Event.EType.AUCTION, Branched.as("auctions"))
                 .noDefaultBranch();
         KStream<Long, Event> bidsByAucID = ksMap.get("Branch-bids")
-                .selectKey((key, value) -> value.bid.auction)
+                .selectKey((key, value) -> {
+                    long procLat = System.nanoTime() - value.startProcTsNano();
+                    StreamsUtils.appendLat(bidProcLat, procLat, "subGBid_proc");
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return value.bid.auction;
+                })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsByAucIDTpRepar)
-                        .withNumberOfPartitions(bidsByAucIDTpNumPar));
+                        .withNumberOfPartitions(bidsByAucIDTpNumPar))
+                .peek((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(bidQueueTime, queueDelay, "bidQueueDelay");
+                });
         KStream<Long, Event> aucsByID = ksMap.get("Branch-auctions")
-                .selectKey((key, value) -> value.newAuction.id)
+                .selectKey((key, value) -> {
+                    long procLat = System.nanoTime() - value.startProcTsNano();
+                    StreamsUtils.appendLat(aucProcLat, procLat, "subGAuc_proc");
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return value.newAuction.id;
+                })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucsByIDTpRepar)
-                        .withNumberOfPartitions(aucsByIDTpNumPar));
+                        .withNumberOfPartitions(aucsByIDTpNumPar))
+                .peek((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
+                });
 
         JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(auctionDurationUpperS);
         WindowBytesStoreSupplier aucsByIDStoreSupplier = Stores.inMemoryWindowStore(
@@ -183,12 +238,22 @@ public class Query6 implements NexmarkQuery {
                 });
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
-        KTable<AucIDSeller, PriceTime> maxBids = joined.selectKey((key, value) -> {
-            return new AucIDSeller(key, value.seller);
-        })
+        KTable<AucIDSeller, PriceTime> maxBids = joined
+                .selectKey((key, value) -> {
+                    long lat = System.nanoTime() - value.startProcTsNano();
+                    StreamsUtils.appendLat(topo2ProcLat, lat, "subG2_proc");
+                    AucIDSeller ais = new AucIDSeller(key, value.seller);
+                    ais.setInjTsMs(Instant.now().toEpochMilli());
+                    return ais;
+                })
                 .repartition(Repartitioned.with(asSerde, abSerde)
                         .withName(aucBidsTpRepar)
                         .withNumberOfPartitions(aucsByIDTpNumPar))
+                .peek((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(aucBidsQueueTime, queueDelay, "aucBidsQueueDelay");
+                })
                 .groupByKey()
                 .aggregate(new Initializer<PriceTime>() {
                     @Override
@@ -200,11 +265,16 @@ public class Query6 implements NexmarkQuery {
                     @Override
                     public PriceTime apply(AucIDSeller key, AuctionBid value, PriceTime aggregate) {
                         if (aggregate == null) {
-                            return new PriceTime(value.bidPrice, value.bidDateTimeMs);
+                            PriceTime pt = new PriceTime(value.bidPrice, value.bidDateTimeMs);
+                            pt.setStartProcTsNano(value.startProcTsNano());
+                            return pt;
                         }
                         if (value.bidPrice > aggregate.price) {
-                            return new PriceTime(value.bidPrice, value.bidDateTimeMs);
+                            PriceTime pt = new PriceTime(value.bidPrice, value.bidDateTimeMs);
+                            pt.setStartProcTsNano(value.startProcTsNano());
+                            return pt;
                         } else {
+                            aggregate.setStartProcTsNano(value.startProcTsNano());
                             return aggregate;
                         }
                     }
@@ -217,64 +287,65 @@ public class Query6 implements NexmarkQuery {
         KeyValueBytesStoreSupplier collectValKV = Stores.inMemoryKeyValueStore("collectValKVStore");
         final int maxSize = 10;
 
-        @SuppressWarnings("unchecked")
-        Serde<List<PriceTime>> lSerde = Serdes.ListSerde(ArrayList.class, ptSerde);
-
-        KTable<Long, List<PriceTime>> aggTab = maxBids
+        KTable<Long, PriceTimeList> aggTab = maxBids
                 .groupBy(new KeyValueMapper<AucIDSeller, PriceTime, KeyValue<Long, PriceTime>>() {
                     @Override
                     public KeyValue<Long, PriceTime> apply(AucIDSeller key, PriceTime value) {
                         // TODO Auto-generated method stub
+                        long procLat = System.nanoTime() - value.startProcTsNano();
+                        StreamsUtils.appendLat(topo3ProcLat, procLat, "subG3_proc");
+                        value.injTsMs = Instant.now().toEpochMilli();
                         return new KeyValue<Long, PriceTime>(key.seller, value);
                     }
                 }, Grouped.with(Serdes.Long(), ptSerde).withName(maxBidsGroupByTab))
-                .aggregate(new Initializer<List<PriceTime>>() {
+                .aggregate(new Initializer<PriceTimeList>() {
                     @Override
-                    public ArrayList<PriceTime> apply() {
-                        return new ArrayList<>(11);
+                    public PriceTimeList apply() {
+                        return new PriceTimeList(new ArrayList<>(11));
                     }
-                }, new Aggregator<Long, PriceTime, List<PriceTime>>() {
+                }, new Aggregator<Long, PriceTime, PriceTimeList>() {
                     @Override
-                    public List<PriceTime> apply(Long key, PriceTime value,
-                            List<PriceTime> aggregate) {
-                        aggregate.add(value);
-                        aggregate.sort(PriceTime.ASCENDING_TIME_THEN_PRICE);
+                    public PriceTimeList apply(Long key, PriceTime value,
+                            PriceTimeList aggregate) {
+                        aggregate.ptlist.add(value);
+                        aggregate.ptlist.sort(PriceTime.ASCENDING_TIME_THEN_PRICE);
                         // System.out.println("[ADD] agg before rm: " + aggregate);
-                        if (aggregate.size() > maxSize) {
-                            aggregate.remove(0);
+                        if (aggregate.ptlist.size() > maxSize) {
+                            aggregate.ptlist.remove(0);
                         }
                         // System.out.println("[ADD] agg after rm: " + aggregate);
                         return aggregate;
                     }
-                }, new Aggregator<Long, PriceTime, List<PriceTime>>() {
+                }, new Aggregator<Long, PriceTime, PriceTimeList>() {
                     @Override
-                    public List<PriceTime> apply(Long key, PriceTime value,
-                            List<PriceTime> aggregate) {
+                    public PriceTimeList apply(Long key, PriceTime value,
+                            PriceTimeList aggregate) {
                         // System.out.println("[RM] val to rm: " + value);
-                        if (aggregate.size() > 0) {
-                            aggregate.remove(value);
+                        if (aggregate.ptlist.size() > 0) {
+                            aggregate.ptlist.remove(value);
                         }
                         // System.out.println("[RM] agg after rm: " + aggregate);
                         return aggregate;
                     }
                 }, Named.as("collect-val"),
-                        Materialized.<Long, List<PriceTime>>as(collectValKV)
+                        Materialized.<Long, PriceTimeList>as(collectValKV)
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(lSerde)
+                                .withValueSerde(ptlSerde)
                                 .withLoggingEnabled(new HashMap<>())
                                 .withCachingEnabled());
         aggTab.mapValues((key, value) -> {
             long sum = 0;
-            int l = value.size();
-            for (PriceTime pt : value) {
+            int l = value.ptlist.size();
+            for (PriceTime pt : value.ptlist) {
                 sum += pt.price;
             }
-            double avg =  (double) sum / (double) l;
+            double avg = (double) sum / (double) l;
             DoubleAndTime dt = new DoubleAndTime(avg);
+            dt.setStartProcTsNano(value.startProcTsNano());
             return dt;
         }).toStream()
-        .transformValues(lcts, Named.as("latency-measure"))
-        .to(outTp, Produced.with(Serdes.Long(), Serdes.Double()));
+                .transformValues(lcts, Named.as("latency-measure"))
+                .to(outTp, Produced.with(Serdes.Long(), Serdes.Double()));
         return builder;
     }
 

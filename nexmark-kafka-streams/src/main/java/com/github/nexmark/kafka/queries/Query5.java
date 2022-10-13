@@ -3,6 +3,7 @@ package com.github.nexmark.kafka.queries;
 import com.github.nexmark.kafka.model.AuctionIdCntMax;
 import com.github.nexmark.kafka.model.AuctionIdCount;
 import com.github.nexmark.kafka.model.Event;
+import com.github.nexmark.kafka.model.LongAndTime;
 import com.github.nexmark.kafka.model.StartEndTime;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.Serde;
@@ -17,6 +18,7 @@ import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 import java.io.IOException;
 import java.io.FileInputStream;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.List;
@@ -28,22 +30,18 @@ public class Query5 implements NexmarkQuery {
     public CountAction<String, Event> input;
     public LatencyCountTransformerSupplier<AuctionIdCntMax, AuctionIdCntMax> lcts;
     public ArrayList<Long> topo1ProcLat;
+    public ArrayList<Long> topo2ProcLat;
+    public ArrayList<Long> bidsQueueTime;
+    public ArrayList<Long> auctionBidsQueueTime;
 
     public Query5(String baseDir) {
         input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q5_sink_ets", baseDir,
                 new IdentityValueMapper<AuctionIdCntMax>());
         topo1ProcLat = new ArrayList<>(NUM_STATS);
-    }
-
-    private void appendLat(ArrayList<Long> lat, long ts, String tag) {
-        if (lat.size() < NUM_STATS) {
-            lat.add(ts);
-        } else {
-            System.out.println("{\"" + tag + "\": " + lat + "}");
-            lat.clear();
-            lat.add(ts);
-        }
+        topo2ProcLat = new ArrayList<>(NUM_STATS);
+        bidsQueueTime = new ArrayList<>(NUM_STATS);
+        auctionBidsQueueTime = new ArrayList<>(NUM_STATS);
     }
 
     @Override
@@ -77,6 +75,7 @@ public class Query5 implements NexmarkQuery {
         Serde<StartEndTime> seSerde;
         Serde<AuctionIdCntMax> aicmSerde;
         Serde<AuctionIdCount> aicSerde;
+        Serde<LongAndTime> latSerde;
 
         if (serde.equals("json")) {
             JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
@@ -94,6 +93,10 @@ public class Query5 implements NexmarkQuery {
             JSONPOJOSerde<AuctionIdCntMax> aicmSerdeJSON = new JSONPOJOSerde<AuctionIdCntMax>();
             aicmSerdeJSON.setClass(AuctionIdCntMax.class);
             aicmSerde = aicmSerdeJSON;
+
+            JSONPOJOSerde<LongAndTime> latSerdeJSON = new JSONPOJOSerde<LongAndTime>();
+            latSerdeJSON.setClass(LongAndTime.class);
+            latSerde = latSerdeJSON;
         } else if (serde.equals("msgp")) {
             MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
             eSerdeMsgp.setClass(Event.class);
@@ -110,6 +113,10 @@ public class Query5 implements NexmarkQuery {
             MsgpPOJOSerde<AuctionIdCntMax> aicmSerdeMsgp = new MsgpPOJOSerde<>();
             aicmSerdeMsgp.setClass(AuctionIdCntMax.class);
             aicmSerde = aicmSerdeMsgp;
+
+            MsgpPOJOSerde<LongAndTime> latSerdeMsgp = new MsgpPOJOSerde<>();
+            latSerdeMsgp.setClass(LongAndTime.class);
+            latSerde = latSerdeMsgp;
         } else {
             throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
         }
@@ -122,7 +129,8 @@ public class Query5 implements NexmarkQuery {
                 .filter((key, value) -> value != null && value.etype == Event.EType.BID)
                 .selectKey((key, value) -> {
                     long procLat = System.nanoTime() - value.startProcTsNano();
-                    appendLat(topo1ProcLat, procLat, "subG1ProcLat");
+                    StreamsUtils.appendLat(topo1ProcLat, procLat, "subG1ProcLat");
+                    value.setInjTsMs(Instant.now().toEpochMilli());
                     return value.bid.auction;
                 });
 
@@ -135,56 +143,94 @@ public class Query5 implements NexmarkQuery {
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsTpRepar)
                         .withNumberOfPartitions(bidsTpPar))
+                .peek(new ForeachAction<Long,Event>() {
+                    @Override
+                    public void apply(Long key, Event value) {
+                        value.setStartProcTsNano(System.nanoTime()); 
+                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                        StreamsUtils.appendLat(bidsQueueTime, queueDelay, "bidsTpQueueDelay");
+                    }
+                })
                 .groupByKey(Grouped.with(Serdes.Long(), eSerde))
                 .windowedBy(tws)
-                .aggregate(new Initializer<Long>() {
+                .aggregate(new Initializer<LongAndTime>() {
                     @Override
-                    public Long apply() {
-                        return 0L;
+                    public LongAndTime apply() {
+                        return new LongAndTime(0);
                     }
-                }, new Aggregator<Long, Event, Long>() {
+                }, new Aggregator<Long, Event, LongAndTime>() {
                     @Override
-                    public Long apply(Long key, Event value, Long aggregate) {
+                    public LongAndTime apply(Long key, Event value, LongAndTime aggregate) {
                         // System.out.println("key: " + key + " ts: " + value.bid.dateTime + " agg: " +
                         // aggregate);
-                        return aggregate + 1;
+                        LongAndTime lat = new LongAndTime(aggregate.val + 1);
+                        lat.startExecNano = value.startProcTsNano();
+                        return lat;
                     }
                 }, Named.as("auctionBidsCount"),
-                        Materialized.<Long, Long>as(auctionBidsWSSupplier)
+                        Materialized.<Long, LongAndTime>as(auctionBidsWSSupplier)
                                 .withKeySerde(Serdes.Long())
-                                .withValueSerde(Serdes.Long())
+                                .withValueSerde(latSerde)
                                 .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>()))
                 .toStream()
-                .mapValues((key, value) -> new AuctionIdCount(key.key(), value))
-                .selectKey((key, value) -> new StartEndTime(key.window().start(), key.window().end()))
+                .mapValues((key, value) -> {
+                    AuctionIdCount aic = new AuctionIdCount(key.key(), value.val);
+                    aic.startExecNano = value.startExecNano;
+                    return aic;
+                })
+                .selectKey((key, value) -> {
+                    StartEndTime se = new StartEndTime(key.window().start(), key.window().end());
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    long procLat = System.nanoTime() - value.startExecNano;
+                    StreamsUtils.appendLat(topo2ProcLat, procLat, "subG2ProcLat");
+                    return se;
+                })
                 .repartition(Repartitioned.with(seSerde, aicSerde)
                         .withName(auctionBidsTpRepar)
-                        .withNumberOfPartitions(auctionBidsTpPar));
+                        .withNumberOfPartitions(auctionBidsTpPar))
+                .peek(new ForeachAction<StartEndTime,AuctionIdCount>() {
+                    @Override
+                    public void apply(StartEndTime key, AuctionIdCount value) {
+                        value.setStartProcTsNano(System.nanoTime()); 
+                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                        StreamsUtils.appendLat(auctionBidsQueueTime, queueDelay, "auctionBidsQueueDelay");
+                    }
+                });
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
 
-        KTable<StartEndTime, Long> maxBids = auctionBids
+        KTable<StartEndTime, LongAndTime> maxBids = auctionBids
                 .groupByKey(Grouped.with(seSerde, aicSerde))
-                .aggregate(() -> 0L,
+                .aggregate(() -> new LongAndTime(0),
                         (key, value, aggregate) -> {
                             // System.out.println("start " + key.startTime + " end: " + key.endTime +
                             // " aucId: " + value.aucId + " count: " + value.count +
                             // " aggregate: " + aggregate);
-                            if (value.count > aggregate) {
-                                return value.count;
+                            if (value.count > aggregate.val) {
+                                LongAndTime lat = new LongAndTime(value.count);
+                                lat.startExecNano = value.startProcTsNano();
+                                return lat;
                             } else {
+                                aggregate.startExecNano = value.startProcTsNano();
                                 return aggregate;
                             }
                         }, Named.as("maxBidsAgg"),
-                        Materialized.<StartEndTime, Long>as(maxBidsKV)
+                        Materialized.<StartEndTime, LongAndTime>as(maxBidsKV)
                                 .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>())
                                 .withKeySerde(seSerde)
-                                .withValueSerde(Serdes.Long()));
+                                .withValueSerde(latSerde));
         auctionBids
-                .join(maxBids, (leftValue, rightValue) -> new AuctionIdCntMax(leftValue.aucId,
-                        leftValue.count, (long) rightValue))
+                .join(maxBids, (leftValue, rightValue) -> {
+                    AuctionIdCntMax aicm = new AuctionIdCntMax(leftValue.aucId,
+                        leftValue.count, (long) (rightValue.val));
+                    aicm.startExecNano = leftValue.startProcTsNano();
+                    if (rightValue.startExecNano < aicm.startExecNano) {
+                        aicm.startExecNano = rightValue.startExecNano;
+                    }
+                    return aicm;
+                })
                 .filter((key, value) -> value.count >= value.maxCnt)
                 .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(seSerde, aicmSerde));

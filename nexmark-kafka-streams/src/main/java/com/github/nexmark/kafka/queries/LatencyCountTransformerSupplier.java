@@ -88,14 +88,8 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
             long ts = ctx.timestamp();
             long now = Instant.now().toEpochMilli();
             long startProc = value.startProcTsNano();
-            long lat = now = startProc;
-            if (procLat.size() < NUM_STATS) {
-                procLat.add(lat);
-            } else {
-                System.out.println("{\"" + lh.tag + "_proc" + "\": " + procLat + "}");
-                procLat.clear();
-                procLat.add(lat);
-            }
+            long lat = now - startProc;
+            StreamsUtils.appendLat(procLat, lat, lh.tag + "_proc");
             lh.appendLatency(now - ts);
             return mapper.apply(value);
         }
