@@ -202,6 +202,10 @@ public class Query3 implements NexmarkQuery {
     @Override
     public void outputRemainingStats() {
         lcts.outputRemainingStats();
+        StreamsUtils.printRemaining(aucProcLat, "subGAuc_proc");
+        StreamsUtils.printRemaining(perProcLat, "subGPer_proc");
+        StreamsUtils.printRemaining(aucQueueTime, "aucQueueDelay");
+        StreamsUtils.printRemaining(perQueueTime, "perQueueDelay");
     }
 
     // @Override

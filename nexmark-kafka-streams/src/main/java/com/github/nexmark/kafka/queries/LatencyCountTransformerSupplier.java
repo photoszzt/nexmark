@@ -97,6 +97,9 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
         @Override
         public void close() {
             lh.waitForFinish();
+            if (procLat.size() > 0) {
+                System.out.println("{\"" + lh.tag + "_proc" + "\": " + procLat + "}");
+            }
         }
     }
 }

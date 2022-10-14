@@ -33,6 +33,10 @@ public class Query5 implements NexmarkQuery {
     public ArrayList<Long> topo2ProcLat;
     public ArrayList<Long> bidsQueueTime;
     public ArrayList<Long> auctionBidsQueueTime;
+    private static final String TOPO1PROC_TAG = "subG1ProcLat";
+    private static final String TOPO2PROC_TAG = "subG2ProcLat";
+    private static final String BIDSQT_TAG = "bidsQueueDelay";
+    private static final String AUCBIDSQT_TAG = "auctionBidsQueueDelay";
 
     public Query5(String baseDir) {
         input = new CountAction<>();
@@ -129,7 +133,7 @@ public class Query5 implements NexmarkQuery {
                 .filter((key, value) -> value != null && value.etype == Event.EType.BID)
                 .selectKey((key, value) -> {
                     long procLat = System.nanoTime() - value.startProcTsNano();
-                    StreamsUtils.appendLat(topo1ProcLat, procLat, "subG1ProcLat");
+                    StreamsUtils.appendLat(topo1ProcLat, procLat, TOPO1PROC_TAG);
                     value.setInjTsMs(Instant.now().toEpochMilli());
                     return value.bid.auction;
                 });
@@ -148,7 +152,7 @@ public class Query5 implements NexmarkQuery {
                     public void apply(Long key, Event value) {
                         value.setStartProcTsNano(System.nanoTime()); 
                         long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(bidsQueueTime, queueDelay, "bidsTpQueueDelay");
+                        StreamsUtils.appendLat(bidsQueueTime, queueDelay, BIDSQT_TAG);
                     }
                 })
                 .groupByKey(Grouped.with(Serdes.Long(), eSerde))
@@ -183,7 +187,7 @@ public class Query5 implements NexmarkQuery {
                     StartEndTime se = new StartEndTime(key.window().start(), key.window().end());
                     value.setInjTsMs(Instant.now().toEpochMilli());
                     long procLat = System.nanoTime() - value.startExecNano;
-                    StreamsUtils.appendLat(topo2ProcLat, procLat, "subG2ProcLat");
+                    StreamsUtils.appendLat(topo2ProcLat, procLat, TOPO2PROC_TAG);
                     return se;
                 })
                 .repartition(Repartitioned.with(seSerde, aicSerde)
@@ -194,7 +198,7 @@ public class Query5 implements NexmarkQuery {
                     public void apply(StartEndTime key, AuctionIdCount value) {
                         value.setStartProcTsNano(System.nanoTime()); 
                         long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(auctionBidsQueueTime, queueDelay, "auctionBidsQueueDelay");
+                        StreamsUtils.appendLat(auctionBidsQueueTime, queueDelay, AUCBIDSQT_TAG);
                     }
                 });
 
@@ -276,6 +280,10 @@ public class Query5 implements NexmarkQuery {
     @Override
     public void outputRemainingStats() {
         lcts.outputRemainingStats();
+        StreamsUtils.printRemaining(topo1ProcLat, TOPO1PROC_TAG);
+        StreamsUtils.printRemaining(topo2ProcLat, TOPO2PROC_TAG);
+        StreamsUtils.printRemaining(bidsQueueTime, BIDSQT_TAG);
+        StreamsUtils.printRemaining(auctionBidsQueueTime, AUCBIDSQT_TAG);
     }
     // @Override
     // public void printRemainingStats() {

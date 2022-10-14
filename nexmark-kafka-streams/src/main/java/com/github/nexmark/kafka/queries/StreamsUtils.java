@@ -87,13 +87,16 @@ public class StreamsUtils {
     }
 
     public static void appendLat(ArrayList<Long> lat, long ts, String tag) {
-        if (lat.size() < NUM_STATS) {
-            lat.add(ts);
-        } else {
+        if (lat.size() == NUM_STATS) {
             System.out.println("{\"" + tag + "\": " + lat + "}");
             lat.clear();
-            lat.add(ts);
         }
+        lat.add(ts);
     }
 
+    public static void printRemaining(ArrayList<Long> lat, String tag) {
+        if (lat.size() > 0) {
+            System.out.println("{\"" + tag + "\": " + lat + "}");
+        }
+    }
 }

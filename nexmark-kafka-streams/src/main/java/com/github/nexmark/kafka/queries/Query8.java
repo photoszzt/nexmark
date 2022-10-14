@@ -28,6 +28,11 @@ public class Query8 implements NexmarkQuery {
     public ArrayList<Long> aucQueueTime;
     public ArrayList<Long> perQueueTime;
 
+    private static final String AUC_PROC_TAG = "subAuc_proc";
+    private static final String PER_PROC_TAG = "subPer_proc";
+    private static final String AUC_QUEUE_TAG = "auc_queue";
+    private static final String PER_QUEUE_TAG = "per_queue";
+
     public Query8(String baseDir) {
         input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q8_sink_ets", baseDir, new IdentityValueMapper<PersonTime>());
@@ -96,7 +101,7 @@ public class Query8 implements NexmarkQuery {
 
         KStream<Long, Event> person = ksMap.get("Branch-persons").selectKey((key, value) -> {
             long procLat = System.nanoTime() - value.startProcTsNano();
-            StreamsUtils.appendLat(perProcLat, procLat, "subGPer_proc");
+            StreamsUtils.appendLat(perProcLat, procLat, PER_PROC_TAG);
             value.setInjTsMs(Instant.now().toEpochMilli());
             return value.newPerson.id;
         }).repartition(Repartitioned.with(Serdes.Long(), eSerde)
@@ -107,20 +112,15 @@ public class Query8 implements NexmarkQuery {
                     public void apply(Long key, Event value) {
                         value.setStartProcTsNano(System.nanoTime());
                         long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(aucQueueTime, queueDelay, "perQueueDelay");
+                        StreamsUtils.appendLat(aucQueueTime, queueDelay, PER_QUEUE_TAG);
                     }
                 });
 
         KStream<Long, Event> auction = ksMap.get("Branch-auctions")
                 .selectKey((key, value) -> {
                     long procLat = System.nanoTime() - value.startProcTsNano();
-                    if (aucProcLat.size() < NUM_STATS) {
-                        aucProcLat.add(procLat);
-                    } else {
-                        System.out.println("{\"subGAuc_proc\": " + aucProcLat + "}");
-                        aucProcLat.clear();
-                        aucProcLat.add(procLat);
-                    }
+                    StreamsUtils.appendLat(aucProcLat, procLat, AUC_PROC_TAG);
+                    value.setInjTsMs(Instant.now().toEpochMilli());
                     return value.newAuction.seller;
                 })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
@@ -131,7 +131,7 @@ public class Query8 implements NexmarkQuery {
                     public void apply(Long key, Event value) {
                         value.setStartProcTsNano(System.nanoTime());
                         long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
+                        StreamsUtils.appendLat(aucQueueTime, queueDelay, AUC_QUEUE_TAG);
                     }
                 });
 
@@ -201,6 +201,10 @@ public class Query8 implements NexmarkQuery {
     @Override
     public void outputRemainingStats() {
         lcts.outputRemainingStats();
+        StreamsUtils.printRemaining(aucProcLat, AUC_PROC_TAG);
+        StreamsUtils.printRemaining(perProcLat, PER_PROC_TAG);
+        StreamsUtils.printRemaining(aucQueueTime, AUC_QUEUE_TAG);
+        StreamsUtils.printRemaining(perQueueTime, PER_QUEUE_TAG);
     }
 
     // @Override

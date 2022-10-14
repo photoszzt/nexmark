@@ -58,6 +58,14 @@ public class Query6 implements NexmarkQuery {
     private ArrayList<Long> topo3ProcLat;
     private ArrayList<Long> aucBidsQueueTime;
 
+    private static final String AUC_PROC_TAG = "subGAuc_proc";
+    private static final String BID_PROC_TAG = "subGBid_proc";
+    private static final String AUCQT_TAG = "aucQueueTime";
+    private static final String BIDQT_TAG = "bidQueueTime";
+    private static final String TOPO2_PROC_TAG = "topo2_proc";
+    private static final String TOPO3_PROC_TAG = "topo3_proc";
+    private static final String AUCBIDSQT_TAG = "aucBidsQueueTime";
+
     public Query6(String baseDir) {
         this.input = new CountAction<>();
         this.lcts = new LatencyCountTransformerSupplier<>("q6_sink_ets", baseDir,
@@ -184,7 +192,7 @@ public class Query6 implements NexmarkQuery {
         KStream<Long, Event> bidsByAucID = ksMap.get("Branch-bids")
                 .selectKey((key, value) -> {
                     long procLat = System.nanoTime() - value.startProcTsNano();
-                    StreamsUtils.appendLat(bidProcLat, procLat, "subGBid_proc");
+                    StreamsUtils.appendLat(bidProcLat, procLat, BID_PROC_TAG);
                     value.setInjTsMs(Instant.now().toEpochMilli());
                     return value.bid.auction;
                 })
@@ -194,12 +202,12 @@ public class Query6 implements NexmarkQuery {
                 .peek((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                    StreamsUtils.appendLat(bidQueueTime, queueDelay, "bidQueueDelay");
+                    StreamsUtils.appendLat(bidQueueTime, queueDelay, BIDQT_TAG);
                 });
         KStream<Long, Event> aucsByID = ksMap.get("Branch-auctions")
                 .selectKey((key, value) -> {
                     long procLat = System.nanoTime() - value.startProcTsNano();
-                    StreamsUtils.appendLat(aucProcLat, procLat, "subGAuc_proc");
+                    StreamsUtils.appendLat(aucProcLat, procLat, AUC_PROC_TAG);
                     value.setInjTsMs(Instant.now().toEpochMilli());
                     return value.newAuction.id;
                 })
@@ -209,7 +217,7 @@ public class Query6 implements NexmarkQuery {
                 .peek((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                    StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
+                    StreamsUtils.appendLat(aucQueueTime, queueDelay, AUCQT_TAG);
                 });
 
         JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(auctionDurationUpperS);
@@ -241,7 +249,7 @@ public class Query6 implements NexmarkQuery {
         KTable<AucIDSeller, PriceTime> maxBids = joined
                 .selectKey((key, value) -> {
                     long lat = System.nanoTime() - value.startProcTsNano();
-                    StreamsUtils.appendLat(topo2ProcLat, lat, "subG2_proc");
+                    StreamsUtils.appendLat(topo2ProcLat, lat, TOPO2_PROC_TAG);
                     AucIDSeller ais = new AucIDSeller(key, value.seller);
                     ais.setInjTsMs(Instant.now().toEpochMilli());
                     return ais;
@@ -252,7 +260,7 @@ public class Query6 implements NexmarkQuery {
                 .peek((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                    StreamsUtils.appendLat(aucBidsQueueTime, queueDelay, "aucBidsQueueDelay");
+                    StreamsUtils.appendLat(aucBidsQueueTime, queueDelay, AUCBIDSQT_TAG);
                 })
                 .groupByKey()
                 .aggregate(new Initializer<PriceTime>() {
@@ -293,7 +301,7 @@ public class Query6 implements NexmarkQuery {
                     public KeyValue<Long, PriceTime> apply(AucIDSeller key, PriceTime value) {
                         // TODO Auto-generated method stub
                         long procLat = System.nanoTime() - value.startProcTsNano();
-                        StreamsUtils.appendLat(topo3ProcLat, procLat, "subG3_proc");
+                        StreamsUtils.appendLat(topo3ProcLat, procLat, TOPO3_PROC_TAG);
                         value.injTsMs = Instant.now().toEpochMilli();
                         return new KeyValue<Long, PriceTime>(key.seller, value);
                     }
@@ -388,6 +396,13 @@ public class Query6 implements NexmarkQuery {
     @Override
     public void outputRemainingStats() {
         lcts.outputRemainingStats();
+        StreamsUtils.printRemaining(aucProcLat, AUC_PROC_TAG);
+        StreamsUtils.printRemaining(bidProcLat, BID_PROC_TAG);
+        StreamsUtils.printRemaining(aucQueueTime, AUCQT_TAG);
+        StreamsUtils.printRemaining(bidQueueTime, BIDQT_TAG);
+        StreamsUtils.printRemaining(topo2ProcLat, TOPO2_PROC_TAG);
+        StreamsUtils.printRemaining(topo3ProcLat, TOPO3_PROC_TAG);
+        StreamsUtils.printRemaining(aucBidsQueueTime, AUCBIDSQT_TAG);
     }
     // @Override
     // public void printRemainingStats() {

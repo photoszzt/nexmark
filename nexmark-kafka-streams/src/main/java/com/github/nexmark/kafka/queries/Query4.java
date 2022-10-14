@@ -380,6 +380,14 @@ public class Query4 implements NexmarkQuery {
     @Override
     public void outputRemainingStats() {
         lcts.outputRemainingStats();
+        StreamsUtils.printRemaining(aucProcLat, "subGAuc_proc");
+        StreamsUtils.printRemaining(bidProcLat, "subGBid_proc");
+        StreamsUtils.printRemaining(aucQueueTime, "aucQueueDelay");
+        StreamsUtils.printRemaining(bidQueueTime, "bidQueueDelay");
+        StreamsUtils.printRemaining(aucBidsQueueTime, "aucBidsQueueDelay");
+        StreamsUtils.printRemaining(maxBidsQueueTime, "maxBidsQueueDelay");
+        StreamsUtils.printRemaining(topo2ProcLat, "subG2_proc");
+        StreamsUtils.printRemaining(topo3ProcLat, "subG3_proc");
     }
     // @Override
     // public void printRemainingStats() {

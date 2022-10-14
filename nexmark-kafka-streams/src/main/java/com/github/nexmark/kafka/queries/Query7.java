@@ -29,8 +29,15 @@ public class Query7 implements NexmarkQuery {
     private ArrayList<Long> bidsByPriceProcLat;
     private ArrayList<Long> bidsByWinQueueTime;
     private ArrayList<Long> bidsByPriceQueueTime;
-    private ArrayList<Long> maxBidsQeueTime;
+    private ArrayList<Long> maxBidsQueueTime;
     private ArrayList<Long> topo2ProcLat;
+
+    private static final String BIDS_BY_WIN_PROC_TAG = "bids_by_win_proc";
+    private static final String BIDS_BY_PRICE_PROC_TAG = "bids_by_price_proc";
+    private static final String BIDS_BY_WIN_QUEUE_TAG = "bids_by_win_queue";
+    private static final String BIDS_BY_PRICE_QUEUE_TAG = "bids_by_price_queue";
+    private static final String MAX_BIDS_QUEUE_TAG = "max_bids_queue";
+    private static final String TOPO2_PROC_TAG = "topo2_proc";
 
     public Query7(String baseDir) {
         input = new CountAction<>();
@@ -40,7 +47,7 @@ public class Query7 implements NexmarkQuery {
         bidsByWinQueueTime = new ArrayList<>(NUM_STATS);
         bidsByPriceQueueTime = new ArrayList<>(NUM_STATS);
         topo2ProcLat = new ArrayList<>(NUM_STATS);
-        maxBidsQeueTime = new ArrayList<>(NUM_STATS);
+        maxBidsQueueTime = new ArrayList<>(NUM_STATS);
     }
 
     @Override
@@ -137,7 +144,7 @@ public class Query7 implements NexmarkQuery {
                         long wEnd = windowStart + sizeMs;
                         value.setInjTsMs(Instant.now().toEpochMilli());
                         long procLat = System.nanoTime() - value.startProcTsNano();
-                        StreamsUtils.appendLat(bidsByWinProcLat, procLat, "subGBidsByWin_proc");
+                        StreamsUtils.appendLat(bidsByWinProcLat, procLat, BIDS_BY_WIN_PROC_TAG);
                         return new StartEndTime(windowStart, wEnd);
                     }
                 })
@@ -148,7 +155,7 @@ public class Query7 implements NexmarkQuery {
                 .selectKey((key, value) -> {
                     value.setInjTsMs(Instant.now().toEpochMilli());
                     long procLat = System.nanoTime() - value.startProcTsNano();
-                    StreamsUtils.appendLat(bidsByPriceProcLat, procLat, "subGBidsByPrice_proc");
+                    StreamsUtils.appendLat(bidsByPriceProcLat, procLat, BIDS_BY_PRICE_PROC_TAG);
                     return value.bid.price;
                 })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
@@ -157,7 +164,7 @@ public class Query7 implements NexmarkQuery {
                 .peek((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                    StreamsUtils.appendLat(bidsByPriceQueueTime, queueDelay, "bidsByPriceQueueDelay");
+                    StreamsUtils.appendLat(bidsByPriceQueueTime, queueDelay, BIDS_BY_PRICE_QUEUE_TAG);
                 });
 
         String maxBidPerWindowTabName = "maxBidByWinTab";
@@ -166,7 +173,7 @@ public class Query7 implements NexmarkQuery {
                 .peek((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                    StreamsUtils.appendLat(bidsByWinQueueTime, queueDelay, "bidsByWinQueueDelay");
+                    StreamsUtils.appendLat(bidsByWinQueueTime, queueDelay, BIDS_BY_WIN_QUEUE_TAG);
                 })
                 .groupByKey(Grouped.with(seSerde, eSerde))
                 .aggregate(() -> new LongAndTime(0), (key, value, aggregate) -> {
@@ -190,7 +197,7 @@ public class Query7 implements NexmarkQuery {
                     public KeyValue<Long, StartEndTime> apply(StartEndTime key, LongAndTime value) {
                         key.setInjTsMs(Instant.now().toEpochMilli());
                         long procLat = System.nanoTime() - value.startProcTsNano();
-                        StreamsUtils.appendLat(topo2ProcLat, procLat, "subG2_proc");
+                        StreamsUtils.appendLat(topo2ProcLat, procLat, TOPO2_PROC_TAG);
                         return new KeyValue<Long, StartEndTime>(value.val, key);
                     }
                 })
@@ -200,7 +207,7 @@ public class Query7 implements NexmarkQuery {
                 .peek((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                    StreamsUtils.appendLat(maxBidsQeueTime, queueDelay, "maxBidsQueueDelay");
+                    StreamsUtils.appendLat(maxBidsQueueTime, queueDelay, MAX_BIDS_QUEUE_TAG);
                 });
 
         JoinWindows jw = JoinWindows.ofTimeDifferenceAndGrace(windowSize, grace);
@@ -272,6 +279,12 @@ public class Query7 implements NexmarkQuery {
     @Override
     public void outputRemainingStats() {
         lcts.outputRemainingStats();
+        StreamsUtils.printRemaining(bidsByWinProcLat, BIDS_BY_WIN_PROC_TAG);
+        StreamsUtils.printRemaining(bidsByPriceProcLat, BIDS_BY_PRICE_PROC_TAG);
+        StreamsUtils.printRemaining(bidsByWinQueueTime, BIDS_BY_WIN_QUEUE_TAG);
+        StreamsUtils.printRemaining(bidsByPriceQueueTime, BIDS_BY_PRICE_QUEUE_TAG);
+        StreamsUtils.printRemaining(maxBidsQueueTime, MAX_BIDS_QUEUE_TAG);
+        StreamsUtils.printRemaining(topo2ProcLat, TOPO2_PROC_TAG);
     }
 
     // @Override
