@@ -17,13 +17,16 @@ public class LongAndTime implements StartProcTs, InjTsMs {
     public long injTsMs;
 
     @JsonCreator
-    public LongAndTime(@JsonProperty("val") Long val) {
+    public LongAndTime(@JsonProperty("val") Long val, @JsonProperty("injTsMs") long injTsMs) {
         this.val = val;
+        this.injTsMs = injTsMs;
     }
 
     @JsonCreator
-    public LongAndTime(@JsonProperty("val") long val) {
+    public LongAndTime(@JsonProperty("val") long val, @JsonProperty("injTsMs") long injTsMs) {
         this.val = val;
+        this.injTsMs = injTsMs;
+        startExecNano = 0;
     }
 
     @Override

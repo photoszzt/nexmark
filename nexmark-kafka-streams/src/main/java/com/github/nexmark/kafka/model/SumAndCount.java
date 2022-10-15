@@ -18,6 +18,7 @@ public class SumAndCount implements StartProcTs {
                        @JsonProperty("count") long count) {
         this.sum = sum;
         this.count = count;
+        this.startExecNano = 0;
     }
 
     @Override
@@ -44,7 +45,6 @@ public class SumAndCount implements StartProcTs {
 
     @Override
     public long startProcTsNano() {
-        // TODO Auto-generated method stub
         return startExecNano;
     }
 

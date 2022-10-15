@@ -21,7 +21,7 @@ tasks:
     deps: [build]
     dir: ./build
     cmds:
-      - java -cp ./libs/nexmark-kafka-streams-0.2-SNAPSHOT-uber.jar com.github.nexmark.kafka.queries.RunQuery {{.CLI_ARGS}}
+      - java -ea -cp ./libs/nexmark-kafka-streams-0.2-SNAPSHOT-uber.jar com.github.nexmark.kafka.queries.RunQuery {{.CLI_ARGS}}
 
   run-query-metrics:
     desc: "run query with metrics"

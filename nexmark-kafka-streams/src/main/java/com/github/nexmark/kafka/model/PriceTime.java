@@ -22,9 +22,12 @@ public class PriceTime implements StartProcTs, InjTsMs {
     @JsonCreator
     public PriceTime(
             @JsonProperty("price") long price,
-            @JsonProperty("ts") long ts) {
+            @JsonProperty("ts") long ts,
+            @JsonProperty("injTsMs") long injTsMs) {
         this.ts = ts;
         this.price = price;
+        this.injTsMs = injTsMs;
+        startProcTsNano = 0;
     }
 
     @Override

@@ -32,7 +32,7 @@ import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query4 implements NexmarkQuery {
-    public CountAction<String, Event> input;
+    // public CountAction<Event> input;
     public LatencyCountTransformerSupplier<DoubleAndTime, Double> lcts;
     private ArrayList<Long> aucProcLat;
     private ArrayList<Long> bidProcLat;
@@ -45,7 +45,7 @@ public class Query4 implements NexmarkQuery {
     private static final Duration auctionDurationUpperS = Duration.ofSeconds(1800);
 
     public Query4(String baseDir) {
-        input = new CountAction<>();
+        // input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q4_sink_ets", baseDir,
                 new ValueMapper<DoubleAndTime, Double>() {
                     @Override
@@ -156,50 +156,56 @@ public class Query4 implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde)
-                        .withTimestampExtractor(new EventTimestampExtractor()))
-                .peek(input);
+                        .withTimestampExtractor(new EventTimestampExtractor()));
+        // .peek(input);
         Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
-                .branch((key, value) -> value.etype == Event.EType.BID, Branched.as("bids"))
-                .branch((key, value) -> value.etype == Event.EType.AUCTION, Branched.as("auctions"))
+                .branch((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return value.etype == Event.EType.BID;
+                }, Branched.as("bids"))
+                .branch((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return value.etype == Event.EType.AUCTION;
+                }, Branched.as("auctions"))
                 .noDefaultBranch();
 
         KStream<Long, Event> bidsByAucID = ksMap.get("Branch-bids")
                 .selectKey((key, value) -> {
                     long procLat = System.nanoTime() - value.startProcTsNano();
                     StreamsUtils.appendLat(bidProcLat, procLat, "subGBid_proc");
-                    value.setInjTsMs(Instant.now().toEpochMilli());
                     return value.bid.auction;
                 })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsByAucIDTpRepar)
                         .withNumberOfPartitions(bidsByAucIDTpNumPar))
-                .peek(new ForeachAction<Long, Event>() {
-                    @Override
-                    public void apply(Long key, Event value) {
-                        value.setStartProcTsNano(System.nanoTime());
-                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(bidQueueTime, queueDelay, "bidQueueDelay");
-                    }
-                });
+                .mapValues((key, value) -> {
+                    assert value.injTsMs() != 0;
+                    value.setStartProcTsNano(System.nanoTime());
+                    assert value.startProcTsNano() != 0;
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(bidQueueTime, queueDelay, "bidQueueDelay");
+                    return value;
+                }, Named.as("bidMapValues"));
 
         KStream<Long, Event> aucsByID = ksMap.get("Branch-auctions")
                 .selectKey((key, value) -> {
                     long procLat = System.nanoTime() - value.startProcTsNano();
                     StreamsUtils.appendLat(aucProcLat, procLat, "subGAuc_proc");
-                    value.setInjTsMs(Instant.now().toEpochMilli());
                     return value.newAuction.id;
                 })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucsByIDTpRepar)
                         .withNumberOfPartitions(aucsByIDTpNumPar))
-                .peek(new ForeachAction<Long, Event>() {
-                    @Override
-                    public void apply(Long key, Event value) {
-                        value.setStartProcTsNano(System.nanoTime());
-                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
-                    }
-                });
+                .mapValues((key, value) -> {
+                    assert value.injTsMs() != 0;
+                    value.setStartProcTsNano(System.nanoTime());
+                    assert value.startProcTsNano() != 0;
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
+                    return value;
+                }, Named.as("aucMapValues"));
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
 
@@ -212,14 +218,20 @@ public class Query4 implements NexmarkQuery {
                 Duration.ofMillis(jw.size()), true);
 
         KTable<AucIdCategory, LongAndTime> maxBids = aucsByID.join(bidsByAucID, (leftValue, rightValue) -> {
-            long startExecNano = leftValue.startProcTsNano();
-            if (rightValue.startProcTsNano() < startExecNano) {
+            long startExecNano = 0;
+            if (leftValue.startProcTsNano() == 0) {
                 startExecNano = rightValue.startProcTsNano();
+            } else if (rightValue.startProcTsNano() == 0) {
+                startExecNano = leftValue.startProcTsNano();
+            } else {
+                startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
             }
+            // System.out.println("leftStart: " + leftValue.startProcTsNano() + " rightStart: " + rightValue.startProcTsNano() + " startExecNano: " + startExecNano);
+            assert startExecNano != 0;
             AuctionBid ab = new AuctionBid(rightValue.bid.dateTime,
                     leftValue.newAuction.dateTime, leftValue.newAuction.expires,
                     rightValue.bid.price, leftValue.newAuction.category,
-                    leftValue.newAuction.seller);
+                    leftValue.newAuction.seller, 0);
             ab.setStartProcTsNano(startExecNano);
             return ab;
         }, jw, StreamJoined.<Long, Event, Event>with(aucsByIDStoreSupplier, bidsByAucIDStoreSupplier)
@@ -231,45 +243,47 @@ public class Query4 implements NexmarkQuery {
                         && value.bidDateTimeMs <= value.aucExpiresMs)
                 .filter((key, value) -> {
                     // System.out.println("filuterNull, key: " + key + " value: " + value);
-                    return value != null;
+                    if (value != null) {
+                        value.setInjTsMs(Instant.now().toEpochMilli());
+                        return true;
+                    } else {
+                        return false;
+                    }
                 })
                 .selectKey(new KeyValueMapper<Long, AuctionBid, AucIdCategory>() {
                     @Override
                     public AucIdCategory apply(Long key, AuctionBid value) {
-                        // System.out.println("selectKey, key: " + key + " value: " + value);
+                        assert value.startProcTsNano() != 0;
                         long lat = System.nanoTime() - value.startProcTsNano();
                         StreamsUtils.appendLat(topo2ProcLat, lat, "subG2_proc");
-                        AucIdCategory aic = new AucIdCategory(key, value.aucCategory);
-                        aic.setInjTsMs(Instant.now().toEpochMilli());
-                        return aic;
+                        return new AucIdCategory(key, value.aucCategory);
                     }
                 })
                 .repartition(Repartitioned.with(aicSerde, abSerde)
                         .withName(aucBidsTpRepar).withNumberOfPartitions(aucBidsTpNumPar))
-                .peek(new ForeachAction<AucIdCategory, AuctionBid>() {
-                    @Override
-                    public void apply(AucIdCategory key, AuctionBid value) {
-                        value.setStartProcTsNano(System.nanoTime());
-                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(aucBidsQueueTime, queueDelay, "aucBidsQueueDelay");
-                    }
+                .mapValues((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(aucBidsQueueTime, queueDelay, "aucBidsQueueDelay");
+                    return value;
                 }, Named.as("topo3-beg"))
                 .groupByKey()
                 .aggregate(new Initializer<LongAndTime>() {
                     @Override
                     public LongAndTime apply() {
-                        return new LongAndTime(null);
+                        return new LongAndTime(null, 0);
                     }
                 }, new Aggregator<AucIdCategory, AuctionBid, LongAndTime>() {
                     @Override
                     public LongAndTime apply(AucIdCategory key, AuctionBid value, LongAndTime aggregate) {
+                        assert value.startProcTsNano() != 0;
                         if (aggregate.val == null) {
-                            LongAndTime lt = new LongAndTime(value.bidPrice);
+                            LongAndTime lt = new LongAndTime(value.bidPrice, 0);
                             lt.startExecNano = value.startProcTsNano();
                             return lt;
                         }
                         if (value.bidPrice > aggregate.val) {
-                            LongAndTime lt = new LongAndTime(value.bidPrice);
+                            LongAndTime lt = new LongAndTime(value.bidPrice, 0);
                             lt.startExecNano = value.startProcTsNano();
                             return lt;
                         } else {
@@ -320,8 +334,15 @@ public class Query4 implements NexmarkQuery {
                     @Override
                     public SumAndCount apply(Long key, LongAndTime value, SumAndCount aggregate) {
                         if (value != null) {
-                            return new SumAndCount(aggregate.sum - value.val, aggregate.count - 1);
+                            SumAndCount sc = new SumAndCount(aggregate.sum - value.val, aggregate.count - 1);
+                            if (aggregate.sum == 0) {
+                                sc.startExecNano = aggregate.startExecNano;
+                            } else {
+                                sc.startExecNano = System.nanoTime();
+                            }
+                            return sc;
                         } else {
+                            aggregate.startExecNano = System.nanoTime();
                             return aggregate;
                         }
                     }
@@ -358,10 +379,10 @@ public class Query4 implements NexmarkQuery {
         return props;
     }
 
-    @Override
-    public long getInputCount() {
-        return input.GetProcessedRecords();
-    }
+    // @Override
+    // public long getInputCount() {
+    // return input.GetProcessedRecords();
+    // }
 
     @Override
     public void setAfterWarmup() {

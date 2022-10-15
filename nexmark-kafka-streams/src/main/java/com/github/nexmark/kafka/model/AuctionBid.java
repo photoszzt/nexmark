@@ -29,13 +29,16 @@ public class AuctionBid implements StartProcTs, InjTsMs {
             @JsonProperty("aucExpires") long aucExpires,
             @JsonProperty("bidPrice") long bidPrice,
             @JsonProperty("aucCategory") long aucCategory,
-            @JsonProperty("seller") long seller) {
+            @JsonProperty("seller") long seller,
+            @JsonProperty("injTsMs") long injTsMs) {
         this.bidDateTimeMs = bidDateTime;
         this.aucDateTimeMs = aucDateTime;
         this.aucExpiresMs = aucExpires;
         this.bidPrice = bidPrice;
         this.aucCategory = aucCategory;
         this.seller = seller;
+        this.injTsMs = injTsMs;
+        this.startExecNano = 0;
     }
 
     @Override

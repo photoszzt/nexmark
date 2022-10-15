@@ -27,11 +27,11 @@ public class AuctionIdCntMax implements StartProcTs {
         this.aucId = aucId;
         this.count = count;
         this.maxCnt = maxCnt;
+        this.startExecNano = 0;
     }
 
     @Override
     public String toString() {
-        // TODO Auto-generated method stub
         return "AuctionIdCntMax: {aucId: " + aucId +
                 ", count: " + count +
                 ", maxCnt: " + maxCnt + "}";

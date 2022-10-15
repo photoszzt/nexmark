@@ -32,6 +32,11 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
         if (etypeNode == null) {
             throw new RuntimeException("event should have a etype");
         }
+        long injTsMs = 0;
+        JsonNode injTsMsNode = node.get("injTsMs");
+        if (injTsMsNode != null) {
+            injTsMs = injTsMsNode.asLong();
+        }
         byte etype = (byte)node.get("etype").asInt();
         if (etype == 0) {
             JsonNode personNode = node.get("newPerson");
@@ -47,7 +52,7 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
             long dateTime = personNode.get("dateTime").asLong();
             String extra = personNode.get("extra").asText();
             Person newPerson = new Person(id, name, emailAddress, creditCard, city, state, dateTime, extra);
-            return new Event(newPerson);
+            return new Event(newPerson, injTsMs);
         } else if (etype == 1) {
             JsonNode auctionNode = node.get("newAuction");
             if (auctionNode == null) {
@@ -65,7 +70,7 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
             String extra = auctionNode.get("extra").asText();
             Auction newAuction = new Auction(id, itemName, description, initialBid, reserve, dateTime,
                     expires, seller, category, extra);
-            return new Event(newAuction);
+            return new Event(newAuction, injTsMs);
         } else if (etype == 2) {
             JsonNode bidNode = node.get("bid");
             if (bidNode == null) {
@@ -79,7 +84,7 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
             long dateTime = bidNode.get("dateTime").asLong();
             String extra = bidNode.get("extra").asText();
             Bid bid = new Bid(auction, bidder, price, channel, url, dateTime, extra);
-            return new Event(bid);
+            return new Event(bid, injTsMs);
         } else {
             throw new RuntimeException("etype should be either 0, 1 or 2; got " + etype);
         }

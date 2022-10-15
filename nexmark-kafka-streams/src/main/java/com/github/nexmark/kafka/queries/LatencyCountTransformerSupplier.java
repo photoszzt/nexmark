@@ -75,6 +75,7 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
 
         public LatencyCountTransformer(LatencyHolder lh, ValueMapper<VV, VV1> mapper) {
             this.lh = lh;
+            this.mapper = mapper;
         }
 
         @Override
@@ -88,7 +89,8 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
             long ts = ctx.timestamp();
             long now = Instant.now().toEpochMilli();
             long startProc = value.startProcTsNano();
-            long lat = now - startProc;
+            // assert (startProc != 0);
+            long lat = System.nanoTime() - startProc;
             StreamsUtils.appendLat(procLat, lat, lh.tag + "_proc");
             lh.appendLatency(now - ts);
             return mapper.apply(value);

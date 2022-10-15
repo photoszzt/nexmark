@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.nexmark.kafka.queries.StartProcTs;
 
-public class BidAndMax implements StartProcTs{
+public class BidAndMax implements StartProcTs {
     public long price;
     public long auction;
     public long bidder;
@@ -20,22 +20,22 @@ public class BidAndMax implements StartProcTs{
 
     @JsonCreator
     public BidAndMax(@JsonProperty("auction") long auction,
-                     @JsonProperty("price") long price,
-                     @JsonProperty("bidder") long bidder,
-                     @JsonProperty("dateTime") long dateTime,
-                     @JsonProperty("wStartMs") long wStartMs,
-                     @JsonProperty("wEndMs") long wEndMs) {
+            @JsonProperty("price") long price,
+            @JsonProperty("bidder") long bidder,
+            @JsonProperty("dateTime") long dateTime,
+            @JsonProperty("wStartMs") long wStartMs,
+            @JsonProperty("wEndMs") long wEndMs) {
         this.auction = auction;
         this.price = price;
         this.bidder = bidder;
         this.dateTimeMs = dateTime;
         this.wStartMs = wStartMs;
         this.wEndMs = wEndMs;
+        this.startExecNano = 0;
     }
 
     @Override
     public String toString() {
-        // TODO Auto-generated method stub
         return "BidAndMax: {auction: " + auction +
                 ", price: " + price +
                 ", bidder: " + bidder +
@@ -46,7 +46,6 @@ public class BidAndMax implements StartProcTs{
 
     @Override
     public int hashCode() {
-        // TODO Auto-generated method stub
         return Objects.hash(auction, price, bidder, dateTimeMs, wStartMs, wEndMs);
     }
 
@@ -57,6 +56,6 @@ public class BidAndMax implements StartProcTs{
 
     @Override
     public void setStartProcTsNano(long ts) {
-        startExecNano = ts; 
+        startExecNano = ts;
     }
 }

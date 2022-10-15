@@ -24,12 +24,11 @@ public class Event implements Serializable, TimestampFromValue<Event>, StartProc
 	public @Nullable Bid bid;
 	@JsonProperty("etype")
 	public EType etype;
+	@JsonProperty("injTsMs")
+	public long injTsMs;
 
 	@JsonIgnore
 	private long startExecNano;
-
-	@JsonProperty("injTsMs")
-	public long injTsMs;
 
 	/** The type of object stored in this event. * */
 	public enum EType {
@@ -50,27 +49,33 @@ public class Event implements Serializable, TimestampFromValue<Event>, StartProc
 	}
 
 	@JsonCreator
-	public Event(Person newPerson) {
+	public Event(Person newPerson, long injTsMs) {
 		this.newPerson = newPerson;
 		newAuction = null;
 		bid = null;
 		etype = EType.PERSON;
+		startExecNano = 0;
+		this.injTsMs = injTsMs;
 	}
 
 	@JsonCreator
-	public Event(Auction newAuction) {
+	public Event(Auction newAuction, long injTsMs) {
 		newPerson = null;
 		this.newAuction = newAuction;
 		bid = null;
 		etype = EType.AUCTION;
+		startExecNano = 0;
+		this.injTsMs = injTsMs;
 	}
 
 	@JsonCreator
-	public Event(Bid bid) {
+	public Event(Bid bid, long injTsMs) {
 		newPerson = null;
 		newAuction = null;
 		this.bid = bid;
 		etype = EType.BID;
+		startExecNano = 0;
+		this.injTsMs = injTsMs;
 	}
 
 	@Override
@@ -125,17 +130,16 @@ public class Event implements Serializable, TimestampFromValue<Event>, StartProc
 
 	@Override
 	public void setStartProcTsNano(long ts) {
-		startExecNano = ts;	
+		this.startExecNano = ts;	
 	}
 
 	@Override
 	public long injTsMs() {
-		// TODO Auto-generated method stub
 		return injTsMs;
 	}
 
 	@Override
 	public void setInjTsMs(long ts) {
-		injTsMs = ts;
+		this.injTsMs = ts;
 	}
 }

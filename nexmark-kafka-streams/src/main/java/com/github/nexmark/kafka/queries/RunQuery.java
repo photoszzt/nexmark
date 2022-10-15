@@ -153,35 +153,35 @@ public class RunQuery {
             long timeStartNano = System.nanoTime();
             long afterWarmStartNano = 0;
             boolean afterWarmup = false;
-            // long emitEveryNano = TEN_SEC_NANO;
-            // long emitMetricTimer = System.nanoTime();
+            long emitEveryNano = TEN_SEC_NANO;
+            long emitMetricTimer = System.nanoTime();
             long durationNano = TimeUnit.NANOSECONDS.convert(durationMs, TimeUnit.MILLISECONDS);
             if (durationMs != 0 && srcEvents == 0) {
                 while (true) {
                     long now = System.nanoTime();
                     long elapsedNano = now - timeStartNano;
 
-                    // long elapsedMetricNano = now - emitMetricTimer;
-                    // if (elapsedMetricNano >= emitEveryNano) {
-                    //     System.out.println("emit metrics at (ns)" + elapsedNano);
-                    //     Map<MetricName, ? extends Metric> metric = streams.metrics();
-                    //     metric.forEach((k, v) -> {
-                    //         String g = k.group();
-                    //         if (!(g.equals("app-info") || g.startsWith("admin-client") || 
-                    //                 g.equals("kafka-metrics-count"))) {
-                    //             try {
-                    //                 Double d = ((Number) v.metricValue()).doubleValue(); 
-                    //                 if (!d.isNaN() && d != 0.0) {
-                    //                     System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
-                    //                             + ";val:" + d);
-                    //                 }
-                    //             } catch (ClassCastException e) {
-                    //             }
-                    //         }
-                    //     });
-                    //     System.out.println();
-                    //     emitMetricTimer = System.currentTimeMillis();
-                    // }
+                    long elapsedMetricNano = now - emitMetricTimer;
+                    if (elapsedMetricNano >= emitEveryNano) {
+                        System.out.println("emit metrics at (ns)" + elapsedNano);
+                        Map<MetricName, ? extends Metric> metric = streams.metrics();
+                        metric.forEach((k, v) -> {
+                            String g = k.group();
+                            if (!(g.equals("app-info") || g.startsWith("admin-client") || 
+                                    g.equals("kafka-metrics-count"))) {
+                                try {
+                                    Double d = ((Number) v.metricValue()).doubleValue(); 
+                                    if (!d.isNaN() && d != 0.0) {
+                                        System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
+                                                + ";val:" + d);
+                                    }
+                                } catch (ClassCastException e) {
+                                }
+                            }
+                        });
+                        System.out.println();
+                        emitMetricTimer = System.nanoTime();
+                    }
                     if (elapsedNano >= durationNano) {
                         System.out.println("emit metrics at " + elapsedNano);
                         Map<MetricName, ? extends Metric> metric = streams.metrics();
@@ -213,23 +213,24 @@ public class RunQuery {
                         e.printStackTrace();
                     }
                 }
-            } else {
-                boolean done = false;
-                while (!done) {
-                    long cur = System.nanoTime();
-                    if (cur - timeStartNano >= TEN_SEC_NANO) {
-                        long currentCount = query.getInputCount();
-                        if (currentCount == srcEvents) {
-                            done = true;
-                        }
-                    }
-                    try {
-                        Thread.sleep(5); // ms
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
+            } 
+            // else {
+            //     boolean done = false;
+            //     while (!done) {
+            //         long cur = System.nanoTime();
+            //         if (cur - timeStartNano >= TEN_SEC_NANO) {
+            //             long currentCount = query.getInputCount();
+            //             if (currentCount == srcEvents) {
+            //                 done = true;
+            //             }
+            //         }
+            //         try {
+            //             Thread.sleep(5); // ms
+            //         } catch (InterruptedException e) {
+            //             e.printStackTrace();
+            //         }
+            //     }
+            // }
             long timeEndNano = System.nanoTime();
 
             streams.close();

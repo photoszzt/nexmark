@@ -19,7 +19,7 @@ import java.util.Properties;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query2 implements NexmarkQuery {
-    public CountAction<String, Event> input;
+    public CountAction<Event> input;
     public LatencyCount<String, Event> latCount;
 
     public Query2(File statsDir) {
@@ -59,15 +59,21 @@ public class Query2 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde)
                         .withTimestampExtractor(new EventTimestampExtractor()));
-        inputs.peek(input)
-                .filter((key, value) -> value != null && value.etype == Event.EType.BID && value.bid.auction % 123 == 0)
-                .peek(latCount, Named.as("measure-latency"))
+        inputs.filter((key, value) -> {
+            if (value != null) {
+                value.setStartProcTsNano(System.nanoTime());
+                return value.etype == Event.EType.BID && value.bid.auction % 123 == 0;
+            } else {
+                return false;
+            }
+        }).peek(latCount, Named.as("measure-latency"))
                 .to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q2");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q2-client");
@@ -75,17 +81,18 @@ public class Query2 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache) {
         Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q2");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q2-client");
         return props;
     }
 
-    @Override
-    public long getInputCount() {
-        return input.GetProcessedRecords();
-    }
+    // @Override
+    // public long getInputCount() {
+    // return input.GetProcessedRecords();
+    // }
 
     @Override
     public void setAfterWarmup() {
@@ -104,6 +111,6 @@ public class Query2 implements NexmarkQuery {
 
     // @Override
     // public void printRemainingStats() {
-    //     latCount.printRemainingStats();
+    // latCount.printRemainingStats();
     // }
 }

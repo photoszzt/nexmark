@@ -17,15 +17,16 @@ import java.util.Properties;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.time.Instant;
 
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query1 implements NexmarkQuery {
-    public CountAction<String, Event> input;
+    // public CountAction<Event> input;
     public LatencyCount<String, Event> latCount;
 
     public Query1(File statsDir) {
-        input = new CountAction<>();
+        // input = new CountAction<>();
         String tag = "q1_sink_ets";
         String fileName = statsDir + File.separator + tag;
 
@@ -59,11 +60,12 @@ public class Query1 implements NexmarkQuery {
         final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));
 
-        inputs.peek(input).filter((key, value) -> (value != null && value.etype == Event.EType.BID))
+        inputs.filter((key, value) -> (value != null && value.etype == Event.EType.BID))
                 .mapValues(value -> {
                     Bid b = value.bid;
                     Event e = new Event(
-                            new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra));
+                            new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra), 
+                            Instant.now().toEpochMilli());
                     return e;
                 }).peek(latCount, Named.as("measure-latency")).to(outTp, Produced.valueSerde(eSerde));
         return builder;
@@ -85,10 +87,10 @@ public class Query1 implements NexmarkQuery {
         return props;
     }
 
-    @Override
-    public long getInputCount() {
-        return input.GetProcessedRecords();
-    }
+    // @Override
+    // public long getInputCount() {
+    //     return input.GetProcessedRecords();
+    // }
 
     @Override
     public void setAfterWarmup() {

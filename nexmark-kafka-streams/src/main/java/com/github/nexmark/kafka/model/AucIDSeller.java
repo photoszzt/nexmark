@@ -4,14 +4,10 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.github.nexmark.kafka.queries.InjTsMs;
 
-public class AucIDSeller implements InjTsMs{
+public class AucIDSeller{
     public long id;
     public long seller;
-
-    @JsonProperty("injTsMs")
-    public long injTsMs;
 
     @JsonCreator
     public AucIDSeller(
@@ -29,15 +25,5 @@ public class AucIDSeller implements InjTsMs{
     @Override
     public int hashCode() {
         return Objects.hash(id, seller);
-    }
-
-    @Override
-    public long injTsMs() {
-        return injTsMs;
-    }
-
-    @Override
-    public void setInjTsMs(long ts) {
-        injTsMs = ts;        
     }
 }

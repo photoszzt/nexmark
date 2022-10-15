@@ -20,9 +20,12 @@ public class StartEndTime implements InjTsMs, StartProcTs {
 
     @JsonCreator
     public StartEndTime(@JsonProperty("startTime") long startTime,
-                        @JsonProperty("endTime") long endTime) {
+                        @JsonProperty("endTime") long endTime,
+                        @JsonProperty("injTsMs") long injTsMs) {
         this.startTime = startTime;
         this.endTime = endTime;
+        this.injTsMs = injTsMs;
+        startProcTsNano = 0;
     }
 
     @Override

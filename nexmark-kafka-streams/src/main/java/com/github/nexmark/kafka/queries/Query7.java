@@ -23,7 +23,7 @@ import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query7 implements NexmarkQuery {
-    public CountAction<String, Event> input;
+    // public CountAction<Event> input;
     public LatencyCountTransformerSupplier<BidAndMax, BidAndMax> lcts;
     private ArrayList<Long> bidsByWinProcLat;
     private ArrayList<Long> bidsByPriceProcLat;
@@ -40,7 +40,7 @@ public class Query7 implements NexmarkQuery {
     private static final String TOPO2_PROC_TAG = "topo2_proc";
 
     public Query7(String baseDir) {
-        input = new CountAction<>();
+        // input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q7_sink_ets", baseDir, new IdentityValueMapper<BidAndMax>());
         bidsByWinProcLat = new ArrayList<>(NUM_STATS);
         bidsByPriceProcLat = new ArrayList<>(NUM_STATS);
@@ -124,15 +124,23 @@ public class Query7 implements NexmarkQuery {
         }
         StreamsBuilder builder = new StreamsBuilder();
         KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(Serdes.String(), eSerde).withTimestampExtractor(new EventTimestampExtractor()))
-                .peek(input);
+                Consumed.with(Serdes.String(), eSerde).withTimestampExtractor(new EventTimestampExtractor()));
+        // .peek(input);
 
         Duration windowSize = Duration.ofSeconds(10);
         Duration grace = Duration.ofSeconds(5);
 
         TimeWindows tw = TimeWindows.ofSizeAndGrace(windowSize, grace);
 
-        KStream<String, Event> bids = inputs.filter((key, value) -> value != null && value.etype == Event.EType.BID);
+        KStream<String, Event> bids = inputs.filter((key, value) -> {
+            if (value != null) {
+                value.setStartProcTsNano(System.nanoTime());
+                value.setInjTsMs(Instant.now().toEpochMilli());
+                return value.etype == Event.EType.BID;
+            } else {
+                return false;
+            }
+        });
         KStream<StartEndTime, Event> bidsByWin = bids
                 .selectKey(new KeyValueMapper<String, Event, StartEndTime>() {
                     @Override
@@ -142,10 +150,9 @@ public class Query7 implements NexmarkQuery {
                         long windowStart = (Math.max(0, value.bid.dateTime - sizeMs + advanceMs) / advanceMs)
                                 * advanceMs;
                         long wEnd = windowStart + sizeMs;
-                        value.setInjTsMs(Instant.now().toEpochMilli());
                         long procLat = System.nanoTime() - value.startProcTsNano();
                         StreamsUtils.appendLat(bidsByWinProcLat, procLat, BIDS_BY_WIN_PROC_TAG);
-                        return new StartEndTime(windowStart, wEnd);
+                        return new StartEndTime(windowStart, wEnd, 0);
                     }
                 })
                 .repartition(Repartitioned.<StartEndTime, Event>with(seSerde, eSerde)
@@ -153,7 +160,6 @@ public class Query7 implements NexmarkQuery {
                         .withNumberOfPartitions(bidsByWinTpPar));
         KStream<Long, Event> bidsByPrice = bids
                 .selectKey((key, value) -> {
-                    value.setInjTsMs(Instant.now().toEpochMilli());
                     long procLat = System.nanoTime() - value.startProcTsNano();
                     StreamsUtils.appendLat(bidsByPriceProcLat, procLat, BIDS_BY_PRICE_PROC_TAG);
                     return value.bid.price;
@@ -161,24 +167,26 @@ public class Query7 implements NexmarkQuery {
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsByPriceTpRepar)
                         .withNumberOfPartitions(bidsByPriceTpPar))
-                .peek((key, value) -> {
+                .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                     StreamsUtils.appendLat(bidsByPriceQueueTime, queueDelay, BIDS_BY_PRICE_QUEUE_TAG);
+                    return value;
                 });
 
         String maxBidPerWindowTabName = "maxBidByWinTab";
         KeyValueBytesStoreSupplier maxBidPerWindowTabSupplier = Stores.inMemoryKeyValueStore(maxBidPerWindowTabName);
         KStream<StartEndTime, LongAndTime> maxBidPerWin = bidsByWin
-                .peek((key, value) -> {
+                .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                     StreamsUtils.appendLat(bidsByWinQueueTime, queueDelay, BIDS_BY_WIN_QUEUE_TAG);
+                    return value;
                 })
                 .groupByKey(Grouped.with(seSerde, eSerde))
-                .aggregate(() -> new LongAndTime(0), (key, value, aggregate) -> {
+                .aggregate(() -> new LongAndTime(0, 0), (key, value, aggregate) -> {
                     if (value.bid.price > aggregate.val) {
-                        LongAndTime lt = new LongAndTime(value.bid.price);
+                        LongAndTime lt = new LongAndTime(value.bid.price, 0);
                         lt.setStartProcTsNano(value.startProcTsNano());
                         return lt;
                     } else {
@@ -204,10 +212,11 @@ public class Query7 implements NexmarkQuery {
                 .repartition(Repartitioned.with(Serdes.Long(), seSerde)
                         .withName(maxBidsByPriceTpRepar)
                         .withNumberOfPartitions(maxBidsByPriceTpPar))
-                .peek((key, value) -> {
+                .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                     StreamsUtils.appendLat(maxBidsQueueTime, queueDelay, MAX_BIDS_QUEUE_TAG);
+                    return value;
                 });
 
         JoinWindows jw = JoinWindows.ofTimeDifferenceAndGrace(windowSize, grace);
@@ -217,12 +226,20 @@ public class Query7 implements NexmarkQuery {
                 "bidsByPrice-join-store", retension, winSize, true);
         WindowBytesStoreSupplier maxBidsByPStoreSupplier = Stores.inMemoryWindowStore(
                 "maxBidsByPrice-join-store", retension, winSize, true);
-        bidsByPrice.join(maxBidsByPrice, new ValueJoiner<Event, StartEndTime, BidAndMax>() {
-            @Override
-            public BidAndMax apply(Event value1, StartEndTime value2) {
-                return new BidAndMax(value1.bid.auction, value1.bid.price,
-                        value1.bid.bidder, value1.bid.dateTime, value2.startTime, value2.endTime);
-            }
+        bidsByPrice.join(maxBidsByPrice, (leftValue, rightValue) -> {
+                long startExecNano = 0;
+                if (leftValue.startProcTsNano() == 0) {
+                    startExecNano = rightValue.startProcTsNano();
+                } else if (rightValue.startProcTsNano() == 0) {
+                    startExecNano = leftValue.startProcTsNano();
+                } else {
+                    startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
+                }
+                assert startExecNano != 0;
+                BidAndMax bm = new BidAndMax(leftValue.bid.auction, leftValue.bid.price,
+                        leftValue.bid.bidder, leftValue.bid.dateTime, rightValue.startTime, rightValue.endTime);
+                bm.setStartProcTsNano(startExecNano);
+                return bm;
         }, jw, StreamJoined.<Long, Event, StartEndTime>with(bByPStoreSupplier, maxBidsByPStoreSupplier)
                 .withKeySerde(Serdes.Long())
                 .withValueSerde(eSerde)
@@ -256,10 +273,10 @@ public class Query7 implements NexmarkQuery {
         return props;
     }
 
-    @Override
-    public long getInputCount() {
-        return input.GetProcessedRecords();
-    }
+    // @Override
+    // public long getInputCount() {
+    // return input.GetProcessedRecords();
+    // }
 
     @Override
     public void setAfterWarmup() {

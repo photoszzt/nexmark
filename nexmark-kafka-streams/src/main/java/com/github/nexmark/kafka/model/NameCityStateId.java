@@ -26,6 +26,7 @@ public class NameCityStateId implements Serializable, StartProcTs {
         this.city = city;
         this.state = state;
         this.id = id;
+        startExecNano = 0;
     }
 
     @Override

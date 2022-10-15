@@ -22,6 +22,7 @@ public class PersonTime implements StartProcTs {
         this.id = id;
         this.name = name;
         this.startTime = startTime;
+        this.startExecNano = 0;
     }
 
     @Override

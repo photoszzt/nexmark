@@ -17,6 +17,7 @@ public class PriceTimeList implements StartProcTs, Serializable {
     @JsonCreator
     public PriceTimeList(@JsonProperty("ptlist") ArrayList<PriceTime> ptlist) {
         this.ptlist = ptlist;
+        startProcTsNano = 0;
     }
 
     @Override

@@ -2,19 +2,19 @@ package com.github.nexmark.kafka.queries;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.kafka.streams.kstream.ForeachAction;
+import org.apache.kafka.streams.kstream.ValueMapper;
 
-public class CountAction <K, V extends StartProcTs> implements ForeachAction<K, V> {
+public class CountAction <V extends StartProcTs> implements ValueMapper<V, V> {
     AtomicLong processedRecords = new AtomicLong(0);
-
-    @Override
-    public void apply(K k, V v) {
-        // System.out.println("################## get event k: " + k + " v: " + v);
-        v.setStartProcTsNano(System.nanoTime());
-        processedRecords.incrementAndGet();
-    }
 
     public long GetProcessedRecords() {
         return processedRecords.get();
+    }
+
+    @Override
+    public V apply(V v) {
+        v.setStartProcTsNano(System.nanoTime());
+        processedRecords.incrementAndGet();
+        return v;
     }
 }

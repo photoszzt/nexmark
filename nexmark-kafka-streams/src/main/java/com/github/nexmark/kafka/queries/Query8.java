@@ -21,7 +21,7 @@ import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query8 implements NexmarkQuery {
-    public CountAction<String, Event> input;
+    // public CountAction<Event> input;
     public LatencyCountTransformerSupplier<PersonTime, PersonTime> lcts;
     public ArrayList<Long> aucProcLat;
     public ArrayList<Long> perProcLat;
@@ -34,7 +34,7 @@ public class Query8 implements NexmarkQuery {
     private static final String PER_QUEUE_TAG = "per_queue";
 
     public Query8(String baseDir) {
-        input = new CountAction<>();
+        // input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q8_sink_ets", baseDir, new IdentityValueMapper<PersonTime>());
         aucProcLat = new ArrayList<Long>(NUM_STATS);
         perProcLat = new ArrayList<Long>(NUM_STATS);
@@ -93,46 +93,57 @@ public class Query8 implements NexmarkQuery {
         }
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
-                .withTimestampExtractor(new EventTimestampExtractor())).peek(input);
+                .withTimestampExtractor(new EventTimestampExtractor()));
+        // .peek(input);
         Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
-                .branch((key, value) -> value != null && value.etype == Event.EType.PERSON, Branched.as("persons"))
-                .branch((key, value) -> value != null && value.etype == Event.EType.AUCTION, Branched.as("auctions"))
+                .branch((key, value) -> {
+                    if (value != null) {
+                        value.setStartProcTsNano(System.nanoTime());
+                        value.setInjTsMs(Instant.now().toEpochMilli());
+                        return value.etype == Event.EType.PERSON;
+                    } else {
+                        return false;
+                    }
+                }, Branched.as("persons"))
+                .branch((key, value) -> {
+                    if (value != null) {
+                        value.setStartProcTsNano(System.nanoTime());
+                        value.setInjTsMs(Instant.now().toEpochMilli());
+                        return value.etype == Event.EType.AUCTION;
+                    } else {
+                        return false;
+                    }
+                }, Branched.as("auctions"))
                 .noDefaultBranch();
 
         KStream<Long, Event> person = ksMap.get("Branch-persons").selectKey((key, value) -> {
             long procLat = System.nanoTime() - value.startProcTsNano();
             StreamsUtils.appendLat(perProcLat, procLat, PER_PROC_TAG);
-            value.setInjTsMs(Instant.now().toEpochMilli());
             return value.newPerson.id;
         }).repartition(Repartitioned.with(Serdes.Long(), eSerde)
                 .withName(personsByIDTpRepar)
                 .withNumberOfPartitions(personsByIDTpPar))
-                .peek(new ForeachAction<Long, Event>() {
-                    @Override
-                    public void apply(Long key, Event value) {
-                        value.setStartProcTsNano(System.nanoTime());
-                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(aucQueueTime, queueDelay, PER_QUEUE_TAG);
-                    }
+                .mapValues((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(aucQueueTime, queueDelay, PER_QUEUE_TAG);
+                    return value;
                 });
 
         KStream<Long, Event> auction = ksMap.get("Branch-auctions")
                 .selectKey((key, value) -> {
                     long procLat = System.nanoTime() - value.startProcTsNano();
                     StreamsUtils.appendLat(aucProcLat, procLat, AUC_PROC_TAG);
-                    value.setInjTsMs(Instant.now().toEpochMilli());
                     return value.newAuction.seller;
                 })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucBySellerIDTpRepar)
                         .withNumberOfPartitions(aucBySellerIDTpPar))
-                .peek(new ForeachAction<Long, Event>() {
-                    @Override
-                    public void apply(Long key, Event value) {
-                        value.setStartProcTsNano(System.nanoTime());
-                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(aucQueueTime, queueDelay, AUC_QUEUE_TAG);
-                    }
+                .mapValues((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    StreamsUtils.appendLat(aucQueueTime, queueDelay, AUC_QUEUE_TAG);
+                    return value;
                 });
 
         long windowSizeMs = 10 * 1000;
@@ -149,13 +160,21 @@ public class Query8 implements NexmarkQuery {
                 .withValueSerde(eSerde)
                 .withOtherValueSerde(eSerde)
                 .withLoggingEnabled(new HashMap<>());
-        auction.join(person, new ValueJoiner<Event, Event, PersonTime>() {
-            @Override
-            public PersonTime apply(Event event, Event event2) {
-                long ts = event2.newPerson.dateTime;
-                long windowStart = (Math.max(0, ts - windowSizeMs + windowSizeMs) / windowSizeMs) * windowSizeMs;
-                return new PersonTime(event2.newPerson.id, event2.newPerson.name, windowStart);
+        auction.join(person, (left, right) -> {
+            long startExecNano = 0;
+            if (left.startProcTsNano() == 0) {
+                startExecNano = right.startProcTsNano();
+            } else if (right.startProcTsNano() == 0) {
+                startExecNano = left.startProcTsNano();
+            } else {
+                startExecNano = Math.min(left.startProcTsNano(), right.startProcTsNano());
             }
+            assert startExecNano != 0;
+            long ts = right.newPerson.dateTime;
+            long windowStart = (Math.max(0, ts - windowSizeMs + windowSizeMs) / windowSizeMs) * windowSizeMs;
+            PersonTime pt = new PersonTime(right.newPerson.id, right.newPerson.name, windowStart);
+            pt.setStartProcTsNano(startExecNano);
+            return pt;
         }, jw, sj)
                 .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(Serdes.Long(), ptSerde));
@@ -178,10 +197,10 @@ public class Query8 implements NexmarkQuery {
         return props;
     }
 
-    @Override
-    public long getInputCount() {
-        return input.GetProcessedRecords();
-    }
+    // @Override
+    // public long getInputCount() {
+    // return input.GetProcessedRecords();
+    // }
 
     @Override
     public void setAfterWarmup() {

@@ -20,9 +20,12 @@ public class AuctionIdCount implements StartProcTs, InjTsMs {
 
     @JsonCreator
     public AuctionIdCount(@JsonProperty("aucId") long aucId,
-            @JsonProperty("count") long count) {
+            @JsonProperty("count") long count,
+            @JsonProperty("injTsMs") long injTsMs) {
         this.aucId = aucId;
         this.count = count;
+        this.injTsMs = injTsMs;
+        this.startExecNano = 0;
     }
 
     @Override

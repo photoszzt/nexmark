@@ -47,7 +47,7 @@ import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;;
 
 public class Query6 implements NexmarkQuery {
-    public CountAction<String, Event> input;
+    // public CountAction<Event> input;
     private static final Duration auctionDurationUpperS = Duration.ofSeconds(1800);
     public LatencyCountTransformerSupplier<DoubleAndTime, Double> lcts;
     private ArrayList<Long> aucProcLat;
@@ -67,7 +67,7 @@ public class Query6 implements NexmarkQuery {
     private static final String AUCBIDSQT_TAG = "aucBidsQueueTime";
 
     public Query6(String baseDir) {
-        this.input = new CountAction<>();
+        // this.input = new CountAction<>();
         this.lcts = new LatencyCountTransformerSupplier<>("q6_sink_ets", baseDir,
                 new ValueMapper<DoubleAndTime, Double>() {
                     @Override
@@ -126,7 +126,6 @@ public class Query6 implements NexmarkQuery {
         Serde<AuctionBid> abSerde;
         Serde<AucIDSeller> asSerde;
         Serde<PriceTime> ptSerde;
-        Serde<LongAndTime> ltSerde;
         Serde<PriceTimeList> ptlSerde;
 
         if (serde.equals("json")) {
@@ -145,10 +144,6 @@ public class Query6 implements NexmarkQuery {
             JSONPOJOSerde<PriceTime> ptSerdeJSON = new JSONPOJOSerde<>();
             ptSerdeJSON.setClass(PriceTime.class);
             ptSerde = ptSerdeJSON;
-
-            JSONPOJOSerde<LongAndTime> ltSerdeJSON = new JSONPOJOSerde<>();
-            ltSerdeJSON.setClass(LongAndTime.class);
-            ltSerde = ltSerdeJSON;
 
             JSONPOJOSerde<PriceTimeList> ptlSerdeJSON = new JSONPOJOSerde<>();
             ptlSerdeJSON.setClass(PriceTimeList.class);
@@ -170,10 +165,6 @@ public class Query6 implements NexmarkQuery {
             ptSerdeMsgp.setClass(PriceTime.class);
             ptSerde = ptSerdeMsgp;
 
-            MsgpPOJOSerde<LongAndTime> ltSerdeMsgp = new MsgpPOJOSerde<>();
-            ltSerdeMsgp.setClass(LongAndTime.class);
-            ltSerde = ltSerdeMsgp;
-
             MsgpPOJOSerde<PriceTimeList> ptlSerdeMsgp = new MsgpPOJOSerde<>();
             ptlSerdeMsgp.setClass(PriceTimeList.class);
             ptlSerde = ptlSerdeMsgp;
@@ -183,41 +174,49 @@ public class Query6 implements NexmarkQuery {
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde)
-                        .withTimestampExtractor(new EventTimestampExtractor()))
-                .peek(input);
+                        .withTimestampExtractor(new EventTimestampExtractor()));
+                // .peek(input);
         Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
-                .branch((key, value) -> value.etype == Event.EType.BID, Branched.as("bids"))
-                .branch((key, value) -> value.etype == Event.EType.AUCTION, Branched.as("auctions"))
+                .branch((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return value.etype == Event.EType.BID;
+                }, Branched.as("bids"))
+                .branch((key, value) -> {
+                    value.setStartProcTsNano(System.nanoTime());
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return value.etype == Event.EType.AUCTION;
+                }, Branched.as("auctions"))
                 .noDefaultBranch();
         KStream<Long, Event> bidsByAucID = ksMap.get("Branch-bids")
                 .selectKey((key, value) -> {
                     long procLat = System.nanoTime() - value.startProcTsNano();
                     StreamsUtils.appendLat(bidProcLat, procLat, BID_PROC_TAG);
-                    value.setInjTsMs(Instant.now().toEpochMilli());
                     return value.bid.auction;
                 })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(bidsByAucIDTpRepar)
                         .withNumberOfPartitions(bidsByAucIDTpNumPar))
-                .peek((key, value) -> {
+                .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                     StreamsUtils.appendLat(bidQueueTime, queueDelay, BIDQT_TAG);
+                    return value;
                 });
         KStream<Long, Event> aucsByID = ksMap.get("Branch-auctions")
                 .selectKey((key, value) -> {
                     long procLat = System.nanoTime() - value.startProcTsNano();
                     StreamsUtils.appendLat(aucProcLat, procLat, AUC_PROC_TAG);
-                    value.setInjTsMs(Instant.now().toEpochMilli());
                     return value.newAuction.id;
                 })
                 .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                         .withName(aucsByIDTpRepar)
                         .withNumberOfPartitions(aucsByIDTpNumPar))
-                .peek((key, value) -> {
+                .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                     StreamsUtils.appendLat(aucQueueTime, queueDelay, AUCQT_TAG);
+                    return value;
                 });
 
         JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(auctionDurationUpperS);
@@ -229,10 +228,21 @@ public class Query6 implements NexmarkQuery {
                 Duration.ofMillis(jw.size()), true);
 
         KStream<Long, AuctionBid> joined = aucsByID.join(bidsByAucID, (leftValue, rightValue) -> {
-            return new AuctionBid(rightValue.bid.dateTime,
+            long startExecNano = 0;
+            if (leftValue.startProcTsNano() == 0) {
+                startExecNano = rightValue.startProcTsNano();
+            } else if (rightValue.startProcTsNano() == 0) {
+                startExecNano = leftValue.startProcTsNano();
+            } else {
+                startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
+            }
+            assert startExecNano != 0;
+            AuctionBid ab = new AuctionBid(rightValue.bid.dateTime,
                     leftValue.newAuction.dateTime, leftValue.newAuction.expires,
                     rightValue.bid.price, leftValue.newAuction.category,
-                    leftValue.newAuction.seller);
+                    leftValue.newAuction.seller, 0);
+            ab.setStartProcTsNano(startExecNano);
+            return ab;
         }, jw, StreamJoined.<Long, Event, Event>with(aucsByIDStoreSupplier, bidsByAucIDStoreSupplier)
                 .withKeySerde(Serdes.Long())
                 .withValueSerde(eSerde)
@@ -242,7 +252,12 @@ public class Query6 implements NexmarkQuery {
                         && value.bidDateTimeMs <= value.aucExpiresMs)
                 .filter((key, value) -> {
                     // System.out.println("filuterNull, key: " + key + " value: " + value);
-                    return value != null;
+                    if (value != null) {
+                        value.setInjTsMs(Instant.now().toEpochMilli());
+                        return true;
+                    } else {
+                        return false;
+                    }
                 });
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
@@ -250,35 +265,33 @@ public class Query6 implements NexmarkQuery {
                 .selectKey((key, value) -> {
                     long lat = System.nanoTime() - value.startProcTsNano();
                     StreamsUtils.appendLat(topo2ProcLat, lat, TOPO2_PROC_TAG);
-                    AucIDSeller ais = new AucIDSeller(key, value.seller);
-                    ais.setInjTsMs(Instant.now().toEpochMilli());
-                    return ais;
+                    return new AucIDSeller(key, value.seller);
                 })
                 .repartition(Repartitioned.with(asSerde, abSerde)
                         .withName(aucBidsTpRepar)
                         .withNumberOfPartitions(aucsByIDTpNumPar))
-                .peek((key, value) -> {
+                .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                     StreamsUtils.appendLat(aucBidsQueueTime, queueDelay, AUCBIDSQT_TAG);
+                    return value;
                 })
                 .groupByKey()
                 .aggregate(new Initializer<PriceTime>() {
                     @Override
                     public PriceTime apply() {
-                        // TODO Auto-generated method stub
                         return null;
                     }
                 }, new Aggregator<AucIDSeller, AuctionBid, PriceTime>() {
                     @Override
                     public PriceTime apply(AucIDSeller key, AuctionBid value, PriceTime aggregate) {
                         if (aggregate == null) {
-                            PriceTime pt = new PriceTime(value.bidPrice, value.bidDateTimeMs);
+                            PriceTime pt = new PriceTime(value.bidPrice, value.bidDateTimeMs, 0);
                             pt.setStartProcTsNano(value.startProcTsNano());
                             return pt;
                         }
                         if (value.bidPrice > aggregate.price) {
-                            PriceTime pt = new PriceTime(value.bidPrice, value.bidDateTimeMs);
+                            PriceTime pt = new PriceTime(value.bidPrice, value.bidDateTimeMs, 0);
                             pt.setStartProcTsNano(value.startProcTsNano());
                             return pt;
                         } else {
@@ -299,7 +312,6 @@ public class Query6 implements NexmarkQuery {
                 .groupBy(new KeyValueMapper<AucIDSeller, PriceTime, KeyValue<Long, PriceTime>>() {
                     @Override
                     public KeyValue<Long, PriceTime> apply(AucIDSeller key, PriceTime value) {
-                        // TODO Auto-generated method stub
                         long procLat = System.nanoTime() - value.startProcTsNano();
                         StreamsUtils.appendLat(topo3ProcLat, procLat, TOPO3_PROC_TAG);
                         value.injTsMs = Instant.now().toEpochMilli();
@@ -373,10 +385,10 @@ public class Query6 implements NexmarkQuery {
         return props;
     }
 
-    @Override
-    public long getInputCount() {
-        return input.GetProcessedRecords();
-    }
+    // @Override
+    // public long getInputCount() {
+    //     return input.GetProcessedRecords();
+    // }
 
     @Override
     public void setAfterWarmup() {
