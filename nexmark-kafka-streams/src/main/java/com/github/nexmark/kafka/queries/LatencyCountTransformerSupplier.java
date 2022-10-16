@@ -89,7 +89,7 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
             long ts = ctx.timestamp();
             long now = Instant.now().toEpochMilli();
             long startProc = value.startProcTsNano();
-            // assert (startProc != 0);
+            assert (startProc != 0);
             long lat = System.nanoTime() - startProc;
             StreamsUtils.appendLat(procLat, lat, lh.tag + "_proc");
             lh.appendLatency(now - ts);

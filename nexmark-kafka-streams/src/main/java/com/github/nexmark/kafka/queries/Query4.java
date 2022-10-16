@@ -353,6 +353,7 @@ public class Query4 implements NexmarkQuery {
                                 .withLoggingEnabled(new HashMap<>()))
                 .mapValues((key, value) -> {
                     DoubleAndTime d = new DoubleAndTime((double) value.sum / (double) value.count);
+                    assert value.startExecNano != 0;
                     d.startExecNano = value.startExecNano;
                     return d;
                 })

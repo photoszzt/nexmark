@@ -4,7 +4,6 @@ import java.util.Comparator;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.nexmark.kafka.queries.InjTsMs;
 import com.github.nexmark.kafka.queries.StartProcTs;
@@ -13,8 +12,8 @@ public class PriceTime implements StartProcTs, InjTsMs {
     public long price;
     public long ts;
 
-    @JsonIgnore
-    private long startProcTsNano;
+    @JsonProperty("startExecNano")
+    public long startProcTsNano;
 
     @JsonProperty("injTsMs")
     public long injTsMs;
@@ -23,11 +22,12 @@ public class PriceTime implements StartProcTs, InjTsMs {
     public PriceTime(
             @JsonProperty("price") long price,
             @JsonProperty("ts") long ts,
-            @JsonProperty("injTsMs") long injTsMs) {
+            @JsonProperty("injTsMs") long injTsMs,
+            @JsonProperty("startExecNano") long startProcTsNano) {
         this.ts = ts;
         this.price = price;
         this.injTsMs = injTsMs;
-        startProcTsNano = 0;
+        this.startProcTsNano = startProcTsNano;
     }
 
     @Override

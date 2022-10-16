@@ -81,6 +81,7 @@ public class Query6 implements NexmarkQuery {
         bidQueueTime = new ArrayList<>(NUM_STATS);
         topo2ProcLat = new ArrayList<>(NUM_STATS);
         topo3ProcLat = new ArrayList<>(NUM_STATS);
+        aucBidsQueueTime = new ArrayList<>(NUM_STATS);
     }
 
     @Override
@@ -175,7 +176,7 @@ public class Query6 implements NexmarkQuery {
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde)
                         .withTimestampExtractor(new EventTimestampExtractor()));
-                // .peek(input);
+        // .peek(input);
         Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
                 .branch((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
@@ -286,13 +287,13 @@ public class Query6 implements NexmarkQuery {
                     @Override
                     public PriceTime apply(AucIDSeller key, AuctionBid value, PriceTime aggregate) {
                         if (aggregate == null) {
-                            PriceTime pt = new PriceTime(value.bidPrice, value.bidDateTimeMs, 0);
-                            pt.setStartProcTsNano(value.startProcTsNano());
+                            PriceTime pt = new PriceTime(value.bidPrice, value.bidDateTimeMs,
+                                    0, value.startProcTsNano());
                             return pt;
                         }
                         if (value.bidPrice > aggregate.price) {
-                            PriceTime pt = new PriceTime(value.bidPrice, value.bidDateTimeMs, 0);
-                            pt.setStartProcTsNano(value.startProcTsNano());
+                            PriceTime pt = new PriceTime(value.bidPrice, value.bidDateTimeMs,
+                                    0, value.startProcTsNano());
                             return pt;
                         } else {
                             aggregate.setStartProcTsNano(value.startProcTsNano());
@@ -312,6 +313,7 @@ public class Query6 implements NexmarkQuery {
                 .groupBy(new KeyValueMapper<AucIDSeller, PriceTime, KeyValue<Long, PriceTime>>() {
                     @Override
                     public KeyValue<Long, PriceTime> apply(AucIDSeller key, PriceTime value) {
+                        assert value.startProcTsNano() != 0;
                         long procLat = System.nanoTime() - value.startProcTsNano();
                         StreamsUtils.appendLat(topo3ProcLat, procLat, TOPO3_PROC_TAG);
                         value.injTsMs = Instant.now().toEpochMilli();
@@ -321,7 +323,7 @@ public class Query6 implements NexmarkQuery {
                 .aggregate(new Initializer<PriceTimeList>() {
                     @Override
                     public PriceTimeList apply() {
-                        return new PriceTimeList(new ArrayList<>(11));
+                        return new PriceTimeList(new ArrayList<>(11), 0);
                     }
                 }, new Aggregator<Long, PriceTime, PriceTimeList>() {
                     @Override
@@ -334,6 +336,7 @@ public class Query6 implements NexmarkQuery {
                             aggregate.ptlist.remove(0);
                         }
                         // System.out.println("[ADD] agg after rm: " + aggregate);
+                        aggregate.setStartProcTsNano(System.nanoTime());
                         return aggregate;
                     }
                 }, new Aggregator<Long, PriceTime, PriceTimeList>() {
@@ -345,6 +348,7 @@ public class Query6 implements NexmarkQuery {
                             aggregate.ptlist.remove(value);
                         }
                         // System.out.println("[RM] agg after rm: " + aggregate);
+                        aggregate.setStartProcTsNano(System.nanoTime());
                         return aggregate;
                     }
                 }, Named.as("collect-val"),
@@ -361,6 +365,7 @@ public class Query6 implements NexmarkQuery {
             }
             double avg = (double) sum / (double) l;
             DoubleAndTime dt = new DoubleAndTime(avg);
+            assert value.startProcTsNano() != 0;
             dt.setStartProcTsNano(value.startProcTsNano());
             return dt;
         }).toStream()
@@ -387,7 +392,7 @@ public class Query6 implements NexmarkQuery {
 
     // @Override
     // public long getInputCount() {
-    //     return input.GetProcessedRecords();
+    // return input.GetProcessedRecords();
     // }
 
     @Override
