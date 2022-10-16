@@ -3,22 +3,22 @@ package com.github.nexmark.kafka.model;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.nexmark.kafka.queries.StartProcTs;
 
 public class SumAndCount implements StartProcTs {
     public long sum;
     public long count;
-    @JsonIgnore
+    @JsonProperty("startExecNano")
     public long startExecNano; 
 
     @JsonCreator
     public SumAndCount(@JsonProperty("sum") long sum,
-                       @JsonProperty("count") long count) {
+                       @JsonProperty("count") long count,
+                       @JsonProperty("startExecNano") long startExecNano) {
         this.sum = sum;
         this.count = count;
-        this.startExecNano = 0;
+        this.startExecNano = startExecNano;
     }
 
     @Override

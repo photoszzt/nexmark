@@ -15,7 +15,7 @@ public class AuctionIdCount implements StartProcTs, InjTsMs {
     @JsonIgnore
     public long startExecNano;
 
-    @JsonIgnore
+    @JsonProperty("injTsMs")
     public long injTsMs;
 
     @JsonCreator
@@ -30,14 +30,12 @@ public class AuctionIdCount implements StartProcTs, InjTsMs {
 
     @Override
     public String toString() {
-        // TODO Auto-generated method stub
         return "AuctionIdCount: {aucId: " + aucId +
                 ", count: " + count + "}";
     }
 
     @Override
     public int hashCode() {
-        // TODO Auto-generated method stub
         return Objects.hash(aucId, count);
     }
 

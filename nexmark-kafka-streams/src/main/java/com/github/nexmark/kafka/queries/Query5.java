@@ -157,6 +157,7 @@ public class Query5 implements NexmarkQuery {
                         .withNumberOfPartitions(bidsTpPar))
                 .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
+                    assert value.injTsMs() != 0;
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                     StreamsUtils.appendLat(bidsQueueTime, queueDelay, BIDSQT_TAG);
                     return value;
@@ -166,15 +167,14 @@ public class Query5 implements NexmarkQuery {
                 .aggregate(new Initializer<LongAndTime>() {
                     @Override
                     public LongAndTime apply() {
-                        return new LongAndTime(0, 0);
+                        return new LongAndTime(0, 0, 0);
                     }
                 }, new Aggregator<Long, Event, LongAndTime>() {
                     @Override
                     public LongAndTime apply(Long key, Event value, LongAndTime aggregate) {
                         // System.out.println("key: " + key + " ts: " + value.bid.dateTime + " agg: " +
                         // aggregate);
-                        LongAndTime lat = new LongAndTime(aggregate.val + 1, 0);
-                        lat.startExecNano = value.startProcTsNano();
+                        LongAndTime lat = new LongAndTime(aggregate.val + 1, 0, value.startProcTsNano());
                         return lat;
                     }
                 }, Named.as("auctionBidsCount"),
@@ -185,13 +185,14 @@ public class Query5 implements NexmarkQuery {
                                 .withLoggingEnabled(new HashMap<>()))
                 .toStream()
                 .mapValues((key, value) -> {
-                    AuctionIdCount aic = new AuctionIdCount(key.key(), value.val, 0);
+                    AuctionIdCount aic = new AuctionIdCount(key.key(), value.val, Instant.now().toEpochMilli());
+                    assert value.startExecNano != 0;
                     aic.startExecNano = value.startExecNano;
-                    value.setInjTsMs(Instant.now().toEpochMilli());
                     return aic;
                 })
                 .selectKey((key, value) -> {
                     StartEndTime se = new StartEndTime(key.window().start(), key.window().end(), 0);
+                    assert value.startExecNano != 0;
                     long procLat = System.nanoTime() - value.startExecNano;
                     StreamsUtils.appendLat(topo2ProcLat, procLat, TOPO2PROC_TAG);
                     return se;
@@ -201,6 +202,7 @@ public class Query5 implements NexmarkQuery {
                         .withNumberOfPartitions(auctionBidsTpPar))
                 .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
+                    assert value.injTsMs() != 0;
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                     StreamsUtils.appendLat(auctionBidsQueueTime, queueDelay, AUCBIDSQT_TAG);
                     return value;
@@ -210,14 +212,13 @@ public class Query5 implements NexmarkQuery {
 
         KTable<StartEndTime, LongAndTime> maxBids = auctionBids
                 .groupByKey(Grouped.with(seSerde, aicSerde))
-                .aggregate(() -> new LongAndTime(0, 0),
+                .aggregate(() -> new LongAndTime(0, 0, 0),
                         (key, value, aggregate) -> {
                             // System.out.println("start " + key.startTime + " end: " + key.endTime +
                             // " aucId: " + value.aucId + " count: " + value.count +
                             // " aggregate: " + aggregate);
                             if (value.count > aggregate.val) {
-                                LongAndTime lat = new LongAndTime(value.count, 0);
-                                lat.startExecNano = value.startProcTsNano();
+                                LongAndTime lat = new LongAndTime(value.count, 0, value.startProcTsNano());
                                 return lat;
                             } else {
                                 aggregate.startExecNano = value.startProcTsNano();

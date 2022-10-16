@@ -184,11 +184,9 @@ public class Query7 implements NexmarkQuery {
                     return value;
                 })
                 .groupByKey(Grouped.with(seSerde, eSerde))
-                .aggregate(() -> new LongAndTime(0, 0), (key, value, aggregate) -> {
+                .aggregate(() -> new LongAndTime(0, 0, 0), (key, value, aggregate) -> {
                     if (value.bid.price > aggregate.val) {
-                        LongAndTime lt = new LongAndTime(value.bid.price, 0);
-                        lt.setStartProcTsNano(value.startProcTsNano());
-                        return lt;
+                        return new LongAndTime(value.bid.price, 0, value.startProcTsNano());
                     } else {
                         aggregate.setStartProcTsNano(value.startProcTsNano());
                         return aggregate;
@@ -227,19 +225,19 @@ public class Query7 implements NexmarkQuery {
         WindowBytesStoreSupplier maxBidsByPStoreSupplier = Stores.inMemoryWindowStore(
                 "maxBidsByPrice-join-store", retension, winSize, true);
         bidsByPrice.join(maxBidsByPrice, (leftValue, rightValue) -> {
-                long startExecNano = 0;
-                if (leftValue.startProcTsNano() == 0) {
-                    startExecNano = rightValue.startProcTsNano();
-                } else if (rightValue.startProcTsNano() == 0) {
-                    startExecNano = leftValue.startProcTsNano();
-                } else {
-                    startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
-                }
-                assert startExecNano != 0;
-                BidAndMax bm = new BidAndMax(leftValue.bid.auction, leftValue.bid.price,
-                        leftValue.bid.bidder, leftValue.bid.dateTime, rightValue.startTime, rightValue.endTime);
-                bm.setStartProcTsNano(startExecNano);
-                return bm;
+            long startExecNano = 0;
+            if (leftValue.startProcTsNano() == 0) {
+                startExecNano = rightValue.startProcTsNano();
+            } else if (rightValue.startProcTsNano() == 0) {
+                startExecNano = leftValue.startProcTsNano();
+            } else {
+                startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
+            }
+            assert startExecNano != 0;
+            BidAndMax bm = new BidAndMax(leftValue.bid.auction, leftValue.bid.price,
+                    leftValue.bid.bidder, leftValue.bid.dateTime, rightValue.startTime, rightValue.endTime);
+            bm.setStartProcTsNano(startExecNano);
+            return bm;
         }, jw, StreamJoined.<Long, Event, StartEndTime>with(bByPStoreSupplier, maxBidsByPStoreSupplier)
                 .withKeySerde(Serdes.Long())
                 .withValueSerde(eSerde)

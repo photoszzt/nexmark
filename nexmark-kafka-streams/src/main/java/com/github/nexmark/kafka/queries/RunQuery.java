@@ -163,7 +163,7 @@ public class RunQuery {
 
                     long elapsedMetricNano = now - emitMetricTimer;
                     if (elapsedMetricNano >= emitEveryNano) {
-                        System.out.println("emit metrics at (ns)" + elapsedNano);
+                        System.out.println("emit metrics at " + elapsedNano + " ns");
                         Map<MetricName, ? extends Metric> metric = streams.metrics();
                         metric.forEach((k, v) -> {
                             String g = k.group();

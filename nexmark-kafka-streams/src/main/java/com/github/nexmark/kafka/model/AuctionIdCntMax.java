@@ -39,7 +39,6 @@ public class AuctionIdCntMax implements StartProcTs {
 
     @Override
     public int hashCode() {
-        // TODO Auto-generated method stub
         return Objects.hash(aucId, count, maxCnt);
     }
 

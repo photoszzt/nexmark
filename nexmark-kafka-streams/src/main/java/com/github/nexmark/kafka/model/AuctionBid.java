@@ -55,7 +55,6 @@ public class AuctionBid implements StartProcTs, InjTsMs {
 
     @Override
     public int hashCode() {
-        // TODO Auto-generated method stub
         return Objects.hash(bidDateTimeMs, aucDateTimeMs, aucExpiresMs, bidPrice, aucCategory, seller);
     }
 

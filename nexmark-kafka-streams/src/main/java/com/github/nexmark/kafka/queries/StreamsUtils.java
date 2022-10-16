@@ -43,8 +43,8 @@ public class StreamsUtils {
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, Integer.toString(flushms));
         // props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, Integer.toString(duration*1000));
         props.put(StreamsConfig.METRICS_RECORDING_LEVEL_CONFIG, "INFO");
-        props.put(StreamsConfig.METRICS_NUM_SAMPLES_CONFIG, "200");
-        props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, "50");
+        props.put(StreamsConfig.METRICS_NUM_SAMPLES_CONFIG, "100");
+        props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, "100");
         return props;
     }
 

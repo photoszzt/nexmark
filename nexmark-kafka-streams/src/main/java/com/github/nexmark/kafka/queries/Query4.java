@@ -271,20 +271,19 @@ public class Query4 implements NexmarkQuery {
                 .aggregate(new Initializer<LongAndTime>() {
                     @Override
                     public LongAndTime apply() {
-                        return new LongAndTime(null, 0);
+                        return new LongAndTime(null, 0, 0);
                     }
                 }, new Aggregator<AucIdCategory, AuctionBid, LongAndTime>() {
                     @Override
                     public LongAndTime apply(AucIdCategory key, AuctionBid value, LongAndTime aggregate) {
                         assert value.startProcTsNano() != 0;
                         if (aggregate.val == null) {
-                            LongAndTime lt = new LongAndTime(value.bidPrice, 0);
+                            LongAndTime lt = new LongAndTime(value.bidPrice, 0, value.startProcTsNano());
                             lt.startExecNano = value.startProcTsNano();
                             return lt;
                         }
                         if (value.bidPrice > aggregate.val) {
-                            LongAndTime lt = new LongAndTime(value.bidPrice, 0);
-                            lt.startExecNano = value.startProcTsNano();
+                            LongAndTime lt = new LongAndTime(value.bidPrice, 0, value.startProcTsNano());
                             return lt;
                         } else {
                             aggregate.startExecNano = value.startProcTsNano();
@@ -309,7 +308,7 @@ public class Query4 implements NexmarkQuery {
             }
         }, Grouped.with(Serdes.Long(), ltSerde).withName(maxBidsGroupByTab))
                 .aggregate(() -> {
-                    SumAndCount s = new SumAndCount(0, 0);
+                    SumAndCount s = new SumAndCount(0, 0, 0);
                     s.startExecNano = System.nanoTime();
                     return s;
                 }, new Aggregator<Long, LongAndTime, SumAndCount>() {
@@ -318,7 +317,7 @@ public class Query4 implements NexmarkQuery {
                         if (value != null) {
                             long queueDelay = Instant.now().toEpochMilli() - value.injTsMs;
                             StreamsUtils.appendLat(maxBidsQueueTime, queueDelay, "maxBidsQueueDelay");
-                            SumAndCount sc = new SumAndCount(aggregate.sum + value.val, aggregate.count + 1);
+                            SumAndCount sc = new SumAndCount(aggregate.sum + value.val, aggregate.count + 1, 0);
                             if (aggregate.sum == 0) {
                                 sc.startExecNano = aggregate.startExecNano;
                             } else {
@@ -334,7 +333,7 @@ public class Query4 implements NexmarkQuery {
                     @Override
                     public SumAndCount apply(Long key, LongAndTime value, SumAndCount aggregate) {
                         if (value != null) {
-                            SumAndCount sc = new SumAndCount(aggregate.sum - value.val, aggregate.count - 1);
+                            SumAndCount sc = new SumAndCount(aggregate.sum - value.val, aggregate.count - 1, 0);
                             if (aggregate.sum == 0) {
                                 sc.startExecNano = aggregate.startExecNano;
                             } else {
