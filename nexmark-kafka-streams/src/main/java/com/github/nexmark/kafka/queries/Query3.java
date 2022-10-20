@@ -186,16 +186,18 @@ public class Query3 implements NexmarkQuery {
 
     @Override
     public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache) {
-        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
+            boolean disableCache, boolean disableBatching) {
+        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
+                disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q3");
         return props;
     }
 
     @Override
     public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache) {
-        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
+            boolean disableCache, boolean disableBatching) {
+        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
+                disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q3");
         return props;
     }

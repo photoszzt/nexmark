@@ -37,6 +37,7 @@ public class RunQuery {
     private static final Option FLUSHMS = new Option("f", "flushms", true, "flush interval in ms");
     private static final Option GUARANTEE = new Option("g", "guarantee", true, "guarantee");
     private static final Option DISABLE_CACHE = new Option("xc", "disable_cache", false, "disable cache");
+    private static final Option DISABLE_BATCHING = new Option("xb", "disable_batching", false, "disable batching");
     private static final Option STATS_DIR = new Option("sd", "stats_dir", true, "stats dir");
 
     private static final long TEN_SEC_NANO = TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS);
@@ -91,13 +92,14 @@ public class RunQuery {
         String flushStr = line.getOptionValue(FLUSHMS.getOpt());
         String guarantee = line.getOptionValue(GUARANTEE.getOpt());
         String statsDirStr = line.getOptionValue(STATS_DIR.getOpt());
-        
+
         int durationMs = durStr == null ? 0 : Integer.parseInt(durStr) * 1000;
         int warmupDuration = warmupTime == null ? 0 : Integer.parseInt(warmupTime) * 1000;
         int warmupDurNano = warmupDuration * 1000_000;
         int port = portStr == null ? 8090 : Integer.parseInt(portStr);
         int flushms = flushStr == null ? 100 : Integer.parseInt(flushStr);
         boolean disableCache = line.hasOption(DISABLE_CACHE.getOpt());
+        boolean disableBatching = line.hasOption(DISABLE_BATCHING.getOpt());
         File statsDir = new File(statsDirStr);
         if (!statsDir.exists()) {
             statsDir.mkdirs();
@@ -108,8 +110,9 @@ public class RunQuery {
         System.out.println("appName: " + appName + " serde: " + serde +
                 " configFile: " + configFile + " duration(ms): "
                 + durationMs + " warmup(ms): " + warmupDuration +
-                " numSrcEvents: " + srcEvents + " flushMs: " + flushms + 
-                " guarantee: " + guarantee + " disableCache: " + disableCache);
+                " numSrcEvents: " + srcEvents + " flushMs: " + flushms +
+                " guarantee: " + guarantee + " disableCache: " + disableCache +
+                " disableBatching: " + disableBatching + " statsDir: " + statsDirStr);
         if (!guarantee.equals("alo") && !guarantee.equals("eo")) {
             System.out.printf("unrecognized guarantee: %s; expected either alo or eo\n", guarantee);
             return;
@@ -132,9 +135,11 @@ public class RunQuery {
 
         Properties props;
         if (guarantee.equals("alo")) {
-            props = query.getAtLeastOnceProperties(bootstrapServers, durationMs, flushms, disableCache);
+            props = query.getAtLeastOnceProperties(bootstrapServers, durationMs, flushms, disableCache,
+                    disableBatching);
         } else {
-            props = query.getExactlyOnceProperties(bootstrapServers, durationMs, flushms, disableCache);
+            props = query.getExactlyOnceProperties(bootstrapServers, durationMs, flushms, disableCache,
+                    disableBatching);
         }
         Topology tp = builder.build();
         System.out.println(tp.describe());
@@ -167,10 +172,10 @@ public class RunQuery {
                         Map<MetricName, ? extends Metric> metric = streams.metrics();
                         metric.forEach((k, v) -> {
                             String g = k.group();
-                            if (!(g.equals("app-info") || g.startsWith("admin-client") || 
+                            if (!(g.equals("app-info") || g.startsWith("admin-client") ||
                                     g.equals("kafka-metrics-count"))) {
                                 try {
-                                    Double d = ((Number) v.metricValue()).doubleValue(); 
+                                    Double d = ((Number) v.metricValue()).doubleValue();
                                     if (!d.isNaN() && d != 0.0) {
                                         System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
                                                 + ";val:" + d);
@@ -187,10 +192,10 @@ public class RunQuery {
                         Map<MetricName, ? extends Metric> metric = streams.metrics();
                         metric.forEach((k, v) -> {
                             String g = k.group();
-                            if (!(g.equals("app-info") || g.startsWith("admin-client") || 
+                            if (!(g.equals("app-info") || g.startsWith("admin-client") ||
                                     g.equals("kafka-metrics-count"))) {
                                 try {
-                                    Double d = ((Number) v.metricValue()).doubleValue(); 
+                                    Double d = ((Number) v.metricValue()).doubleValue();
                                     if (!d.isNaN() && d != 0.0) {
                                         System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
                                                 + ";val:" + d);
@@ -213,23 +218,23 @@ public class RunQuery {
                         e.printStackTrace();
                     }
                 }
-            } 
+            }
             // else {
-            //     boolean done = false;
-            //     while (!done) {
-            //         long cur = System.nanoTime();
-            //         if (cur - timeStartNano >= TEN_SEC_NANO) {
-            //             long currentCount = query.getInputCount();
-            //             if (currentCount == srcEvents) {
-            //                 done = true;
-            //             }
-            //         }
-            //         try {
-            //             Thread.sleep(5); // ms
-            //         } catch (InterruptedException e) {
-            //             e.printStackTrace();
-            //         }
-            //     }
+            // boolean done = false;
+            // while (!done) {
+            // long cur = System.nanoTime();
+            // if (cur - timeStartNano >= TEN_SEC_NANO) {
+            // long currentCount = query.getInputCount();
+            // if (currentCount == srcEvents) {
+            // done = true;
+            // }
+            // }
+            // try {
+            // Thread.sleep(5); // ms
+            // } catch (InterruptedException e) {
+            // e.printStackTrace();
+            // }
+            // }
             // }
             long timeEndNano = System.nanoTime();
 
@@ -302,6 +307,7 @@ public class RunQuery {
         options.addOption(GUARANTEE);
         options.addOption(DISABLE_CACHE);
         options.addOption(STATS_DIR);
+        options.addOption(DISABLE_BATCHING);
         return options;
     }
 }

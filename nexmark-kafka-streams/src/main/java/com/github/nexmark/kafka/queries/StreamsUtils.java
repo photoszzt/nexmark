@@ -18,7 +18,8 @@ import java.util.concurrent.ExecutionException;
 import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class StreamsUtils {
-    public static Properties getExactlyOnceStreamsConfig(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public static Properties getExactlyOnceStreamsConfig(String bootstrapServer, int duration,
+            int flushms, boolean disableCache, boolean disableBatching) {
         System.out.println("using exactly once config");
         final Properties props = new Properties();
         if (disableCache) {
@@ -30,8 +31,13 @@ public class StreamsUtils {
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
         props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all");
-        props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), Integer.toString(128*1024));
-        props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(flushms));
+        if (disableBatching) {
+            props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), 0);
+            props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), 0);
+        } else {
+            props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), Integer.toString(128 * 1024));
+            props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(flushms));
+        }
         props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, Integer.toString(flushms));
         props.put(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, 1);
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);
@@ -41,14 +47,14 @@ public class StreamsUtils {
         props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, Integer.toString(flushms));
-        // props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, Integer.toString(duration*1000));
         props.put(StreamsConfig.METRICS_RECORDING_LEVEL_CONFIG, "INFO");
-        props.put(StreamsConfig.METRICS_NUM_SAMPLES_CONFIG, "100");
-        props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, "100");
+        props.put(StreamsConfig.METRICS_NUM_SAMPLES_CONFIG, "100"); // metrics computed over 10 s
+        props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, "100"); // every 100 ms
         return props;
     }
 
-    public static Properties getAtLeastOnceStreamsConfig(String bootstrapServer, int duration, int flushms, boolean disableCache) {
+    public static Properties getAtLeastOnceStreamsConfig(String bootstrapServer, int duration, int flushms,
+            boolean disableCache, boolean disableBatching) {
         System.out.println("using at least once config");
         final Properties props = new Properties();
         if (disableCache) {
@@ -57,14 +63,19 @@ public class StreamsUtils {
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
         props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
-        props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), Integer.toString(128*1024));
-        props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(flushms));
+        if (disableBatching) {
+            props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), 0);
+            props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), 0);
+        } else {
+            props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), Integer.toString(128 * 1024));
+            props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(flushms));
+        }
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, Integer.toString(flushms));
         props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, Integer.toString(flushms));
         props.put(StreamsConfig.METRICS_RECORDING_LEVEL_CONFIG, "INFO");
-        props.put(StreamsConfig.METRICS_NUM_SAMPLES_CONFIG, "200"); // metrics computed over 10 s
-        props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, "50"); // every 50 ms
+        props.put(StreamsConfig.METRICS_NUM_SAMPLES_CONFIG, "100"); // metrics computed over 10 s
+        props.put(StreamsConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG, "100"); // every 100 ms
         return props;
     }
 

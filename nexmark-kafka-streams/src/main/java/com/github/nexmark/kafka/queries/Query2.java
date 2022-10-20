@@ -73,8 +73,9 @@ public class Query2 implements NexmarkQuery {
 
     @Override
     public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache) {
-        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
+            boolean disableCache, boolean disableBatching) {
+        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
+                disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q2");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q2-client");
         return props;
@@ -82,8 +83,9 @@ public class Query2 implements NexmarkQuery {
 
     @Override
     public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache) {
-        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
+            boolean disableCache, boolean disableBatching) {
+        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, 
+        disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q2");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q2-client");
         return props;

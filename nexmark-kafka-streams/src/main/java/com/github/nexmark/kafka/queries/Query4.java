@@ -226,7 +226,9 @@ public class Query4 implements NexmarkQuery {
             } else {
                 startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
             }
-            // System.out.println("leftStart: " + leftValue.startProcTsNano() + " rightStart: " + rightValue.startProcTsNano() + " startExecNano: " + startExecNano);
+            // System.out.println("leftStart: " + leftValue.startProcTsNano() + "
+            // rightStart: " + rightValue.startProcTsNano() + " startExecNano: " +
+            // startExecNano);
             assert startExecNano != 0;
             AuctionBid ab = new AuctionBid(rightValue.bid.dateTime,
                     leftValue.newAuction.dateTime, leftValue.newAuction.expires,
@@ -349,7 +351,7 @@ public class Query4 implements NexmarkQuery {
                         Materialized.<Long, SumAndCount>as(sumCountKV)
                                 .withKeySerde(Serdes.Long())
                                 .withValueSerde(scSerde)
-                                .withCachingEnabled() // match the behavior of golang sys
+                                .withCachingEnabled()
                                 .withLoggingEnabled(new HashMap<>()))
                 .mapValues((key, value) -> {
                     DoubleAndTime d = new DoubleAndTime((double) value.sum / (double) value.count);
@@ -365,16 +367,18 @@ public class Query4 implements NexmarkQuery {
 
     @Override
     public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache) {
-        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
+            boolean disableCache, boolean disableBatching) {
+        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
+                disableCache, disableBatching);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q4");
         return props;
     }
 
     @Override
     public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache) {
-        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
+            boolean disableCache, boolean disableBatching) {
+        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
+                disableCache, disableBatching);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q4");
         return props;
     }

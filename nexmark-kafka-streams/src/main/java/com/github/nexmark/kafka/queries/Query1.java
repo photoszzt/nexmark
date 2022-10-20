@@ -64,7 +64,7 @@ public class Query1 implements NexmarkQuery {
                 .mapValues(value -> {
                     Bid b = value.bid;
                     Event e = new Event(
-                            new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra), 
+                            new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra),
                             Instant.now().toEpochMilli());
                     return e;
                 }).peek(latCount, Named.as("measure-latency")).to(outTp, Produced.valueSerde(eSerde));
@@ -72,16 +72,20 @@ public class Query1 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
-        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
+    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache, boolean disableBatching) {
+        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
+                disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q1");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q1-client");
         return props;
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache) {
-        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, disableCache);
+    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
+            boolean disableCache, boolean disableBatching) {
+        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
+                disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q1");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q1-client");
         return props;
@@ -89,7 +93,7 @@ public class Query1 implements NexmarkQuery {
 
     // @Override
     // public long getInputCount() {
-    //     return input.GetProcessedRecords();
+    // return input.GetProcessedRecords();
     // }
 
     @Override
@@ -107,10 +111,9 @@ public class Query1 implements NexmarkQuery {
         latCount.outputRemainingStats();
     }
 
-
     // @Override
     // public void printRemainingStats() {
-    //     latCount.printRemainingStats();
+    // latCount.printRemainingStats();
     // }
-    
+
 }
