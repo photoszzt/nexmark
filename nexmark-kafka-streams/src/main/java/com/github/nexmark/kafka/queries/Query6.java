@@ -57,6 +57,7 @@ public class Query6 implements NexmarkQuery {
     private ArrayList<Long> topo2ProcLat;
     private ArrayList<Long> topo3ProcLat;
     private ArrayList<Long> aucBidsQueueTime;
+    private ArrayList<Long> maxBidsQueueTime;
 
     private static final String AUC_PROC_TAG = "subGAuc_proc";
     private static final String BID_PROC_TAG = "subGBid_proc";
@@ -65,6 +66,7 @@ public class Query6 implements NexmarkQuery {
     private static final String TOPO2_PROC_TAG = "topo2_proc";
     private static final String TOPO3_PROC_TAG = "topo3_proc";
     private static final String AUCBIDSQT_TAG = "aucBidsQueueTime";
+    private static final String MAXBIDSQT_TAG = "maxBidsQueueTime";
 
     public Query6(String baseDir) {
         // this.input = new CountAction<>();
@@ -329,6 +331,8 @@ public class Query6 implements NexmarkQuery {
                     @Override
                     public PriceTimeList apply(Long key, PriceTime value,
                             PriceTimeList aggregate) {
+                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs;
+                        StreamsUtils.appendLat(maxBidsQueueTime, queueDelay, MAXBIDSQT_TAG);
                         aggregate.ptlist.add(value);
                         aggregate.ptlist.sort(PriceTime.ASCENDING_TIME_THEN_PRICE);
                         // System.out.println("[ADD] agg before rm: " + aggregate);
@@ -422,6 +426,7 @@ public class Query6 implements NexmarkQuery {
         StreamsUtils.printRemaining(topo2ProcLat, TOPO2_PROC_TAG);
         StreamsUtils.printRemaining(topo3ProcLat, TOPO3_PROC_TAG);
         StreamsUtils.printRemaining(aucBidsQueueTime, AUCBIDSQT_TAG);
+        StreamsUtils.printRemaining(maxBidsQueueTime, MAXBIDSQT_TAG);
     }
     // @Override
     // public void printRemainingStats() {
