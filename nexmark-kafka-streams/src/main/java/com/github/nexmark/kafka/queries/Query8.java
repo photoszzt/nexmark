@@ -126,7 +126,7 @@ public class Query8 implements NexmarkQuery {
                 .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
                     long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                    StreamsUtils.appendLat(aucQueueTime, queueDelay, PER_QUEUE_TAG);
+                    StreamsUtils.appendLat(perQueueTime, queueDelay, PER_QUEUE_TAG);
                     return value;
                 });
 
