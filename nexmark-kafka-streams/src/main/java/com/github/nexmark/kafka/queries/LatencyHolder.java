@@ -8,18 +8,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Arrays;
 
 public class LatencyHolder {
-    long[] latencies;
-    int currentPos;
-    String fileName;
-    long counter;
-    BufferedWriter bw;
-    ExecutorService es;
-    String tag;
-    AtomicBoolean afterWarmup = new AtomicBoolean(false);
+    private long[] latencies;
+    private int currentPos;
+    private final String fileName;
+    private long counter;
+    private BufferedWriter bw;
+    private ExecutorService es;
+    private final String tag;
+    private AtomicBoolean afterWarmup = new AtomicBoolean(false);
 
     public LatencyHolder(String tag, String filename) throws IOException {
         this.tag = tag;
         this.fileName = filename; 
+    }
+
+    public String tag() {
+        return tag;
     }
 
     public void init() {

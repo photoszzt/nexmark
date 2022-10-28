@@ -12,13 +12,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.kafka.streams.kstream.ForeachAction;
 
 public class LatencyCount<K, V extends TimestampFromValue<V>> implements ForeachAction<K, TimestampFromValue<V>> {
-    long[] latencies;
-    int currentPos;
-    long counter;
-    String tag;
-    AtomicBoolean afterWarmup = new AtomicBoolean(false);
-    BufferedWriter bw;
-    ExecutorService es;
+    private long[] latencies;
+    private int currentPos;
+    private long counter;
+    private final String tag;
+    private final AtomicBoolean afterWarmup = new AtomicBoolean(false);
+    private BufferedWriter bw;
+    private final ExecutorService es;
 
     public LatencyCount(String tag, String filename) {
         try {

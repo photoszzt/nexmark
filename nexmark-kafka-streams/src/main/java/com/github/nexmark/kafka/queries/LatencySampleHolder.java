@@ -6,16 +6,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.time.Duration;
 
 public class LatencySampleHolder {
-    List<Long> latencies;
-    long counter;
+    private List<Long> latencies;
+    private long counter;
     AtomicBoolean afterWarmup;
     private static final int MIN_COLLECT = 200;
     private static final Duration DEFAULT_COLLECT_INTERVAL = Duration.ofSeconds(10);
-    ReportTimer rt;
-    String tag;
+    private final ReportTimer rt;
+    private final String tag;
 
     public LatencySampleHolder(String tag) {
-        latencies = new ArrayList<>();
         afterWarmup = new AtomicBoolean(false);
         this.tag = tag;
         rt = new ReportTimer(DEFAULT_COLLECT_INTERVAL);
@@ -25,6 +24,10 @@ public class LatencySampleHolder {
 
     public void SetAfterWarmup() {
         afterWarmup.set(true);
+    }
+
+    public String tag() {
+        return tag;
     }
 
     public void AppendLatency(long lat) {

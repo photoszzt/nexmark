@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.util.Map;
 
 public class MsgpPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T> {
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
     private Class<T> cls;
     public MsgpPOJOSerde() {
         objectMapper = new MessagePackMapper();
@@ -40,7 +40,7 @@ public class MsgpPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
     public T deserialize(String s, byte[] bytes) {
         try {
             assert(bytes != null);
-            T obj = (T)objectMapper.readValue(bytes, this.cls);
+            T obj = objectMapper.readValue(bytes, this.cls);
             assert(obj != null);
             return obj;
         } catch (IOException e) {
@@ -62,8 +62,7 @@ public class MsgpPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
     @Override
     public byte[] serialize(String s, T t) {
         try {
-            byte[] bytes = this.objectMapper.writeValueAsBytes(t);
-            return bytes;
+            return this.objectMapper.writeValueAsBytes(t);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             throw new SerializationException(e);

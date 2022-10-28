@@ -33,26 +33,21 @@ import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query4 implements NexmarkQuery {
     // public CountAction<Event> input;
-    public LatencyCountTransformerSupplier<DoubleAndTime, Double> lcts;
-    private ArrayList<Long> aucProcLat;
-    private ArrayList<Long> bidProcLat;
-    private ArrayList<Long> aucQueueTime;
-    private ArrayList<Long> bidQueueTime;
-    private ArrayList<Long> aucBidsQueueTime;
-    private ArrayList<Long> maxBidsQueueTime;
-    public ArrayList<Long> topo2ProcLat;
-    public ArrayList<Long> topo3ProcLat;
+    private LatencyCountTransformerSupplier<DoubleAndTime, Double> lcts;
+    private final ArrayList<Long> aucProcLat;
+    private final ArrayList<Long> bidProcLat;
+    private final ArrayList<Long> aucQueueTime;
+    private final ArrayList<Long> bidQueueTime;
+    private final ArrayList<Long> aucBidsQueueTime;
+    private final ArrayList<Long> maxBidsQueueTime;
+    private final ArrayList<Long> topo2ProcLat;
+    private final ArrayList<Long> topo3ProcLat;
     private static final Duration auctionDurationUpperS = Duration.ofSeconds(1800);
 
     public Query4(String baseDir) {
         // input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q4_sink_ets", baseDir,
-                new ValueMapper<DoubleAndTime, Double>() {
-                    @Override
-                    public Double apply(DoubleAndTime value) {
-                        return value.avg;
-                    }
-                });
+            (value) -> value.avg);
         aucProcLat = new ArrayList<>(NUM_STATS);
         bidProcLat = new ArrayList<>(NUM_STATS);
         aucQueueTime = new ArrayList<>(NUM_STATS);
@@ -94,7 +89,7 @@ public class Query4 implements NexmarkQuery {
         int maxBidsTpNumPar = Integer.parseInt(prop.getProperty("maxBidsTp.numPar"));
         NewTopic maxBidsTpPar = new NewTopic(maxBidsTp, maxBidsTpNumPar, REPLICATION_FACTOR);
 
-        List<NewTopic> nps = new ArrayList<NewTopic>(5);
+        List<NewTopic> nps = new ArrayList<>(5);
         nps.add(out);
         nps.add(bidsByAucIDPar);
         nps.add(aucsByIDPar);
@@ -155,230 +150,210 @@ public class Query4 implements NexmarkQuery {
         }
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
-                Consumed.with(Serdes.String(), eSerde)
-                        .withTimestampExtractor(new EventTimestampExtractor()));
+            Consumed.with(Serdes.String(), eSerde)
+                .withTimestampExtractor(new EventTimestampExtractor()));
         // .peek(input);
         Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
-                .branch((key, value) -> {
-                    value.setStartProcTsNano(System.nanoTime());
-                    value.setInjTsMs(Instant.now().toEpochMilli());
-                    return value.etype == Event.EType.BID;
-                }, Branched.as("bids"))
-                .branch((key, value) -> {
-                    value.setStartProcTsNano(System.nanoTime());
-                    value.setInjTsMs(Instant.now().toEpochMilli());
-                    return value.etype == Event.EType.AUCTION;
-                }, Branched.as("auctions"))
-                .noDefaultBranch();
+            .branch((key, value) -> {
+                value.setStartProcTsNano(System.nanoTime());
+                value.setInjTsMs(Instant.now().toEpochMilli());
+                return value.etype == Event.EType.BID;
+            }, Branched.as("bids"))
+            .branch((key, value) -> {
+                value.setStartProcTsNano(System.nanoTime());
+                value.setInjTsMs(Instant.now().toEpochMilli());
+                return value.etype == Event.EType.AUCTION;
+            }, Branched.as("auctions"))
+            .noDefaultBranch();
 
         KStream<Long, Event> bidsByAucID = ksMap.get("Branch-bids")
-                .selectKey((key, value) -> {
-                    long procLat = System.nanoTime() - value.startProcTsNano();
-                    StreamsUtils.appendLat(bidProcLat, procLat, "subGBid_proc");
-                    return value.bid.auction;
-                })
-                .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName(bidsByAucIDTpRepar)
-                        .withNumberOfPartitions(bidsByAucIDTpNumPar))
-                .mapValues((key, value) -> {
-                    assert value.injTsMs() != 0;
-                    value.setStartProcTsNano(System.nanoTime());
-                    assert value.startProcTsNano() != 0;
-                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                    StreamsUtils.appendLat(bidQueueTime, queueDelay, "bidQueueDelay");
-                    return value;
-                }, Named.as("bidMapValues"));
+            .selectKey((key, value) -> {
+                long procLat = System.nanoTime() - value.startProcTsNano();
+                StreamsUtils.appendLat(bidProcLat, procLat, "subGBid_proc");
+                return value.bid.auction;
+            })
+            .repartition(Repartitioned.with(Serdes.Long(), eSerde)
+                .withName(bidsByAucIDTpRepar)
+                .withNumberOfPartitions(bidsByAucIDTpNumPar))
+            .mapValues((key, value) -> {
+                assert value.injTsMs() != 0;
+                value.setStartProcTsNano(System.nanoTime());
+                assert value.startProcTsNano() != 0;
+                long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                StreamsUtils.appendLat(bidQueueTime, queueDelay, "bidQueueDelay");
+                return value;
+            }, Named.as("bidMapValues"));
 
         KStream<Long, Event> aucsByID = ksMap.get("Branch-auctions")
-                .selectKey((key, value) -> {
-                    long procLat = System.nanoTime() - value.startProcTsNano();
-                    StreamsUtils.appendLat(aucProcLat, procLat, "subGAuc_proc");
-                    return value.newAuction.id;
-                })
-                .repartition(Repartitioned.with(Serdes.Long(), eSerde)
-                        .withName(aucsByIDTpRepar)
-                        .withNumberOfPartitions(aucsByIDTpNumPar))
-                .mapValues((key, value) -> {
-                    assert value.injTsMs() != 0;
-                    value.setStartProcTsNano(System.nanoTime());
-                    assert value.startProcTsNano() != 0;
-                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                    StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
-                    return value;
-                }, Named.as("aucMapValues"));
+            .selectKey((key, value) -> {
+                long procLat = System.nanoTime() - value.startProcTsNano();
+                StreamsUtils.appendLat(aucProcLat, procLat, "subGAuc_proc");
+                return value.newAuction.id;
+            })
+            .repartition(Repartitioned.with(Serdes.Long(), eSerde)
+                .withName(aucsByIDTpRepar)
+                .withNumberOfPartitions(aucsByIDTpNumPar))
+            .mapValues((key, value) -> {
+                assert value.injTsMs() != 0;
+                value.setStartProcTsNano(System.nanoTime());
+                assert value.startProcTsNano() != 0;
+                long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
+                return value;
+            }, Named.as("aucMapValues"));
 
         KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
 
         JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(auctionDurationUpperS);
         WindowBytesStoreSupplier aucsByIDStoreSupplier = Stores.inMemoryWindowStore(
-                "aucsByID-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
-                Duration.ofMillis(jw.size()), true);
+            "aucsByID-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
+            Duration.ofMillis(jw.size()), true);
         WindowBytesStoreSupplier bidsByAucIDStoreSupplier = Stores.inMemoryWindowStore(
-                "bidsByID-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
-                Duration.ofMillis(jw.size()), true);
+            "bidsByID-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
+            Duration.ofMillis(jw.size()), true);
 
         KTable<AucIdCategory, LongAndTime> maxBids = aucsByID.join(bidsByAucID, (leftValue, rightValue) -> {
-            long startExecNano = 0;
-            if (leftValue.startProcTsNano() == 0) {
-                startExecNano = rightValue.startProcTsNano();
-            } else if (rightValue.startProcTsNano() == 0) {
-                startExecNano = leftValue.startProcTsNano();
-            } else {
-                startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
-            }
-            // System.out.println("leftStart: " + leftValue.startProcTsNano() + "
-            // rightStart: " + rightValue.startProcTsNano() + " startExecNano: " +
-            // startExecNano);
-            assert startExecNano != 0;
-            AuctionBid ab = new AuctionBid(rightValue.bid.dateTime,
+                long startExecNano;
+                if (leftValue.startProcTsNano() == 0) {
+                    startExecNano = rightValue.startProcTsNano();
+                } else if (rightValue.startProcTsNano() == 0) {
+                    startExecNano = leftValue.startProcTsNano();
+                } else {
+                    startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
+                }
+                // System.out.println("leftStart: " + leftValue.startProcTsNano() + "
+                // rightStart: " + rightValue.startProcTsNano() + " startExecNano: " +
+                // startExecNano);
+                assert startExecNano != 0;
+                AuctionBid ab = new AuctionBid(rightValue.bid.dateTime,
                     leftValue.newAuction.dateTime, leftValue.newAuction.expires,
                     rightValue.bid.price, leftValue.newAuction.category,
                     leftValue.newAuction.seller, 0);
-            ab.setStartProcTsNano(startExecNano);
-            return ab;
-        }, jw, StreamJoined.<Long, Event, Event>with(aucsByIDStoreSupplier, bidsByAucIDStoreSupplier)
+                ab.setStartProcTsNano(startExecNano);
+                return ab;
+            }, jw, StreamJoined.<Long, Event, Event>with(aucsByIDStoreSupplier, bidsByAucIDStoreSupplier)
                 .withKeySerde(Serdes.Long())
                 .withValueSerde(eSerde)
                 .withOtherValueSerde(eSerde)
                 .withLoggingEnabled(new HashMap<>()))
-                .filter((key, value) -> value.bidDateTimeMs >= value.aucDateTimeMs
-                        && value.bidDateTimeMs <= value.aucExpiresMs)
-                .filter((key, value) -> {
-                    // System.out.println("filuterNull, key: " + key + " value: " + value);
-                    if (value != null) {
-                        value.setInjTsMs(Instant.now().toEpochMilli());
-                        return true;
+            .filter((key, value) -> value.bidDateTimeMs >= value.aucDateTimeMs
+                && value.bidDateTimeMs <= value.aucExpiresMs)
+            .filter((key, value) -> {
+                // System.out.println("filuterNull, key: " + key + " value: " + value);
+                if (value != null) {
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return true;
+                } else {
+                    return false;
+                }
+            })
+            .selectKey((key, value) -> {
+                assert value.startProcTsNano() != 0;
+                long lat = System.nanoTime() - value.startProcTsNano();
+                StreamsUtils.appendLat(topo2ProcLat, lat, "subG2_proc");
+                return new AucIdCategory(key, value.aucCategory);
+            })
+            .repartition(Repartitioned.with(aicSerde, abSerde)
+                .withName(aucBidsTpRepar).withNumberOfPartitions(aucBidsTpNumPar))
+            .mapValues((key, value) -> {
+                value.setStartProcTsNano(System.nanoTime());
+                long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                StreamsUtils.appendLat(aucBidsQueueTime, queueDelay, "aucBidsQueueDelay");
+                return value;
+            }, Named.as("topo3-beg"))
+            .groupByKey()
+            .aggregate(() -> new LongAndTime(null, 0, 0),
+                (key, value, aggregate) -> {
+                    assert value.startProcTsNano() != 0;
+                    if (aggregate.val == null) {
+                        LongAndTime lt = new LongAndTime(value.bidPrice, 0, value.startProcTsNano());
+                        lt.startExecNano = value.startProcTsNano();
+                        return lt;
+                    }
+                    if (value.bidPrice > aggregate.val) {
+                        return new LongAndTime(value.bidPrice, 0, value.startProcTsNano());
                     } else {
-                        return false;
-                    }
-                })
-                .selectKey(new KeyValueMapper<Long, AuctionBid, AucIdCategory>() {
-                    @Override
-                    public AucIdCategory apply(Long key, AuctionBid value) {
-                        assert value.startProcTsNano() != 0;
-                        long lat = System.nanoTime() - value.startProcTsNano();
-                        StreamsUtils.appendLat(topo2ProcLat, lat, "subG2_proc");
-                        return new AucIdCategory(key, value.aucCategory);
-                    }
-                })
-                .repartition(Repartitioned.with(aicSerde, abSerde)
-                        .withName(aucBidsTpRepar).withNumberOfPartitions(aucBidsTpNumPar))
-                .mapValues((key, value) -> {
-                    value.setStartProcTsNano(System.nanoTime());
-                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                    StreamsUtils.appendLat(aucBidsQueueTime, queueDelay, "aucBidsQueueDelay");
-                    return value;
-                }, Named.as("topo3-beg"))
-                .groupByKey()
-                .aggregate(new Initializer<LongAndTime>() {
-                    @Override
-                    public LongAndTime apply() {
-                        return new LongAndTime(null, 0, 0);
-                    }
-                }, new Aggregator<AucIdCategory, AuctionBid, LongAndTime>() {
-                    @Override
-                    public LongAndTime apply(AucIdCategory key, AuctionBid value, LongAndTime aggregate) {
-                        assert value.startProcTsNano() != 0;
-                        if (aggregate.val == null) {
-                            LongAndTime lt = new LongAndTime(value.bidPrice, 0, value.startProcTsNano());
-                            lt.startExecNano = value.startProcTsNano();
-                            return lt;
-                        }
-                        if (value.bidPrice > aggregate.val) {
-                            LongAndTime lt = new LongAndTime(value.bidPrice, 0, value.startProcTsNano());
-                            return lt;
-                        } else {
-                            aggregate.startExecNano = value.startProcTsNano();
-                            return aggregate;
-                        }
+                        aggregate.startExecNano = value.startProcTsNano();
+                        return aggregate;
                     }
                 }, Named.as("maxBidPrice"), Materialized.<AucIdCategory, LongAndTime>as(maxBidsKV)
-                        .withCachingEnabled()
-                        .withLoggingEnabled(new HashMap<>())
-                        .withKeySerde(aicSerde)
-                        .withValueSerde(ltSerde));
+                    .withCachingEnabled()
+                    .withLoggingEnabled(new HashMap<>())
+                    .withKeySerde(aicSerde)
+                    .withValueSerde(ltSerde));
 
         KeyValueBytesStoreSupplier sumCountKV = Stores.inMemoryKeyValueStore("sumCountKVStore");
-        maxBids.groupBy(new KeyValueMapper<AucIdCategory, LongAndTime, KeyValue<Long, LongAndTime>>() {
-            @Override
-            public KeyValue<Long, LongAndTime> apply(AucIdCategory key, LongAndTime value) {
+        maxBids.groupBy((key, value) -> {
                 // System.out.println("max, key: " + key + " value: " + value);
                 long procLat = System.nanoTime() - value.startExecNano;
                 StreamsUtils.appendLat(topo3ProcLat, procLat, "subG3_proc");
                 value.injTsMs = Instant.now().toEpochMilli();
-                return new KeyValue<Long, LongAndTime>(key.category, value);
-            }
-        }, Grouped.with(Serdes.Long(), ltSerde).withName(maxBidsGroupByTab))
-                .aggregate(() -> {
+                return new KeyValue<>(key.category, value);
+            }, Grouped.with(Serdes.Long(), ltSerde).withName(maxBidsGroupByTab))
+            .aggregate(() -> {
                     SumAndCount s = new SumAndCount(0, 0, 0);
                     s.startExecNano = System.nanoTime();
                     return s;
-                }, new Aggregator<Long, LongAndTime, SumAndCount>() {
-                    @Override
-                    public SumAndCount apply(Long key, LongAndTime value, SumAndCount aggregate) {
-                        if (value != null) {
-                            long queueDelay = Instant.now().toEpochMilli() - value.injTsMs;
-                            StreamsUtils.appendLat(maxBidsQueueTime, queueDelay, "maxBidsQueueDelay");
-                            SumAndCount sc = new SumAndCount(aggregate.sum + value.val, aggregate.count + 1, 0);
-                            if (aggregate.sum == 0) {
-                                sc.startExecNano = aggregate.startExecNano;
-                            } else {
-                                sc.startExecNano = System.nanoTime();
-                            }
-                            return sc;
+                }, (key, value, aggregate) -> {
+                    if (value != null) {
+                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs;
+                        StreamsUtils.appendLat(maxBidsQueueTime, queueDelay, "maxBidsQueueDelay");
+                        SumAndCount sc = new SumAndCount(aggregate.sum + value.val, aggregate.count + 1, 0);
+                        if (aggregate.sum == 0) {
+                            sc.startExecNano = aggregate.startExecNano;
                         } else {
-                            aggregate.startExecNano = System.nanoTime();
-                            return aggregate;
+                            sc.startExecNano = System.nanoTime();
                         }
+                        return sc;
+                    } else {
+                        aggregate.startExecNano = System.nanoTime();
+                        return aggregate;
                     }
-                }, new Aggregator<Long, LongAndTime, SumAndCount>() {
-                    @Override
-                    public SumAndCount apply(Long key, LongAndTime value, SumAndCount aggregate) {
-                        if (value != null) {
-                            SumAndCount sc = new SumAndCount(aggregate.sum - value.val, aggregate.count - 1, 0);
-                            if (aggregate.sum == 0) {
-                                sc.startExecNano = aggregate.startExecNano;
-                            } else {
-                                sc.startExecNano = System.nanoTime();
-                            }
-                            return sc;
+                }, (key, value, aggregate) -> {
+                    if (value != null) {
+                        SumAndCount sc = new SumAndCount(aggregate.sum - value.val, aggregate.count - 1, 0);
+                        if (aggregate.sum == 0) {
+                            sc.startExecNano = aggregate.startExecNano;
                         } else {
-                            aggregate.startExecNano = System.nanoTime();
-                            return aggregate;
+                            sc.startExecNano = System.nanoTime();
                         }
+                        return sc;
+                    } else {
+                        aggregate.startExecNano = System.nanoTime();
+                        return aggregate;
                     }
                 }, Named.as("sumCount"),
-                        Materialized.<Long, SumAndCount>as(sumCountKV)
-                                .withKeySerde(Serdes.Long())
-                                .withValueSerde(scSerde)
-                                .withCachingEnabled()
-                                .withLoggingEnabled(new HashMap<>()))
-                .mapValues((key, value) -> {
-                    DoubleAndTime d = new DoubleAndTime((double) value.sum / (double) value.count);
-                    assert value.startExecNano != 0;
-                    d.startExecNano = value.startExecNano;
-                    return d;
-                })
-                .toStream()
-                .transformValues(lcts, Named.as("latency-measure"))
-                .to(outTp, Produced.with(Serdes.Long(), Serdes.Double()));
+                Materialized.<Long, SumAndCount>as(sumCountKV)
+                    .withKeySerde(Serdes.Long())
+                    .withValueSerde(scSerde)
+                    .withCachingEnabled()
+                    .withLoggingEnabled(new HashMap<>()))
+            .mapValues((key, value) -> {
+                DoubleAndTime d = new DoubleAndTime((double) value.sum / (double) value.count);
+                assert value.startExecNano != 0;
+                d.startExecNano = value.startExecNano;
+                return d;
+            })
+            .toStream()
+            .transformValues(lcts, Named.as("latency-measure"))
+            .to(outTp, Produced.with(Serdes.Long(), Serdes.Double()));
         return builder;
     }
 
     @Override
     public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache, boolean disableBatching) {
+                                               boolean disableCache, boolean disableBatching) {
         Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
-                disableCache, disableBatching);
+            disableCache, disableBatching);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q4");
         return props;
     }
 
     @Override
     public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache, boolean disableBatching) {
+                                               boolean disableCache, boolean disableBatching) {
         Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
-                disableCache, disableBatching);
+            disableCache, disableBatching);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q4");
         return props;
     }

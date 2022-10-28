@@ -24,13 +24,13 @@ import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query7 implements NexmarkQuery {
     // public CountAction<Event> input;
-    public LatencyCountTransformerSupplier<BidAndMax, BidAndMax> lcts;
-    private ArrayList<Long> bidsByWinProcLat;
-    private ArrayList<Long> bidsByPriceProcLat;
-    private ArrayList<Long> bidsByWinQueueTime;
-    private ArrayList<Long> bidsByPriceQueueTime;
-    private ArrayList<Long> maxBidsQueueTime;
-    private ArrayList<Long> topo2ProcLat;
+    private final LatencyCountTransformerSupplier<BidAndMax, BidAndMax> lcts;
+    private final ArrayList<Long> bidsByWinProcLat;
+    private final ArrayList<Long> bidsByPriceProcLat;
+    private final ArrayList<Long> bidsByWinQueueTime;
+    private final ArrayList<Long> bidsByPriceQueueTime;
+    private final ArrayList<Long> maxBidsQueueTime;
+    private final ArrayList<Long> topo2ProcLat;
 
     private static final String BIDS_BY_WIN_PROC_TAG = "bids_by_win_proc";
     private static final String BIDS_BY_PRICE_PROC_TAG = "bids_by_price_proc";
@@ -155,7 +155,7 @@ public class Query7 implements NexmarkQuery {
                         return new StartEndTime(windowStart, wEnd, 0);
                     }
                 })
-                .repartition(Repartitioned.<StartEndTime, Event>with(seSerde, eSerde)
+                .repartition(Repartitioned.with(seSerde, eSerde)
                         .withName(bidsByWinTpRepar)
                         .withNumberOfPartitions(bidsByWinTpPar));
         KStream<Long, Event> bidsByPrice = bids
@@ -204,7 +204,7 @@ public class Query7 implements NexmarkQuery {
                         key.setInjTsMs(Instant.now().toEpochMilli());
                         long procLat = System.nanoTime() - value.startProcTsNano();
                         StreamsUtils.appendLat(topo2ProcLat, procLat, TOPO2_PROC_TAG);
-                        return new KeyValue<Long, StartEndTime>(value.val, key);
+                        return new KeyValue<>(value.val, key);
                     }
                 })
                 .repartition(Repartitioned.with(Serdes.Long(), seSerde)
@@ -243,12 +243,8 @@ public class Query7 implements NexmarkQuery {
                 .withValueSerde(eSerde)
                 .withOtherValueSerde(seSerde)
                 .withLoggingEnabled(new HashMap<>()))
-                .filter(new Predicate<Long, BidAndMax>() {
-                    @Override
-                    public boolean test(Long key, BidAndMax value) {
-                        return value.dateTimeMs >= value.wStartMs && value.dateTimeMs <= value.wEndMs;
-                    }
-                })
+                .filter((key, value) -> value.dateTimeMs >= value.wStartMs &&
+                                        value.dateTimeMs <= value.wEndMs)
                 .transformValues(lcts, Named.as("latency-measure"))
                 .to(outTp, Produced.with(Serdes.Long(), bmSerde));
 

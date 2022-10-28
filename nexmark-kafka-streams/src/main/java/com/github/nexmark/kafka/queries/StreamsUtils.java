@@ -31,13 +31,14 @@ public class StreamsUtils {
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
         props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all");
+        int batchSize = 128*1024;
+        int flush = flushms;
         if (disableBatching) {
-            props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), 0);
-            props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), 0);
-        } else {
-            props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), Integer.toString(128 * 1024));
-            props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(flushms));
+            batchSize = 0;
+            flush = 0;
         }
+        props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), batchSize);
+        props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), flush);
         props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, Integer.toString(flushms));
         props.put(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, 1);
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);
@@ -63,13 +64,14 @@ public class StreamsUtils {
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
         props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
+        int batchSize = 128*1024;
+        int flush = flushms;
         if (disableBatching) {
-            props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), 0);
-            props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), 0);
-        } else {
-            props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), Integer.toString(128 * 1024));
-            props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), Integer.toString(flushms));
+            batchSize = 0;
+            flush = 0;
         }
+        props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), batchSize);
+        props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), flush);
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, Integer.toString(flushms));
         props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, Integer.toString(flushms));
@@ -82,19 +84,18 @@ public class StreamsUtils {
     public static void createTopic(String bootstrapServer, Collection<NewTopic> nps) {
         final Properties props = new Properties();
         props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
-        Admin admin = Admin.create(props);
-        CreateTopicsResult res = admin.createTopics(nps);
-        Map<String, KafkaFuture<Void>> futures = res.values();
-        nps.forEach(np -> {
-            KafkaFuture<Void> future = futures.get(np.name());
-            try {
-                future.get();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            }
-        });
+        try(Admin admin = Admin.create(props)) {
+            CreateTopicsResult res = admin.createTopics(nps);
+            Map<String, KafkaFuture<Void>> futures = res.values();
+            nps.forEach(np -> {
+                KafkaFuture<Void> future = futures.get(np.name());
+                try {
+                    future.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
     }
 
     public static void appendLat(ArrayList<Long> lat, long ts, String tag) {

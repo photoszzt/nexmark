@@ -14,10 +14,10 @@ import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implements ValueTransformerSupplier<V, V1> {
 
-    List<LatencyHolder> holders = new ArrayList<>();
-    String tag;
-    String baseDir;
-    ValueMapper<V, V1> mapper;
+    private final List<LatencyHolder> holders = new ArrayList<>();
+    private final String tag;
+    private final String baseDir;
+    private final ValueMapper<V, V1> mapper;
 
     public LatencyCountTransformerSupplier(String tag, String baseDir, ValueMapper<V, V1> mapper) {
         this.tag = tag;
@@ -40,17 +40,17 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return new LatencyCountTransformer<V, V1>(holders.get(holders.size() - 1), mapper);
+        return new LatencyCountTransformer<>(holders.get(holders.size() - 1), mapper);
     }
 
     public void printCount() {
         if (holders.size() == 1) {
             LatencyHolder holder = holders.get(0);
-            System.out.println(holder.tag + ": " + holder.getCount());
+            System.out.println(holder.tag() + ": " + holder.getCount());
         } else {
             for (LatencyHolder lh : holders) {
                 long count = lh.getCount();
-                System.out.println(lh.tag + ": " + count);
+                System.out.println(lh.tag() + ": " + count);
             }
         }
     }
@@ -67,7 +67,7 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
         }
     }
 
-    class LatencyCountTransformer<VV extends StartProcTs, VV1> implements ValueTransformer<VV, VV1> {
+    static class LatencyCountTransformer<VV extends StartProcTs, VV1> implements ValueTransformer<VV, VV1> {
         ProcessorContext ctx;
         LatencyHolder lh;
         ArrayList<Long> procLat = new ArrayList<>(NUM_STATS);
@@ -91,7 +91,7 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
             long startProc = value.startProcTsNano();
             assert (startProc != 0);
             long lat = System.nanoTime() - startProc;
-            StreamsUtils.appendLat(procLat, lat, lh.tag + "_proc");
+            StreamsUtils.appendLat(procLat, lat, lh.tag() + "_proc");
             lh.appendLatency(now - ts);
             return mapper.apply(value);
         }
@@ -100,7 +100,7 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
         public void close() {
             lh.waitForFinish();
             if (procLat.size() > 0) {
-                System.out.println("{\"" + lh.tag + "_proc" + "\": " + procLat + "}");
+                System.out.println("{\"" + lh.tag() + "_proc" + "\": " + procLat + "}");
             }
         }
     }

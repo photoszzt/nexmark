@@ -22,11 +22,11 @@ import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query8 implements NexmarkQuery {
     // public CountAction<Event> input;
-    public LatencyCountTransformerSupplier<PersonTime, PersonTime> lcts;
-    public ArrayList<Long> aucProcLat;
-    public ArrayList<Long> perProcLat;
-    public ArrayList<Long> aucQueueTime;
-    public ArrayList<Long> perQueueTime;
+    private final LatencyCountTransformerSupplier<PersonTime, PersonTime> lcts;
+    private final ArrayList<Long> aucProcLat;
+    private final ArrayList<Long> perProcLat;
+    private final ArrayList<Long> aucQueueTime;
+    private final ArrayList<Long> perQueueTime;
 
     private static final String AUC_PROC_TAG = "subAuc_proc";
     private static final String PER_PROC_TAG = "subPer_proc";
@@ -36,10 +36,10 @@ public class Query8 implements NexmarkQuery {
     public Query8(String baseDir) {
         // input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q8_sink_ets", baseDir, new IdentityValueMapper<PersonTime>());
-        aucProcLat = new ArrayList<Long>(NUM_STATS);
-        perProcLat = new ArrayList<Long>(NUM_STATS);
-        aucQueueTime = new ArrayList<Long>(NUM_STATS);
-        perQueueTime = new ArrayList<Long>(NUM_STATS);
+        aucProcLat = new ArrayList<>(NUM_STATS);
+        perProcLat = new ArrayList<>(NUM_STATS);
+        aucQueueTime = new ArrayList<>(NUM_STATS);
+        perQueueTime = new ArrayList<>(NUM_STATS);
     }
 
     @Override

@@ -19,11 +19,11 @@ import java.util.Properties;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 
 public class Query2 implements NexmarkQuery {
-    public CountAction<Event> input;
-    public LatencyCount<String, Event> latCount;
+    // private CountAction<Event> input;
+    private final LatencyCount<String, Event> latCount;
 
     public Query2(File statsDir) {
-        input = new CountAction<>();
+        // input = new CountAction<>();
         String tag = "q2_sink_ets";
         String fileName = statsDir + File.separator + tag;
         latCount = new LatencyCount<>("q2_sink_ets", fileName);
@@ -54,7 +54,7 @@ public class Query2 implements NexmarkQuery {
             throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
         }
 
-        input = new CountAction<>();
+        // input = new CountAction<>();
 
         KStream<String, Event> inputs = builder.stream("nexmark_src",
                 Consumed.with(Serdes.String(), eSerde)
@@ -84,8 +84,8 @@ public class Query2 implements NexmarkQuery {
     @Override
     public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
             boolean disableCache, boolean disableBatching) {
-        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms, 
-        disableCache, disableBatching);
+        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
+                disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q2");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q2-client");
         return props;

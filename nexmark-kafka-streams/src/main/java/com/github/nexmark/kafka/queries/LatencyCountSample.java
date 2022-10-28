@@ -8,19 +8,23 @@ import java.time.Duration;
 import org.apache.kafka.streams.kstream.ForeachAction;
 
 public class LatencyCountSample<K, V extends TimestampFromValue<V>> implements ForeachAction<K, TimestampFromValue<V>> {
-    List<Long> latencies;
-    long counter;
-    AtomicBoolean afterWarmup = new AtomicBoolean(false);
+    private List<Long> latencies;
+    private long counter;
+    private AtomicBoolean afterWarmup = new AtomicBoolean(false);
     private static final int MIN_COLLECT = 200;
     private static final Duration DEFAULT_COLLECT_INTERVAL = Duration.ofSeconds(10);
-    ReportTimer rt;
-    String tag;
+    private final ReportTimer rt;
+    private final String tag;
 
     public LatencyCountSample(String tag) {
         rt = new ReportTimer(DEFAULT_COLLECT_INTERVAL);
         this.tag = tag;
         latencies = new ArrayList<>(MIN_COLLECT);
         counter = 0;
+    }
+
+    public String tag() {
+        return tag;
     }
 
     @Override

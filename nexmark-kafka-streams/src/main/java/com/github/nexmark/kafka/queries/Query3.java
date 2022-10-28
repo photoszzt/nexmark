@@ -22,24 +22,27 @@ import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
 import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query3 implements NexmarkQuery {
-    public LatencyCountTransformerSupplier<NameCityStateId, NameCityStateId> lcts;
-    public ArrayList<Long> aucProcLat;
-    public ArrayList<Long> perProcLat;
-    public ArrayList<Long> aucQueueTime;
-    public ArrayList<Long> perQueueTime;
+    private final LatencyCountTransformerSupplier<NameCityStateId, NameCityStateId> lcts;
+    private final ArrayList<Long> aucProcLat;
+    private final ArrayList<Long> perProcLat;
+    private final ArrayList<Long> aucQueueTime;
+    private final ArrayList<Long> perQueueTime;
+
+    private Serde<Event> eSerde;
+    private Serde<NameCityStateId> ncsiSerde;
 
     public Query3(String baseDir) {
         lcts = new LatencyCountTransformerSupplier<>("q3_sink_ets",
-                baseDir, new IdentityValueMapper<NameCityStateId>());
-        aucProcLat = new ArrayList<Long>(NUM_STATS);
-        perProcLat = new ArrayList<Long>(NUM_STATS);
-        aucQueueTime = new ArrayList<Long>(NUM_STATS);
-        perQueueTime = new ArrayList<Long>(NUM_STATS);
+            baseDir, new IdentityValueMapper<>());
+        aucProcLat = new ArrayList<>(NUM_STATS);
+        perProcLat = new ArrayList<>(NUM_STATS);
+        aucQueueTime = new ArrayList<>(NUM_STATS);
+        perQueueTime = new ArrayList<>(NUM_STATS);
     }
 
     @Override
     public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile)
-            throws IOException {
+        throws IOException {
         Properties prop = new Properties();
         FileInputStream fis = new FileInputStream(configFile);
         prop.load(fis);
@@ -58,7 +61,7 @@ public class Query3 implements NexmarkQuery {
         int personsByIDTpPar = Integer.parseInt(prop.getProperty("personsByIDTp.numPar"));
         NewTopic persionsByIdTabPar = new NewTopic(personsByIDTp, personsByIDTpPar, REPLICATION_FACTOR);
 
-        List<NewTopic> nps = new ArrayList<NewTopic>(3);
+        List<NewTopic> nps = new ArrayList<>(3);
         nps.add(out);
         nps.add(auctionBySellerIdTabPar);
         nps.add(persionsByIdTabPar);
@@ -66,8 +69,6 @@ public class Query3 implements NexmarkQuery {
 
         StreamsBuilder builder = new StreamsBuilder();
 
-        Serde<Event> eSerde;
-        Serde<NameCityStateId> ncsiSerde;
         if (serde.equals("json")) {
             JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<>();
             eSerdeJSON.setClass(Event.class);
@@ -89,115 +90,109 @@ public class Query3 implements NexmarkQuery {
         }
 
         KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
-                .withTimestampExtractor(new EventTimestampExtractor()));
+            .withTimestampExtractor(new EventTimestampExtractor()));
 
         Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
-                .branch((key, value) -> {
-                    if (value != null) {
-                        value.setStartProcTsNano(System.nanoTime());
-                        value.setInjTsMs(Instant.now().toEpochMilli());
-                        return value.etype == Event.EType.AUCTION
-                                && value.newAuction.category == 10;
-                    } else {
-                        return false;
-                    }
-                }, Branched.as("aucBySeller"))
-                .branch((key, value) -> {
-                    if (value != null) {
-                        value.setStartProcTsNano(System.nanoTime());
-                        value.setInjTsMs(Instant.now().toEpochMilli());
-                        return value.etype == Event.EType.PERSON
-                                && (value.newPerson.state.equals("OR") ||
-                                        value.newPerson.state.equals("ID") ||
-                                        value.newPerson.state.equals("CA"));
-                    } else {
-                        return false;
-                    }
-                }, Branched.as("personsById"))
-                .noDefaultBranch();
+            .branch((key, value) -> {
+                if (value != null) {
+                    value.setStartProcTsNano(System.nanoTime());
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return value.etype == Event.EType.AUCTION
+                        && value.newAuction.category == 10;
+                } else {
+                    return false;
+                }
+            }, Branched.as("aucBySeller"))
+            .branch((key, value) -> {
+                if (value != null) {
+                    value.setStartProcTsNano(System.nanoTime());
+                    value.setInjTsMs(Instant.now().toEpochMilli());
+                    return value.etype == Event.EType.PERSON && value.newPerson != null
+                        && (value.newPerson.state.equals("OR") ||
+                        value.newPerson.state.equals("ID") ||
+                        value.newPerson.state.equals("CA"));
+                } else {
+                    return false;
+                }
+            }, Branched.as("personsById"))
+            .noDefaultBranch();
 
         KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores
-                .inMemoryKeyValueStore("auctionBySellerIdKV");
+            .inMemoryKeyValueStore("auctionBySellerIdKV");
         KTable<Long, Event> auctionsBySellerId = ksMap.get("Branch-aucBySeller")
-                .selectKey((key, value) -> {
-                    long procLat = System.nanoTime() - value.startProcTsNano();
-                    StreamsUtils.appendLat(aucProcLat, procLat, "subGAuc_proc");
-                    return value.newAuction.seller;
-                })
-                .toTable(Named.as(aucBySellerIDTab),
-                        Materialized.<Long, Event>as(auctionsBySellerIdKVStoreSupplier)
-                                .withKeySerde(Serdes.Long())
-                                .withValueSerde(eSerde))
-                .mapValues(new ValueMapper<Event, Event>() {
-                    @Override
-                    public Event apply(Event value) {
-                        value.setStartProcTsNano(System.nanoTime());
-                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
-                        return value;
-                    }
-                });
+            .selectKey((key, value) -> {
+                final long procLat = System.nanoTime() - value.startProcTsNano();
+                StreamsUtils.appendLat(aucProcLat, procLat, "subGAuc_proc");
+                return value.newAuction.seller;
+            })
+            .toTable(Named.as(aucBySellerIDTab),
+                Materialized.<Long, Event>as(auctionsBySellerIdKVStoreSupplier)
+                    .withKeySerde(Serdes.Long())
+                    .withValueSerde(eSerde))
+            .mapValues((value) -> {
+                value.setStartProcTsNano(System.nanoTime());
+                final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
+                return value;
+            });
 
         KeyValueBytesStoreSupplier personsByIdKVStoreSupplier = Stores.inMemoryKeyValueStore("personsByIdKV");
         KTable<Long, Event> personsById = ksMap.get("Branch-personsById")
-                .selectKey((key, value) -> {
-                    long procLat = System.nanoTime() - value.startProcTsNano();
-                    StreamsUtils.appendLat(perProcLat, procLat, "subGPer_proc");
-                    return value.newPerson.id;
-                })
-                .toTable(Named.as(personsByIDTab),
-                        Materialized.<Long, Event>as(personsByIdKVStoreSupplier)
-                                .withKeySerde(Serdes.Long())
-                                .withValueSerde(eSerde))
-                .mapValues(new ValueMapper<Event, Event>() {
-                    @Override
-                    public Event apply(Event value) {
-                        value.setStartProcTsNano(System.nanoTime());
-                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
-                        StreamsUtils.appendLat(perQueueTime, queueDelay, "perQueueDelay");
-                        return value;
-                    }
-                });
+            .selectKey((key, value) -> {
+                long procLat = System.nanoTime() - value.startProcTsNano();
+                StreamsUtils.appendLat(perProcLat, procLat, "subGPer_proc");
+                return value.newPerson.id;
+            })
+            .toTable(Named.as(personsByIDTab),
+                Materialized.<Long, Event>as(personsByIdKVStoreSupplier)
+                    .withKeySerde(Serdes.Long())
+                    .withValueSerde(eSerde))
+            .mapValues((value) -> {
+                value.setStartProcTsNano(System.nanoTime());
+                long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                StreamsUtils.appendLat(perQueueTime, queueDelay, "perQueueDelay");
+                return value;
+            });
         auctionsBySellerId
-                .join(personsById,
-                        (leftValue, rightValue) -> {
-                            long startExecNano = 0;
-                            if (leftValue.startProcTsNano() == 0) {
-                                startExecNano = rightValue.startProcTsNano();
-                            } else if (rightValue.startProcTsNano() == 0) {
-                                startExecNano = leftValue.startProcTsNano();
-                            } else {
-                                startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
-                            }
-                            assert startExecNano != 0;
-                            NameCityStateId ret = new NameCityStateId(
-                                    rightValue.newPerson.name,
-                                    rightValue.newPerson.city,
-                                    rightValue.newPerson.state,
-                                    rightValue.newPerson.id);
-                            ret.setStartProcTsNano(startExecNano);
-                            return ret;
-                        })
-                .toStream()
-                .transformValues(lcts, Named.as("latency-measure"))
-                .to(outTp, Produced.with(Serdes.Long(), ncsiSerde));
+            .join(personsById,
+                (leftValue, rightValue) -> {
+                    long startExecNano = 0;
+                    if (leftValue.startProcTsNano() == 0) {
+                        startExecNano = rightValue.startProcTsNano();
+                    } else if (rightValue.startProcTsNano() == 0) {
+                        startExecNano = leftValue.startProcTsNano();
+                    } else {
+                        startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
+                    }
+                    assert startExecNano != 0;
+                    NameCityStateId ret = new NameCityStateId(
+                        rightValue.newPerson.name,
+                        rightValue.newPerson.city,
+                        rightValue.newPerson.state,
+                        rightValue.newPerson.id);
+                    ret.setStartProcTsNano(startExecNano);
+                    return ret;
+                })
+            .toStream()
+            .transformValues(lcts, Named.as("latency-measure"))
+            .to(outTp, Produced.with(Serdes.Long(), ncsiSerde));
         return builder;
     }
 
     @Override
     public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache, boolean disableBatching) {
+                                               boolean disableCache, boolean disableBatching) {
         Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
-                disableCache, disableBatching);
+            disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q3");
         return props;
     }
 
     @Override
     public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache, boolean disableBatching) {
+                                               boolean disableCache, boolean disableBatching) {
         Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
-                disableCache, disableBatching);
+            disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q3");
         return props;
     }
