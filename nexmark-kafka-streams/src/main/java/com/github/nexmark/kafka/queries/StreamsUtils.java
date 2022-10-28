@@ -31,12 +31,8 @@ public class StreamsUtils {
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
         props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all");
-        int batchSize = 128*1024;
-        int flush = flushms;
-        if (disableBatching) {
-            batchSize = 0;
-            flush = 0;
-        }
+        final int batchSize = disableBatching ? 0 : 128*1024;
+        final int flush = disableBatching ? 0 : flushms;
         props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), batchSize);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), flush);
         props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, Integer.toString(flushms));
@@ -64,12 +60,8 @@ public class StreamsUtils {
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
         props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
-        int batchSize = 128*1024;
-        int flush = flushms;
-        if (disableBatching) {
-            batchSize = 0;
-            flush = 0;
-        }
+        final int batchSize = disableBatching ? 0 : 128*1024;
+        final int flush = disableBatching ? 0 : flushms;
         props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), batchSize);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), flush);
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);

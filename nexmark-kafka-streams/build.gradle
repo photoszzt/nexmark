@@ -4,8 +4,8 @@
 
 dependencies {
     implementation 'commons-cli:commons-cli:1.4'
-    implementation 'org.apache.kafka:kafka-streams:7.1.0-ccs'
-    implementation 'org.apache.kafka:kafka-clients:7.1.0-ccs'
+    implementation 'org.apache.kafka:kafka-streams:7.1.4-15-ccs'
+    implementation 'org.apache.kafka:kafka-clients:7.1.4-15-ccs'
     implementation 'com.google.guava:guava:31.0.1-jre'
     implementation 'org.slf4j:slf4j-api:1.7.32'
     implementation 'org.slf4j:slf4j-simple:1.7.32'

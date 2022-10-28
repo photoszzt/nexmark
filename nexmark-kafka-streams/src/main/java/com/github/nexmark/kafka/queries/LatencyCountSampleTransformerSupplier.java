@@ -9,7 +9,7 @@ import org.apache.kafka.streams.processor.ProcessorContext;
 
 public class LatencyCountSampleTransformerSupplier<V> implements ValueTransformerSupplier<V, V>{
 
-    private List<LatencySampleHolder> holders = new ArrayList<>();
+    private final List<LatencySampleHolder> holders = new ArrayList<>();
     private final String tag;
     private int numHolders;
 
@@ -22,7 +22,7 @@ public class LatencyCountSampleTransformerSupplier<V> implements ValueTransforme
         LatencySampleHolder holder = new LatencySampleHolder(tag+"-"+numHolders);
         holders.add(holder);
         numHolders += 1;
-        return new LatencyCountTransformer<V>(holder);
+        return new LatencyCountTransformer<>(holder);
     }
 
     public void SetAfterWarmup(){
@@ -49,7 +49,7 @@ public class LatencyCountSampleTransformerSupplier<V> implements ValueTransforme
         }
     }
 
-    class LatencyCountTransformer<V1> implements ValueTransformer<V1, V1> {
+    static class LatencyCountTransformer<V1> implements ValueTransformer<V1, V1> {
         ProcessorContext ctx;
         LatencySampleHolder lh;
 
