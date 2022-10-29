@@ -47,7 +47,7 @@ public class Query5 implements NexmarkQuery {
     private static final String BIDSQT_TAG = "bidsQueueDelay";
     private static final String AUCBIDSQT_TAG = "auctionBidsQueueDelay";
 
-    public Query5(String baseDir) {
+    public Query5(final String baseDir) {
         // input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q5_sink_ets", baseDir,
             new IdentityValueMapper<>());
@@ -134,7 +134,7 @@ public class Query5 implements NexmarkQuery {
             throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
         }
 
-        StreamsBuilder builder = new StreamsBuilder();
+        final StreamsBuilder builder = new StreamsBuilder();
 
         final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
             .withTimestampExtractor(new EventTimestampExtractor()));
@@ -192,7 +192,7 @@ public class Query5 implements NexmarkQuery {
                 return aic;
             })
             .selectKey((key, value) -> {
-                StartEndTime se = new StartEndTime(key.window().start(), key.window().end(), 0);
+                final StartEndTime se = new StartEndTime(key.window().start(), key.window().end(), 0);
                 assert value.startExecNano != 0;
                 final long procLat = System.nanoTime() - value.startExecNano;
                 StreamsUtils.appendLat(topo2ProcLat, procLat, TOPO2PROC_TAG);
@@ -241,7 +241,7 @@ public class Query5 implements NexmarkQuery {
                     startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
                 }
                 assert startExecNano != 0;
-                AuctionIdCntMax aicm = new AuctionIdCntMax(leftValue.aucId,
+                final AuctionIdCntMax aicm = new AuctionIdCntMax(leftValue.aucId,
                     leftValue.count, rightValue.val);
                 aicm.startExecNano = startExecNano;
                 if (rightValue.startExecNano < aicm.startExecNano) {

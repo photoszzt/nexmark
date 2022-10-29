@@ -55,7 +55,7 @@ public class Query7 implements NexmarkQuery {
     private static final String MAX_BIDS_QUEUE_TAG = "max_bids_queue";
     private static final String TOPO2_PROC_TAG = "topo2_proc";
 
-    public Query7(String baseDir) {
+    public Query7(final String baseDir) {
         // input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q7_sink_ets", baseDir, new IdentityValueMapper<BidAndMax>());
         bidsByWinProcLat = new ArrayList<>(NUM_STATS);

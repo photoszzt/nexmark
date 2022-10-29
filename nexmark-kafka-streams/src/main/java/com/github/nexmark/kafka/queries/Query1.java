@@ -25,7 +25,7 @@ public class Query1 implements NexmarkQuery {
     // public CountAction<Event> input;
     public LatencyCount<String, Event> latCount;
 
-    public Query1(File statsDir) {
+    public Query1(final File statsDir) {
         // input = new CountAction<>();
         final String tag = "q1_sink_ets";
         final String fileName = statsDir + File.separator + tag;
@@ -62,7 +62,7 @@ public class Query1 implements NexmarkQuery {
 
         inputs.filter((key, value) -> value != null && value.etype == Event.EType.BID)
             .mapValues(value -> {
-                Bid b = value.bid;
+                final Bid b = value.bid;
                 return new Event(
                     new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra),
                     Instant.now().toEpochMilli());
@@ -73,7 +73,7 @@ public class Query1 implements NexmarkQuery {
     @Override
     public Properties getExactlyOnceProperties(final String bootstrapServer, final int duration, final int flushms,
                                                final boolean disableCache, final boolean disableBatching) {
-        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
+        final Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
             disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q1");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q1-client");
@@ -83,7 +83,7 @@ public class Query1 implements NexmarkQuery {
     @Override
     public Properties getAtLeastOnceProperties(final String bootstrapServer, final int duration, final int flushms,
                                                final boolean disableCache, final boolean disableBatching) {
-        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
+        final Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
             disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q1");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q1-client");

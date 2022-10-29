@@ -1,6 +1,6 @@
 package com.github.nexmark.kafka.queries;
 
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
@@ -31,7 +31,7 @@ public class RunQuery {
     private static final Option DURATION = new Option("d", "duration", true, "duration in seconds");
     private static final Option WARMUP_TIME = new Option("w", "warmup_time", true, "warmup time in seconds");
     private static final Option NUM_SRC_EVENTS = new Option("e", "srcEvents",
-            true, "number of src events");
+        true, "number of src events");
     private static final Option PORT = new Option("p", "port", true, "port to listen");
     private static final Option FLUSHMS = new Option("f", "flushms", true, "flush interval in ms");
     private static final Option GUARANTEE = new Option("g", "guarantee", true, "guarantee");
@@ -41,8 +41,9 @@ public class RunQuery {
 
     private static final long TEN_SEC_NANO = TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS);
 
-    private static NexmarkQuery getNexmarkQuery(String appName, File statsDir) throws IOException {
-        String canStatsDir = statsDir.getCanonicalPath();
+    private static NexmarkQuery getNexmarkQuery(final String appName,
+                                                final File statsDir) throws IOException {
+        final String canStatsDir = statsDir.getCanonicalPath();
         switch (appName) {
             case "q1":
                 return new Query1(statsDir);
@@ -66,8 +67,8 @@ public class RunQuery {
         }
     }
 
-    public static String getEnvValue(String envKey, String defaultVal) {
-        String envValue = System.getenv(envKey);
+    public static String getEnvValue(final String envKey, final String defaultVal) {
+        final String envValue = System.getenv(envKey);
         if (envValue != null && !envValue.isEmpty()) {
             return envValue;
         }
@@ -99,7 +100,7 @@ public class RunQuery {
         final int flushms = flushStr == null ? 100 : Integer.parseInt(flushStr);
         final boolean disableCache = line.hasOption(DISABLE_CACHE.getOpt());
         final boolean disableBatching = line.hasOption(DISABLE_BATCHING.getOpt());
-        File statsDir = new File(statsDirStr);
+        final File statsDir = new File(statsDirStr);
         if (!statsDir.exists()) {
             statsDir.mkdirs();
         }
@@ -107,11 +108,11 @@ public class RunQuery {
         final String srcEventStr = line.getOptionValue(NUM_SRC_EVENTS.getOpt());
         final int srcEvents = srcEventStr == null ? 0 : Integer.parseInt(srcEventStr);
         System.out.println("appName: " + appName + " serde: " + serde +
-                " configFile: " + configFile + " duration(ms): "
-                + durationMs + " warmup(ms): " + warmupDuration +
-                " numSrcEvents: " + srcEvents + " flushMs: " + flushms +
-                " guarantee: " + guarantee + " disableCache: " + disableCache +
-                " disableBatching: " + disableBatching + " statsDir: " + statsDirStr);
+            " configFile: " + configFile + " duration(ms): "
+            + durationMs + " warmup(ms): " + warmupDuration +
+            " numSrcEvents: " + srcEvents + " flushMs: " + flushms +
+            " guarantee: " + guarantee + " disableCache: " + disableCache +
+            " disableBatching: " + disableBatching + " statsDir: " + statsDirStr);
         if (!guarantee.equals("alo") && !guarantee.equals("eo")) {
             System.out.printf("unrecognized guarantee: %s; expected either alo or eo\n", guarantee);
             return;
@@ -124,23 +125,23 @@ public class RunQuery {
             System.exit(1);
         }
 
-        StreamsBuilder builder;
+        final StreamsBuilder builder;
         try {
             builder = query.getStreamBuilder(bootstrapServers, serde, configFile);
-        } catch (IOException e1) {
+        } catch (final IOException e1) {
             e1.printStackTrace();
             return;
         }
 
-        Properties props;
+        final Properties props;
         if (guarantee.equals("alo")) {
             props = query.getAtLeastOnceProperties(bootstrapServers, durationMs, flushms, disableCache,
-                    disableBatching);
+                disableBatching);
         } else {
             props = query.getExactlyOnceProperties(bootstrapServers, durationMs, flushms, disableCache,
-                    disableBatching);
+                disableBatching);
         }
-        Topology tp = builder.build();
+        final Topology tp = builder.build();
         System.out.println(tp.describe());
 
         System.out.printf("nexmark listening %d\n", port);
@@ -153,32 +154,32 @@ public class RunQuery {
                 latch.countDown();
             }
         });
-        Thread t = new Thread(() -> {
-            long timeStartNano = System.nanoTime();
+        final Thread t = new Thread(() -> {
+            final long timeStartNano = System.nanoTime();
             long afterWarmStartNano = 0;
             boolean afterWarmup = false;
             long emitMetricTimer = System.nanoTime();
-            long durationNano = TimeUnit.NANOSECONDS.convert(durationMs, TimeUnit.MILLISECONDS);
+            final long durationNano = TimeUnit.NANOSECONDS.convert(durationMs, TimeUnit.MILLISECONDS);
             if (durationMs != 0 && srcEvents == 0) {
                 while (true) {
-                    long now = System.nanoTime();
-                    long elapsedNano = now - timeStartNano;
+                    final long now = System.nanoTime();
+                    final long elapsedNano = now - timeStartNano;
 
-                    long elapsedMetricNano = now - emitMetricTimer;
+                    final long elapsedMetricNano = now - emitMetricTimer;
                     if (elapsedMetricNano >= TEN_SEC_NANO) {
                         System.out.println("emit metrics at " + elapsedNano + " ns");
-                        Map<MetricName, ? extends Metric> metric = streams.metrics();
+                        final Map<MetricName, ? extends Metric> metric = streams.metrics();
                         metric.forEach((k, v) -> {
-                            String g = k.group();
+                            final String g = k.group();
                             if (!(g.equals("app-info") || g.startsWith("admin-client") ||
-                                    g.equals("kafka-metrics-count"))) {
+                                g.equals("kafka-metrics-count"))) {
                                 try {
-                                    Double d = ((Number) v.metricValue()).doubleValue();
+                                    final Double d = ((Number) v.metricValue()).doubleValue();
                                     if (!d.isNaN() && d != 0.0) {
                                         System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
-                                                + ";val:" + d);
+                                            + ";val:" + d);
                                     }
-                                } catch (ClassCastException e) {
+                                } catch (final ClassCastException e) {
                                     e.printStackTrace();
                                 }
                             }
@@ -188,18 +189,18 @@ public class RunQuery {
                     }
                     if (elapsedNano >= durationNano) {
                         System.out.println("emit metrics at " + elapsedNano);
-                        Map<MetricName, ? extends Metric> metric = streams.metrics();
+                        final Map<MetricName, ? extends Metric> metric = streams.metrics();
                         metric.forEach((k, v) -> {
-                            String g = k.group();
+                            final String g = k.group();
                             if (!(g.equals("app-info") || g.startsWith("admin-client") ||
-                                    g.equals("kafka-metrics-count"))) {
+                                g.equals("kafka-metrics-count"))) {
                                 try {
-                                    Double d = ((Number) v.metricValue()).doubleValue();
+                                    final Double d = ((Number) v.metricValue()).doubleValue();
                                     if (!d.isNaN() && d != 0.0) {
                                         System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
-                                                + ";val:" + d);
+                                            + ";val:" + d);
                                     }
-                                } catch (ClassCastException e) {
+                                } catch (final ClassCastException e) {
                                     e.printStackTrace();
                                 }
                             }
@@ -214,7 +215,7 @@ public class RunQuery {
                     }
                     try {
                         Thread.sleep(10);
-                    } catch (InterruptedException e) {
+                    } catch (final InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
@@ -236,21 +237,19 @@ public class RunQuery {
             // }
             // }
             // }
-            long timeEndNano = System.nanoTime();
+            final long timeEndNano = System.nanoTime();
 
             streams.close();
-            long timeEndAfterClose = System.nanoTime();
+            final long timeEndAfterClose = System.nanoTime();
             query.outputRemainingStats();
             // query.printRemainingStats();
             // System.out.println();
             // System.out.println();
-            Map<MetricName, ? extends Metric> metric = streams.metrics();
-            metric.forEach((k, v) -> {
-                System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
-                        + ";val:" + v.metricValue());
-            });
-            double durationSec = ((timeEndNano - timeStartNano) / 1000_000_000.0);
-            double durationAfterStreamCloseSec = (timeEndAfterClose - timeStartNano) / 1000_000_000.0;
+            final Map<MetricName, ? extends Metric> metric = streams.metrics();
+            metric.forEach((k, v) -> System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
+                + ";val:" + v.metricValue()));
+            final double durationSec = (timeEndNano - timeStartNano) / 1000_000_000.0;
+            final double durationAfterStreamCloseSec = (timeEndAfterClose - timeStartNano) / 1000_000_000.0;
             System.out.println("Duration: " + durationSec + " after streams close: " + durationAfterStreamCloseSec);
             if (warmupDuration != 0) {
                 System.out.println("Duration after warmup: " + (timeEndNano - afterWarmStartNano) / 1000_000_000.0);
@@ -262,24 +261,24 @@ public class RunQuery {
         });
         streams.start();
         System.err.println("done preparation");
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+        final HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/run", new HttpHandler() {
 
             @Override
-            public void handle(HttpExchange exchange) throws IOException {
+            public void handle(final HttpExchange exchange) throws IOException {
                 System.out.println("Got connection\n");
 
                 t.start();
                 System.out.println("Start processing and waiting for result\n");
                 try {
                     latch.await();
-                } catch (Throwable e) {
+                } catch (final Throwable e) {
                     System.exit(1);
                 }
 
-                byte[] response = "done nexmark".getBytes();
+                final byte[] response = "done nexmark".getBytes();
                 exchange.sendResponseHeaders(200, response.length);
-                OutputStream os = exchange.getResponseBody();
+                final OutputStream os = exchange.getResponseBody();
                 os.write(response);
                 os.close();
             }
@@ -295,7 +294,7 @@ public class RunQuery {
     //}
 
     private static Options getOptions() {
-        Options options = new Options();
+        final Options options = new Options();
         options.addOption(APP_NAME);
         options.addOption(SERDE);
         options.addOption(CONFIG_FILE);

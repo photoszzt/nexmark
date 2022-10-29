@@ -60,7 +60,7 @@ public class PriceTime implements StartProcTs, InjTsMs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
+    public void setStartProcTsNano(final long ts) {
         this.startProcTsNano = ts;
     }
 
@@ -70,7 +70,7 @@ public class PriceTime implements StartProcTs, InjTsMs {
     }
 
     @Override
-    public void setInjTsMs(long ts) {
+    public void setInjTsMs(final long ts) {
         injTsMs = ts;
     }
 }

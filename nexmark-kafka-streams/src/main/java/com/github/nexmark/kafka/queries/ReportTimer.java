@@ -17,11 +17,11 @@ public class ReportTimer {
             lastTs = Instant.now();
             return false;
         }
-        return (Duration.between(lastTs, Instant.now()).compareTo(duration) >= 0);
+        return Duration.between(lastTs, Instant.now()).compareTo(duration) >= 0;
     } 
 
     public Duration Mark() {
-        Duration dur = Duration.between(lastTs, Instant.now());
+        final Duration dur = Duration.between(lastTs, Instant.now());
         lastTs = Instant.now();
         return dur;
     }

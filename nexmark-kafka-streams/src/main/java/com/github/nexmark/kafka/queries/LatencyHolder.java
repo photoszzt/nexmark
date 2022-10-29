@@ -17,7 +17,7 @@ public class LatencyHolder {
     private final String tag;
     private AtomicBoolean afterWarmup = new AtomicBoolean(false);
 
-    public LatencyHolder(String tag, String filename) throws IOException {
+    public LatencyHolder(final String tag, final String filename) throws IOException {
         this.tag = tag;
         this.fileName = filename; 
     }
@@ -33,7 +33,7 @@ public class LatencyHolder {
         currentPos = 0;
         try {
             bw = new BufferedWriter(new FileWriter(this.fileName));
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
         es = Executors.newSingleThreadExecutor();
@@ -47,20 +47,20 @@ public class LatencyHolder {
         afterWarmup.set(true);
     }
 
-    public void appendLatency(long lat) {
+    public void appendLatency(final long lat) {
         counter += 1;
         if (currentPos < latencies.length) {
             latencies[currentPos] = lat;
             currentPos++;
         } else {
-            String s = Arrays.toString(latencies);
+            final String s = Arrays.toString(latencies);
             latencies = new long[1024];
             currentPos = 0;
             es.submit(() -> {
                 try {
                     bw.write(s);
                     bw.newLine();
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     e.printStackTrace();
                 }
             });
@@ -71,19 +71,19 @@ public class LatencyHolder {
         try {
             es.awaitTermination(60, java.util.concurrent.TimeUnit.SECONDS);
             es.shutdown();
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             e.printStackTrace();
         }
     }
 
     public void outputRemainingStats() {
         if (currentPos > 0) {
-            String s = Arrays.toString(Arrays.copyOfRange(latencies, 0, currentPos));
+            final String s = Arrays.toString(Arrays.copyOfRange(latencies, 0, currentPos));
             try {
                 bw.write(s);
                 bw.newLine();
                 bw.close();
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 e.printStackTrace();
             }
         }

@@ -40,11 +40,11 @@ import java.time.Instant;
 import org.apache.kafka.clients.admin.NewTopic;
 
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
-import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;;
+import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class Query6 implements NexmarkQuery {
     // public CountAction<Event> input;
-    private static final Duration auctionDurationUpperS = Duration.ofSeconds(1800);
+    private static final Duration AUCTION_DURATION_UPPER_S = Duration.ofSeconds(1800);
     private final LatencyCountTransformerSupplier<DoubleAndTime, Double> lcts;
     private final ArrayList<Long> aucProcLat;
     private final ArrayList<Long> bidProcLat;
@@ -64,7 +64,7 @@ public class Query6 implements NexmarkQuery {
     private static final String AUCBIDSQT_TAG = "aucBidsQueueTime";
     private static final String MAXBIDSQT_TAG = "maxBidsQueueTime";
 
-    public Query6(String baseDir) {
+    public Query6(final String baseDir) {
         // this.input = new CountAction<>();
         this.lcts = new LatencyCountTransformerSupplier<>("q6_sink_ets", baseDir,
             value -> value.avg);
@@ -214,7 +214,7 @@ public class Query6 implements NexmarkQuery {
                 return value;
             });
 
-        final JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(auctionDurationUpperS);
+        final JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(AUCTION_DURATION_UPPER_S);
         final WindowBytesStoreSupplier aucsByIDStoreSupplier = Stores.inMemoryWindowStore(
             "aucsByID-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
             Duration.ofMillis(jw.size()), true);

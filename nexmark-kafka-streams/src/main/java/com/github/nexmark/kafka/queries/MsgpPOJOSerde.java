@@ -20,30 +20,30 @@ public class MsgpPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
     private Class<T> cls;
     public MsgpPOJOSerde() {
         objectMapper = new MessagePackMapper();
-        SimpleModule eventDescMod = new SimpleModule();
+        final SimpleModule eventDescMod = new SimpleModule();
         eventDescMod.addDeserializer(Event.class, new EventMsgpDeserialzer());
         objectMapper.registerModule(eventDescMod);
         objectMapper.registerModule(new JavaTimeModule());
     }
 
-    public void setClass(Class<T> cls) {
+    public void setClass(final Class<T> cls) {
         this.cls = cls;
     }
 
     @Override
-    public void configure(Map<String, ?> props, boolean isKey) {}
+    public void configure(final Map<String, ?> props, final boolean isKey) {}
 
     @Override
     public void close() {}
 
     @Override
-    public T deserialize(String s, byte[] bytes) {
+    public T deserialize(final String s, final byte[] bytes) {
         try {
-            assert(bytes != null);
-            T obj = objectMapper.readValue(bytes, this.cls);
-            assert(obj != null);
+            assert bytes != null;
+            final T obj = objectMapper.readValue(bytes, this.cls);
+            assert obj != null;
             return obj;
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
             throw new SerializationException(e);
         }
@@ -60,10 +60,10 @@ public class MsgpPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
     }
 
     @Override
-    public byte[] serialize(String s, T t) {
+    public byte[] serialize(final String s, final T t) {
         try {
             return this.objectMapper.writeValueAsBytes(t);
-        } catch (JsonProcessingException e) {
+        } catch (final JsonProcessingException e) {
             e.printStackTrace();
             throw new SerializationException(e);
         }

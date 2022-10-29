@@ -17,9 +17,9 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
     private Class<T> cls;
 
     public JSONPOJOSerde() {
-        InstantTypeConverter serdeInstant = new InstantTypeConverter();
-        EventTypeConverter serdeEventType = new EventTypeConverter();
-        GsonBuilder gsonBuilder = new GsonBuilder();
+        final InstantTypeConverter serdeInstant = new InstantTypeConverter();
+        final EventTypeConverter serdeEventType = new EventTypeConverter();
+        final GsonBuilder gsonBuilder = new GsonBuilder();
         gsonBuilder.registerTypeAdapter(Instant.class, serdeInstant);
         gsonBuilder.registerTypeAdapter(Event.EType.class, serdeEventType);
 
@@ -41,15 +41,15 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
         }
         
         try {
-            String bytes_str = new String(bytes, "UTF-8");
-            // System.out.println("########## Input is " + bytes_str);
+            final String bytesStr = new String(bytes, "UTF-8");
+            // System.out.println("########## Input is " + bytesStr);
             if (this.cls == null) {
                 throw new SerializationException("need to call setClass to pass the type to JSONPOJOSerde");
             }
-            return this.gson.fromJson(bytes_str, this.cls);
+            return this.gson.fromJson(bytesStr, this.cls);
             // System.out.println("########### Desc out is " + desc.toString());
             // return desc;
-        } catch (Exception err) {
+        } catch (final Exception err) {
             throw new SerializationException(err);
         }
     }
@@ -62,7 +62,7 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
         try {
             final String ret = this.gson.toJson(data);
             return ret.getBytes();
-        } catch (Exception err) {
+        } catch (final Exception err) {
             throw new SerializationException("Error serializing JSON message", err);
         }
     }

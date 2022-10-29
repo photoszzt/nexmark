@@ -10,6 +10,7 @@ import org.apache.kafka.streams.kstream.ValueMapper;
 import org.apache.kafka.streams.kstream.ValueTransformer;
 import org.apache.kafka.streams.kstream.ValueTransformerSupplier;
 import org.apache.kafka.streams.processor.ProcessorContext;
+
 import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implements ValueTransformerSupplier<V, V1> {
@@ -19,14 +20,15 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
     private final String baseDir;
     private final ValueMapper<V, V1> mapper;
 
-    public LatencyCountTransformerSupplier(String tag, String baseDir, ValueMapper<V, V1> mapper) {
+    public LatencyCountTransformerSupplier(final String tag, final String baseDir,
+                                           final ValueMapper<V, V1> mapper) {
         this.tag = tag;
         this.baseDir = baseDir;
         this.mapper = mapper;
     }
 
-    public void SetAfterWarmup(){
-        for (LatencyHolder lh : holders) {
+    public void SetAfterWarmup() {
+        for (final LatencyHolder lh : holders) {
             lh.SetAfterWarmup();
         }
     }
@@ -37,7 +39,7 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
         final String path = baseDir + File.separator + lhTag;
         try {
             holders.add(new LatencyHolder(lhTag, path));
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
         return new LatencyCountTransformer<>(holders.get(holders.size() - 1), mapper);
@@ -79,17 +81,17 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
         }
 
         @Override
-        public void init(ProcessorContext context) {
+        public void init(final ProcessorContext context) {
             ctx = context;
             lh.init();
         }
 
         @Override
-        public VV1 transform(VV value) {
+        public VV1 transform(final VV value) {
             final long ts = ctx.timestamp();
             final long now = Instant.now().toEpochMilli();
             final long startProc = value.startProcTsNano();
-            assert (startProc != 0);
+            assert startProc != 0;
             final long lat = System.nanoTime() - startProc;
             StreamsUtils.appendLat(procLat, lat, lh.tag() + "_proc");
             lh.appendLatency(now - ts);

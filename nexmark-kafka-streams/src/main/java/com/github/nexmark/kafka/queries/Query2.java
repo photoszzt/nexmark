@@ -23,7 +23,7 @@ public class Query2 implements NexmarkQuery {
     // private CountAction<Event> input;
     private final LatencyCount<String, Event> latCount;
 
-    public Query2(File statsDir) {
+    public Query2(final File statsDir) {
         // input = new CountAction<>();
         final String tag = "q2_sink_ets";
         final String fileName = statsDir + File.separator + tag;
@@ -40,7 +40,7 @@ public class Query2 implements NexmarkQuery {
         final NewTopic np = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
 
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
-        StreamsBuilder builder = new StreamsBuilder();
+        final StreamsBuilder builder = new StreamsBuilder();
 
         final Serde<Event> eSerde;
         if (serde.equals("json")) {

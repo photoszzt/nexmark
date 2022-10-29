@@ -10,7 +10,7 @@ public class EventTimestampExtractor implements TimestampExtractor {
     @Override
     public long extract(final ConsumerRecord<Object, Object> record, final long partitionTime) {
         if (record.value() instanceof Event) {
-            Event e = (Event) record.value();
+            final Event e = (Event) record.value();
             if (e.etype == Event.EType.AUCTION) {
                 return e.newAuction.dateTime;
             } else if (e.etype == Event.EType.PERSON) {

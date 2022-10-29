@@ -73,7 +73,7 @@ public class Person implements Serializable {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        Person person = (Person) o;
+        final Person person = (Person) o;
         return id == person.id
             && dateTime == person.dateTime
             && name.equals(person.name)

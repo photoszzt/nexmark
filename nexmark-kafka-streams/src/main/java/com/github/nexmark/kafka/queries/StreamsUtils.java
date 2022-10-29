@@ -32,7 +32,7 @@ public class StreamsUtils {
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
         props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all");
-        final int batchSize = disableBatching ? 0 : 128*1024;
+        final int batchSize = disableBatching ? 0 : 128 * 1024;
         final int flush = disableBatching ? 0 : flushms;
         props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), batchSize);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), flush);
@@ -61,7 +61,7 @@ public class StreamsUtils {
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 3);
         props.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 3);
-        final int batchSize = disableBatching ? 0 : 128*1024;
+        final int batchSize = disableBatching ? 0 : 128 * 1024;
         final int flush = disableBatching ? 0 : flushms;
         props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), batchSize);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), flush);
@@ -77,11 +77,11 @@ public class StreamsUtils {
     public static void createTopic(final String bootstrapServer, final Collection<NewTopic> nps) {
         final Properties props = new Properties();
         props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
-        try(Admin admin = Admin.create(props)) {
-            CreateTopicsResult res = admin.createTopics(nps);
-            Map<String, KafkaFuture<Void>> futures = res.values();
+        try (Admin admin = Admin.create(props)) {
+            final CreateTopicsResult res = admin.createTopics(nps);
+            final Map<String, KafkaFuture<Void>> futures = res.values();
             nps.forEach(np -> {
-                KafkaFuture<Void> future = futures.get(np.name());
+                final KafkaFuture<Void> future = futures.get(np.name());
                 try {
                     future.get();
                 } catch (InterruptedException | ExecutionException e) {

@@ -134,7 +134,7 @@ public class Query3 implements NexmarkQuery {
                 Materialized.<Long, Event>as(auctionsBySellerIdKVStoreSupplier)
                     .withKeySerde(Serdes.Long())
                     .withValueSerde(eSerde))
-            .mapValues((value) -> {
+            .mapValues(value -> {
                 value.setStartProcTsNano(System.nanoTime());
                 final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                 StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
@@ -144,7 +144,7 @@ public class Query3 implements NexmarkQuery {
         final KeyValueBytesStoreSupplier personsByIdKVStoreSupplier = Stores.inMemoryKeyValueStore("personsByIdKV");
         final KTable<Long, Event> personsById = ksMap.get("Branch-personsById")
             .selectKey((key, value) -> {
-                long procLat = System.nanoTime() - value.startProcTsNano();
+                final long procLat = System.nanoTime() - value.startProcTsNano();
                 StreamsUtils.appendLat(perProcLat, procLat, "subGPer_proc");
                 return value.newPerson.id;
             })
@@ -152,16 +152,16 @@ public class Query3 implements NexmarkQuery {
                 Materialized.<Long, Event>as(personsByIdKVStoreSupplier)
                     .withKeySerde(Serdes.Long())
                     .withValueSerde(eSerde))
-            .mapValues((value) -> {
+            .mapValues(value -> {
                 value.setStartProcTsNano(System.nanoTime());
-                long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                 StreamsUtils.appendLat(perQueueTime, queueDelay, "perQueueDelay");
                 return value;
             });
         auctionsBySellerId
             .join(personsById,
                 (leftValue, rightValue) -> {
-                    long startExecNano;
+                    final long startExecNano;
                     if (leftValue.startProcTsNano() == 0) {
                         startExecNano = rightValue.startProcTsNano();
                     } else if (rightValue.startProcTsNano() == 0) {
@@ -170,7 +170,7 @@ public class Query3 implements NexmarkQuery {
                         startExecNano = Math.min(leftValue.startProcTsNano(), rightValue.startProcTsNano());
                     }
                     assert startExecNano != 0;
-                    NameCityStateId ret = new NameCityStateId(
+                    final NameCityStateId ret = new NameCityStateId(
                         rightValue.newPerson.name,
                         rightValue.newPerson.city,
                         rightValue.newPerson.state,

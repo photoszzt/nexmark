@@ -52,12 +52,12 @@ public class Query4 implements NexmarkQuery {
     private final ArrayList<Long> maxBidsQueueTime;
     private final ArrayList<Long> topo2ProcLat;
     private final ArrayList<Long> topo3ProcLat;
-    private static final Duration auctionDurationUpperS = Duration.ofSeconds(1800);
+    private static final Duration AUCTION_DURATION_UPPER_S = Duration.ofSeconds(1800);
 
     public Query4(final String baseDir) {
         // input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q4_sink_ets", baseDir,
-            (value) -> value.avg);
+            value -> value.avg);
         aucProcLat = new ArrayList<>(NUM_STATS);
         bidProcLat = new ArrayList<>(NUM_STATS);
         aucQueueTime = new ArrayList<>(NUM_STATS);
@@ -178,7 +178,7 @@ public class Query4 implements NexmarkQuery {
 
         final KStream<Long, Event> bidsByAucID = ksMap.get("Branch-bids")
             .selectKey((key, value) -> {
-                long procLat = System.nanoTime() - value.startProcTsNano();
+                final long procLat = System.nanoTime() - value.startProcTsNano();
                 StreamsUtils.appendLat(bidProcLat, procLat, "subGBid_proc");
                 return value.bid.auction;
             })
@@ -189,14 +189,14 @@ public class Query4 implements NexmarkQuery {
                 assert value.injTsMs() != 0;
                 value.setStartProcTsNano(System.nanoTime());
                 assert value.startProcTsNano() != 0;
-                long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                 StreamsUtils.appendLat(bidQueueTime, queueDelay, "bidQueueDelay");
                 return value;
             }, Named.as("bidMapValues"));
 
         final KStream<Long, Event> aucsByID = ksMap.get("Branch-auctions")
             .selectKey((key, value) -> {
-                long procLat = System.nanoTime() - value.startProcTsNano();
+                final long procLat = System.nanoTime() - value.startProcTsNano();
                 StreamsUtils.appendLat(aucProcLat, procLat, "subGAuc_proc");
                 return value.newAuction.id;
             })
@@ -207,14 +207,14 @@ public class Query4 implements NexmarkQuery {
                 assert value.injTsMs() != 0;
                 value.setStartProcTsNano(System.nanoTime());
                 assert value.startProcTsNano() != 0;
-                long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                 StreamsUtils.appendLat(aucQueueTime, queueDelay, "aucQueueDelay");
                 return value;
             }, Named.as("aucMapValues"));
 
         final KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
 
-        final JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(auctionDurationUpperS);
+        final JoinWindows jw = JoinWindows.ofTimeDifferenceWithNoGrace(AUCTION_DURATION_UPPER_S);
         final WindowBytesStoreSupplier aucsByIDStoreSupplier = Stores.inMemoryWindowStore(
             "aucsByID-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
             Duration.ofMillis(jw.size()), true);
@@ -223,7 +223,7 @@ public class Query4 implements NexmarkQuery {
             Duration.ofMillis(jw.size()), true);
 
         final KTable<AucIdCategory, LongAndTime> maxBids = aucsByID.join(bidsByAucID, (leftValue, rightValue) -> {
-                long startExecNano;
+                final long startExecNano;
                 if (leftValue.startProcTsNano() == 0) {
                     startExecNano = rightValue.startProcTsNano();
                 } else if (rightValue.startProcTsNano() == 0) {
@@ -235,7 +235,7 @@ public class Query4 implements NexmarkQuery {
                 // rightStart: " + rightValue.startProcTsNano() + " startExecNano: " +
                 // startExecNano);
                 assert startExecNano != 0;
-                AuctionBid ab = new AuctionBid(rightValue.bid.dateTime,
+                final AuctionBid ab = new AuctionBid(rightValue.bid.dateTime,
                     leftValue.newAuction.dateTime, leftValue.newAuction.expires,
                     rightValue.bid.price, leftValue.newAuction.category,
                     leftValue.newAuction.seller, 0);
@@ -259,7 +259,7 @@ public class Query4 implements NexmarkQuery {
             })
             .selectKey((key, value) -> {
                 assert value.startProcTsNano() != 0;
-                long lat = System.nanoTime() - value.startProcTsNano();
+                final long lat = System.nanoTime() - value.startProcTsNano();
                 StreamsUtils.appendLat(topo2ProcLat, lat, "subG2_proc");
                 return new AucIdCategory(key, value.aucCategory);
             })
@@ -267,7 +267,7 @@ public class Query4 implements NexmarkQuery {
                 .withName(aucBidsTpRepar).withNumberOfPartitions(aucBidsTpNumPar))
             .mapValues((key, value) -> {
                 value.setStartProcTsNano(System.nanoTime());
-                long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                 StreamsUtils.appendLat(aucBidsQueueTime, queueDelay, "aucBidsQueueDelay");
                 return value;
             }, Named.as("topo3-beg"))
@@ -276,7 +276,7 @@ public class Query4 implements NexmarkQuery {
                 (key, value, aggregate) -> {
                     assert value.startProcTsNano() != 0;
                     if (aggregate.val == null) {
-                        LongAndTime lt = new LongAndTime(value.bidPrice, 0, value.startProcTsNano());
+                        final LongAndTime lt = new LongAndTime(value.bidPrice, 0, value.startProcTsNano());
                         lt.startExecNano = value.startProcTsNano();
                         return lt;
                     }
@@ -292,23 +292,23 @@ public class Query4 implements NexmarkQuery {
                     .withKeySerde(aicSerde)
                     .withValueSerde(ltSerde));
 
-        KeyValueBytesStoreSupplier sumCountKV = Stores.inMemoryKeyValueStore("sumCountKVStore");
+        final KeyValueBytesStoreSupplier sumCountKV = Stores.inMemoryKeyValueStore("sumCountKVStore");
         maxBids.groupBy((key, value) -> {
                 // System.out.println("max, key: " + key + " value: " + value);
-                long procLat = System.nanoTime() - value.startExecNano;
+                final long procLat = System.nanoTime() - value.startExecNano;
                 StreamsUtils.appendLat(topo3ProcLat, procLat, "subG3_proc");
                 value.injTsMs = Instant.now().toEpochMilli();
                 return new KeyValue<>(key.category, value);
             }, Grouped.with(Serdes.Long(), ltSerde).withName(maxBidsGroupByTab))
             .aggregate(() -> {
-                    SumAndCount s = new SumAndCount(0, 0, 0);
+                    final SumAndCount s = new SumAndCount(0, 0, 0);
                     s.startExecNano = System.nanoTime();
                     return s;
                 }, (key, value, aggregate) -> {
                     if (value != null) {
-                        long queueDelay = Instant.now().toEpochMilli() - value.injTsMs;
+                        final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs;
                         StreamsUtils.appendLat(maxBidsQueueTime, queueDelay, "maxBidsQueueDelay");
-                        SumAndCount sc = new SumAndCount(aggregate.sum + value.val, aggregate.count + 1, 0);
+                        final SumAndCount sc = new SumAndCount(aggregate.sum + value.val, aggregate.count + 1, 0);
                         if (aggregate.sum == 0) {
                             sc.startExecNano = aggregate.startExecNano;
                         } else {
@@ -321,7 +321,7 @@ public class Query4 implements NexmarkQuery {
                     }
                 }, (key, value, aggregate) -> {
                     if (value != null) {
-                        SumAndCount sc = new SumAndCount(aggregate.sum - value.val, aggregate.count - 1, 0);
+                        final SumAndCount sc = new SumAndCount(aggregate.sum - value.val, aggregate.count - 1, 0);
                         if (aggregate.sum == 0) {
                             sc.startExecNano = aggregate.startExecNano;
                         } else {
@@ -339,7 +339,7 @@ public class Query4 implements NexmarkQuery {
                     .withCachingEnabled()
                     .withLoggingEnabled(new HashMap<>()))
             .mapValues((key, value) -> {
-                DoubleAndTime d = new DoubleAndTime((double) value.sum / (double) value.count);
+                final DoubleAndTime d = new DoubleAndTime((double) value.sum / (double) value.count);
                 assert value.startExecNano != 0;
                 d.startExecNano = value.startExecNano;
                 return d;

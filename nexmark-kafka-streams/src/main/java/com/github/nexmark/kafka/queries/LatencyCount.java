@@ -20,10 +20,10 @@ public class LatencyCount<K, V extends TimestampFromValue<V>> implements Foreach
     private BufferedWriter bw;
     private final ExecutorService es;
 
-    public LatencyCount(String tag, String filename) {
+    public LatencyCount(final String tag, final String filename) {
         try {
             bw = new BufferedWriter(new FileWriter(filename));
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
         latencies = new long[1024];
@@ -37,22 +37,22 @@ public class LatencyCount<K, V extends TimestampFromValue<V>> implements Foreach
     }
 
     @Override
-    public void apply(K key, TimestampFromValue<V> value) {
+    public void apply(final K key, final TimestampFromValue<V> value) {
         this.counter += 1;
-        long ts = value.extract();
-        long lat = Instant.now().toEpochMilli() - ts;
+        final long ts = value.extract();
+        final long lat = Instant.now().toEpochMilli() - ts;
         if (currentPos < latencies.length) {
             latencies[currentPos] = lat;
             currentPos++;
         } else {
-            String s = Arrays.toString(latencies);
+            final String s = Arrays.toString(latencies);
             latencies = new long[1024];
             currentPos = 0;
             es.submit(() -> {
                 try {
                     bw.write(s);
                     bw.newLine();
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     e.printStackTrace();
                 }
             });
@@ -62,17 +62,17 @@ public class LatencyCount<K, V extends TimestampFromValue<V>> implements Foreach
     public void outputRemainingStats() {
         try {
             es.awaitTermination(60, java.util.concurrent.TimeUnit.SECONDS);
-        } catch (InterruptedException e1) {
+        } catch (final InterruptedException e1) {
             e1.printStackTrace();
         }
         es.shutdown();
         if (currentPos > 0) {
-            String s = Arrays.toString(Arrays.copyOfRange(latencies, 0, currentPos));
+            final String s = Arrays.toString(Arrays.copyOfRange(latencies, 0, currentPos));
             try {
                 bw.write(s);
                 bw.newLine();
                 bw.close();
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 e.printStackTrace();
             }
         }
