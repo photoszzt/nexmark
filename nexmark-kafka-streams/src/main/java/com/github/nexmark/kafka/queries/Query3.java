@@ -7,7 +7,13 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.*;
+import org.apache.kafka.streams.kstream.Branched;
+import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.KTable;
+import org.apache.kafka.streams.kstream.Materialized;
+import org.apache.kafka.streams.kstream.Named;
+import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 
@@ -28,10 +34,7 @@ public class Query3 implements NexmarkQuery {
     private final ArrayList<Long> aucQueueTime;
     private final ArrayList<Long> perQueueTime;
 
-    private Serde<Event> eSerde;
-    private Serde<NameCityStateId> ncsiSerde;
-
-    public Query3(String baseDir) {
+    public Query3(final String baseDir) {
         lcts = new LatencyCountTransformerSupplier<>("q3_sink_ets",
             baseDir, new IdentityValueMapper<>());
         aucProcLat = new ArrayList<>(NUM_STATS);
@@ -41,58 +44,60 @@ public class Query3 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile)
+    public StreamsBuilder getStreamBuilder(final String bootstrapServer, final String serde, final String configFile)
         throws IOException {
-        Properties prop = new Properties();
-        FileInputStream fis = new FileInputStream(configFile);
+        final Properties prop = new Properties();
+        final FileInputStream fis = new FileInputStream(configFile);
         prop.load(fis);
 
-        String outTp = prop.getProperty("out.name");
-        int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
-        NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
+        final String outTp = prop.getProperty("out.name");
+        final int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
+        final NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
 
-        String aucBySellerIDTab = prop.getProperty("aucBySellerIDTab.name");
-        String aucBySellerIDTp = prop.getProperty("aucBySellerIDTp.name");
-        int aucBySellerIDTpPar = Integer.parseInt(prop.getProperty("aucBySellerIDTp.numPar"));
-        NewTopic auctionBySellerIdTabPar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, REPLICATION_FACTOR);
+        final String aucBySellerIDTab = prop.getProperty("aucBySellerIDTab.name");
+        final String aucBySellerIDTp = prop.getProperty("aucBySellerIDTp.name");
+        final int aucBySellerIDTpPar = Integer.parseInt(prop.getProperty("aucBySellerIDTp.numPar"));
+        final NewTopic auctionBySellerIdTabPar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, REPLICATION_FACTOR);
 
-        String personsByIDTab = prop.getProperty("personsByIDTab.name");
-        String personsByIDTp = prop.getProperty("personsByIDTp.name");
-        int personsByIDTpPar = Integer.parseInt(prop.getProperty("personsByIDTp.numPar"));
-        NewTopic persionsByIdTabPar = new NewTopic(personsByIDTp, personsByIDTpPar, REPLICATION_FACTOR);
+        final String personsByIDTab = prop.getProperty("personsByIDTab.name");
+        final String personsByIDTp = prop.getProperty("personsByIDTp.name");
+        final int personsByIDTpPar = Integer.parseInt(prop.getProperty("personsByIDTp.numPar"));
+        final NewTopic persionsByIdTabPar = new NewTopic(personsByIDTp, personsByIDTpPar, REPLICATION_FACTOR);
 
-        List<NewTopic> nps = new ArrayList<>(3);
+        final List<NewTopic> nps = new ArrayList<>(3);
         nps.add(out);
         nps.add(auctionBySellerIdTabPar);
         nps.add(persionsByIdTabPar);
         StreamsUtils.createTopic(bootstrapServer, nps);
 
-        StreamsBuilder builder = new StreamsBuilder();
+        final StreamsBuilder builder = new StreamsBuilder();
 
+        final Serde<Event> eSerde;
+        final Serde<NameCityStateId> ncsiSerde;
         if (serde.equals("json")) {
-            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<>();
+            final JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<>();
             eSerdeJSON.setClass(Event.class);
             eSerde = eSerdeJSON;
 
-            JSONPOJOSerde<NameCityStateId> ncsiSerdeJSON = new JSONPOJOSerde<>();
+            final JSONPOJOSerde<NameCityStateId> ncsiSerdeJSON = new JSONPOJOSerde<>();
             ncsiSerdeJSON.setClass(NameCityStateId.class);
             ncsiSerde = ncsiSerdeJSON;
         } else if (serde.equals("msgp")) {
-            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            final MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
             eSerdeMsgp.setClass(Event.class);
             eSerde = eSerdeMsgp;
 
-            MsgpPOJOSerde<NameCityStateId> ncsiSerdeMsgp = new MsgpPOJOSerde<>();
+            final MsgpPOJOSerde<NameCityStateId> ncsiSerdeMsgp = new MsgpPOJOSerde<>();
             ncsiSerdeMsgp.setClass(NameCityStateId.class);
             ncsiSerde = ncsiSerdeMsgp;
         } else {
             throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
         }
 
-        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
+        final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
             .withTimestampExtractor(new EventTimestampExtractor()));
 
-        Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
+        final Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
             .branch((key, value) -> {
                 if (value != null) {
                     value.setStartProcTsNano(System.nanoTime());
@@ -117,9 +122,9 @@ public class Query3 implements NexmarkQuery {
             }, Branched.as("personsById"))
             .noDefaultBranch();
 
-        KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores
+        final KeyValueBytesStoreSupplier auctionsBySellerIdKVStoreSupplier = Stores
             .inMemoryKeyValueStore("auctionBySellerIdKV");
-        KTable<Long, Event> auctionsBySellerId = ksMap.get("Branch-aucBySeller")
+        final KTable<Long, Event> auctionsBySellerId = ksMap.get("Branch-aucBySeller")
             .selectKey((key, value) -> {
                 final long procLat = System.nanoTime() - value.startProcTsNano();
                 StreamsUtils.appendLat(aucProcLat, procLat, "subGAuc_proc");
@@ -136,8 +141,8 @@ public class Query3 implements NexmarkQuery {
                 return value;
             });
 
-        KeyValueBytesStoreSupplier personsByIdKVStoreSupplier = Stores.inMemoryKeyValueStore("personsByIdKV");
-        KTable<Long, Event> personsById = ksMap.get("Branch-personsById")
+        final KeyValueBytesStoreSupplier personsByIdKVStoreSupplier = Stores.inMemoryKeyValueStore("personsByIdKV");
+        final KTable<Long, Event> personsById = ksMap.get("Branch-personsById")
             .selectKey((key, value) -> {
                 long procLat = System.nanoTime() - value.startProcTsNano();
                 StreamsUtils.appendLat(perProcLat, procLat, "subGPer_proc");
@@ -156,7 +161,7 @@ public class Query3 implements NexmarkQuery {
         auctionsBySellerId
             .join(personsById,
                 (leftValue, rightValue) -> {
-                    long startExecNano = 0;
+                    long startExecNano;
                     if (leftValue.startProcTsNano() == 0) {
                         startExecNano = rightValue.startProcTsNano();
                     } else if (rightValue.startProcTsNano() == 0) {
@@ -180,18 +185,18 @@ public class Query3 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
-                                               boolean disableCache, boolean disableBatching) {
-        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
+    public Properties getExactlyOnceProperties(final String bootstrapServer, final int duration, final int flushms,
+                                               final boolean disableCache, final boolean disableBatching) {
+        final Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
             disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q3");
         return props;
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
-                                               boolean disableCache, boolean disableBatching) {
-        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
+    public Properties getAtLeastOnceProperties(final String bootstrapServer, final int duration, final int flushms,
+                                               final boolean disableCache, final boolean disableBatching) {
+        final Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
             disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q3");
         return props;

@@ -6,7 +6,7 @@ public class DoubleAndTime implements StartProcTs {
     public double avg;
     public long startExecNano;
 
-    public DoubleAndTime(double avg) {
+    public DoubleAndTime(final double avg) {
         this.avg = avg;
         startExecNano = 0;
     }
@@ -17,7 +17,7 @@ public class DoubleAndTime implements StartProcTs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
+    public void setStartProcTsNano(final long ts) {
         startExecNano = ts;
     }
 }

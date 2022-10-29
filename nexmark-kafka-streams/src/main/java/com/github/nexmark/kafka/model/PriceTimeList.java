@@ -14,8 +14,8 @@ public class PriceTimeList implements StartProcTs, Serializable {
     private long startProcTsNano;
 
     @JsonCreator
-    public PriceTimeList(@JsonProperty("ptlist") ArrayList<PriceTime> ptlist,
-            @JsonProperty("startProcTsNano") long startProcTsNano) {
+    public PriceTimeList(@JsonProperty("ptlist") final ArrayList<PriceTime> ptlist,
+                         @JsonProperty("startProcTsNano") final long startProcTsNano) {
         this.ptlist = ptlist;
         this.startProcTsNano = startProcTsNano;
     }
@@ -26,7 +26,7 @@ public class PriceTimeList implements StartProcTs, Serializable {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
+    public void setStartProcTsNano(final long ts) {
         startProcTsNano = ts;
     }
 }

@@ -10,8 +10,8 @@ import com.github.nexmark.kafka.model.Event;
 public class EventTypeConverter implements JsonSerializer<Event.EType>, JsonDeserializer<Event.EType> {
 
     @Override
-    public Event.EType deserialize(JsonElement json, Type typeOfT,
-                                   JsonDeserializationContext context) throws JsonParseException {
+    public Event.EType deserialize(final JsonElement json, final Type typeOfT,
+                                   final JsonDeserializationContext context) throws JsonParseException {
         int val = json.getAsInt();
         if (val == 0) {
             return Event.EType.PERSON;
@@ -25,8 +25,7 @@ public class EventTypeConverter implements JsonSerializer<Event.EType>, JsonDese
     }
 
     @Override
-    public JsonElement serialize(Event.EType src, Type typeOfSrc, JsonSerializationContext context) {
-        // TODO Auto-generated method stub
+    public JsonElement serialize(final Event.EType src, final Type typeOfSrc, final JsonSerializationContext context) {
         return new JsonPrimitive(src.value);
     }
 }

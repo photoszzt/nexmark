@@ -10,12 +10,12 @@ public class SumAndCount implements StartProcTs {
     public long sum;
     public long count;
     @JsonProperty("startExecNano")
-    public long startExecNano; 
+    public long startExecNano;
 
     @JsonCreator
-    public SumAndCount(@JsonProperty("sum") long sum,
-                       @JsonProperty("count") long count,
-                       @JsonProperty("startExecNano") long startExecNano) {
+    public SumAndCount(@JsonProperty("sum") final long sum,
+                       @JsonProperty("count") final long count,
+                       @JsonProperty("startExecNano") final long startExecNano) {
         this.sum = sum;
         this.count = count;
         this.startExecNano = startExecNano;
@@ -23,11 +23,11 @@ public class SumAndCount implements StartProcTs {
 
     @Override
     public String toString() {
-        return "SumAndCount: {Sum: " + sum + ", Count: " + count + "}"; 
+        return "SumAndCount: {Sum: " + sum + ", Count: " + count + "}";
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) {
             return true;
         }
@@ -49,7 +49,7 @@ public class SumAndCount implements StartProcTs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
-        startExecNano = ts; 
+    public void setStartProcTsNano(final long ts) {
+        startExecNano = ts;
     }
 }

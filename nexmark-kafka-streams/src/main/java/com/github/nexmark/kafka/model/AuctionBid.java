@@ -1,7 +1,5 @@
 package com.github.nexmark.kafka.model;
 
-import java.util.Objects;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -24,13 +22,13 @@ public class AuctionBid implements StartProcTs, InjTsMs {
 
     @JsonCreator
     public AuctionBid(
-            @JsonProperty("bidDateTime") long bidDateTime,
-            @JsonProperty("aucDateTime") long aucDateTime,
-            @JsonProperty("aucExpires") long aucExpires,
-            @JsonProperty("bidPrice") long bidPrice,
-            @JsonProperty("aucCategory") long aucCategory,
-            @JsonProperty("seller") long seller,
-            @JsonProperty("injTsMs") long injTsMs) {
+        @JsonProperty("bidDateTime") final long bidDateTime,
+        @JsonProperty("aucDateTime") final long aucDateTime,
+        @JsonProperty("aucExpires") final long aucExpires,
+        @JsonProperty("bidPrice") final long bidPrice,
+        @JsonProperty("aucCategory") final long aucCategory,
+        @JsonProperty("seller") final long seller,
+        @JsonProperty("injTsMs") final long injTsMs) {
         this.bidDateTimeMs = bidDateTime;
         this.aucDateTimeMs = aucDateTime;
         this.aucExpiresMs = aucExpires;
@@ -42,20 +40,15 @@ public class AuctionBid implements StartProcTs, InjTsMs {
     }
 
     @Override
-	public String toString() {
-		return "AuctionBid{" +
-				"bidDateTimeMs=" + bidDateTimeMs +
-				", aucDateTimeMs=" + aucDateTimeMs +
-				", aucExpiresMs=" + aucExpiresMs +
-				", bidPrice=" + bidPrice +
-				", aucCategory=" + aucCategory + 
-                ", seller=" + seller +
-				'}';
-	}
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(bidDateTimeMs, aucDateTimeMs, aucExpiresMs, bidPrice, aucCategory, seller);
+    public String toString() {
+        return "AuctionBid{" +
+            "bidDateTimeMs=" + bidDateTimeMs +
+            ", aucDateTimeMs=" + aucDateTimeMs +
+            ", aucExpiresMs=" + aucExpiresMs +
+            ", bidPrice=" + bidPrice +
+            ", aucCategory=" + aucCategory +
+            ", seller=" + seller +
+            '}';
     }
 
     @Override
@@ -64,8 +57,8 @@ public class AuctionBid implements StartProcTs, InjTsMs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
-       startExecNano = ts; 
+    public void setStartProcTsNano(final long ts) {
+        startExecNano = ts;
     }
 
     @Override
@@ -74,7 +67,7 @@ public class AuctionBid implements StartProcTs, InjTsMs {
     }
 
     @Override
-    public void setInjTsMs(long ts) {
-        injTsMs = ts; 
+    public void setInjTsMs(final long ts) {
+        injTsMs = ts;
     }
 }

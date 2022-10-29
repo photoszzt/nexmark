@@ -19,11 +19,10 @@ public class PriceTime implements StartProcTs, InjTsMs {
     public long injTsMs;
 
     @JsonCreator
-    public PriceTime(
-            @JsonProperty("price") long price,
-            @JsonProperty("ts") long ts,
-            @JsonProperty("injTsMs") long injTsMs,
-            @JsonProperty("startExecNano") long startProcTsNano) {
+    public PriceTime(@JsonProperty("price") final long price,
+                     @JsonProperty("ts") final long ts,
+                     @JsonProperty("injTsMs") final long injTsMs,
+                     @JsonProperty("startExecNano") final long startProcTsNano) {
         this.ts = ts;
         this.price = price;
         this.injTsMs = injTsMs;
@@ -33,10 +32,10 @@ public class PriceTime implements StartProcTs, InjTsMs {
     @Override
     public String toString() {
         return "PriceTime: {price: " + price + ", ts: " + ts + "}";
-    } 
+    }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) {
             return true;
         }
@@ -53,7 +52,7 @@ public class PriceTime implements StartProcTs, InjTsMs {
     }
 
     public static final Comparator<PriceTime> ASCENDING_TIME_THEN_PRICE =
-      Comparator.comparing((PriceTime pt) -> pt.ts).thenComparingLong(pt -> pt.price);
+        Comparator.comparing((PriceTime pt) -> pt.ts).thenComparingLong(pt -> pt.price);
 
     @Override
     public long startProcTsNano() {
@@ -62,7 +61,7 @@ public class PriceTime implements StartProcTs, InjTsMs {
 
     @Override
     public void setStartProcTsNano(long ts) {
-        this.startProcTsNano = ts; 
+        this.startProcTsNano = ts;
     }
 
     @Override
@@ -72,6 +71,6 @@ public class PriceTime implements StartProcTs, InjTsMs {
 
     @Override
     public void setInjTsMs(long ts) {
-        injTsMs = ts; 
+        injTsMs = ts;
     }
 }

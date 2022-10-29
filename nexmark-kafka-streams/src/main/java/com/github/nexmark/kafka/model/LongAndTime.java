@@ -16,18 +16,18 @@ public class LongAndTime implements StartProcTs, InjTsMs {
     public long injTsMs;
 
     @JsonCreator
-    public LongAndTime(@JsonProperty("val") Long val,
-            @JsonProperty("injTsMs") long injTsMs,
-            @JsonProperty("startExecNano") long startExecNano) {
+    public LongAndTime(@JsonProperty("val") final Long val,
+                       @JsonProperty("injTsMs") final long injTsMs,
+                       @JsonProperty("startExecNano") final long startExecNano) {
         this.val = val;
         this.injTsMs = injTsMs;
         this.startExecNano = startExecNano;
     }
 
     @JsonCreator
-    public LongAndTime(@JsonProperty("val") long val,
-            @JsonProperty("injTsMs") long injTsMs,
-            @JsonProperty("startExecNano") long startExecNano) {
+    public LongAndTime(@JsonProperty("val") final long val,
+                       @JsonProperty("injTsMs") final long injTsMs,
+                       @JsonProperty("startExecNano") final long startExecNano) {
         this.val = val;
         this.injTsMs = injTsMs;
         this.startExecNano = startExecNano;
@@ -39,7 +39,7 @@ public class LongAndTime implements StartProcTs, InjTsMs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
+    public void setStartProcTsNano(final long ts) {
         startExecNano = ts;
     }
 
@@ -49,7 +49,7 @@ public class LongAndTime implements StartProcTs, InjTsMs {
     }
 
     @Override
-    public void setInjTsMs(long ts) {
+    public void setInjTsMs(final long ts) {
         injTsMs = ts;
     }
 }

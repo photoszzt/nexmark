@@ -1,7 +1,5 @@
 package com.github.nexmark.kafka.model;
 
-import java.util.Objects;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -19,9 +17,9 @@ public class AuctionIdCount implements StartProcTs, InjTsMs {
     public long injTsMs;
 
     @JsonCreator
-    public AuctionIdCount(@JsonProperty("aucId") long aucId,
-            @JsonProperty("count") long count,
-            @JsonProperty("injTsMs") long injTsMs) {
+    public AuctionIdCount(@JsonProperty("aucId") final long aucId,
+                          @JsonProperty("count") final long count,
+                          @JsonProperty("injTsMs") final long injTsMs) {
         this.aucId = aucId;
         this.count = count;
         this.injTsMs = injTsMs;
@@ -31,12 +29,7 @@ public class AuctionIdCount implements StartProcTs, InjTsMs {
     @Override
     public String toString() {
         return "AuctionIdCount: {aucId: " + aucId +
-                ", count: " + count + "}";
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(aucId, count);
+            ", count: " + count + "}";
     }
 
     @Override
@@ -45,7 +38,7 @@ public class AuctionIdCount implements StartProcTs, InjTsMs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
+    public void setStartProcTsNano(final long ts) {
         startExecNano = ts;
     }
 
@@ -55,7 +48,7 @@ public class AuctionIdCount implements StartProcTs, InjTsMs {
     }
 
     @Override
-    public void setInjTsMs(long ts) {
-        injTsMs = ts; 
+    public void setInjTsMs(final long ts) {
+        injTsMs = ts;
     }
 }

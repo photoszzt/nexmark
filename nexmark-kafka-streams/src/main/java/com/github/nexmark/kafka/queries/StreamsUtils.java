@@ -18,8 +18,9 @@ import java.util.concurrent.ExecutionException;
 import static com.github.nexmark.kafka.queries.Constants.NUM_STATS;
 
 public class StreamsUtils {
-    public static Properties getExactlyOnceStreamsConfig(String bootstrapServer, int duration,
-            int flushms, boolean disableCache, boolean disableBatching) {
+    public static Properties getExactlyOnceStreamsConfig(final String bootstrapServer, final int duration,
+                                                         final int flushms, final boolean disableCache,
+                                                         final boolean disableBatching) {
         System.out.println("using exactly once config");
         final Properties props = new Properties();
         if (disableCache) {
@@ -50,8 +51,8 @@ public class StreamsUtils {
         return props;
     }
 
-    public static Properties getAtLeastOnceStreamsConfig(String bootstrapServer, int duration, int flushms,
-            boolean disableCache, boolean disableBatching) {
+    public static Properties getAtLeastOnceStreamsConfig(final String bootstrapServer, final int duration, final int flushms,
+                                                         final boolean disableCache, final boolean disableBatching) {
         System.out.println("using at least once config");
         final Properties props = new Properties();
         if (disableCache) {
@@ -73,7 +74,7 @@ public class StreamsUtils {
         return props;
     }
 
-    public static void createTopic(String bootstrapServer, Collection<NewTopic> nps) {
+    public static void createTopic(final String bootstrapServer, final Collection<NewTopic> nps) {
         final Properties props = new Properties();
         props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
         try(Admin admin = Admin.create(props)) {
@@ -90,7 +91,7 @@ public class StreamsUtils {
         }
     }
 
-    public static void appendLat(ArrayList<Long> lat, long ts, String tag) {
+    public static void appendLat(final ArrayList<Long> lat, final long ts, final String tag) {
         if (lat.size() == NUM_STATS) {
             System.out.println("{\"" + tag + "\": " + lat + "}");
             lat.clear();
@@ -98,7 +99,7 @@ public class StreamsUtils {
         lat.add(ts);
     }
 
-    public static void printRemaining(ArrayList<Long> lat, String tag) {
+    public static void printRemaining(final ArrayList<Long> lat, final String tag) {
         if (lat.size() > 0) {
             System.out.println("{\"" + tag + "\": " + lat + "}");
         }

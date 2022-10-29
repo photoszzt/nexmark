@@ -18,72 +18,72 @@ public class EventMsgpDeserialzer extends StdDeserializer<Event> {
         this(null);
     }
 
-    public EventMsgpDeserialzer(Class<?> vc) {
+    public EventMsgpDeserialzer(final Class<?> vc) {
         super(vc);
     }
 
     @Override
-    public Event deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
-        JsonNode node = p.getCodec().readTree(p);
+    public Event deserialize(final JsonParser p, final DeserializationContext ctxt) throws IOException, JsonProcessingException {
+        final JsonNode node = p.getCodec().readTree(p);
         if (node == null) {
             throw new RuntimeException("event should not be null");
         }
-        JsonNode etypeNode = node.get("etype");
+        final JsonNode etypeNode = node.get("etype");
         if (etypeNode == null) {
             throw new RuntimeException("event should have a etype");
         }
         long injTsMs = 0;
-        JsonNode injTsMsNode = node.get("injTsMs");
+        final JsonNode injTsMsNode = node.get("injTsMs");
         if (injTsMsNode != null) {
             injTsMs = injTsMsNode.asLong();
         }
-        byte etype = (byte)node.get("etype").asInt();
+        final byte etype = (byte) node.get("etype").asInt();
         if (etype == 0) {
-            JsonNode personNode = node.get("newPerson");
+            final JsonNode personNode = node.get("newPerson");
             if (personNode == null) {
                 throw new RuntimeException("etype is 0; but no person is enclosed");
             }
-            long id = personNode.get("id").asLong();
-            String name = personNode.get("name").asText();
-            String emailAddress = personNode.get("emailAddress").asText();
-            String creditCard = personNode.get("creditCard").asText();
-            String city = personNode.get("city").asText();
-            String state = personNode.get("state").asText();
-            long dateTime = personNode.get("dateTime").asLong();
-            String extra = personNode.get("extra").asText();
-            Person newPerson = new Person(id, name, emailAddress, creditCard, city, state, dateTime, extra);
+            final long id = personNode.get("id").asLong();
+            final String name = personNode.get("name").asText();
+            final String emailAddress = personNode.get("emailAddress").asText();
+            final String creditCard = personNode.get("creditCard").asText();
+            final String city = personNode.get("city").asText();
+            final String state = personNode.get("state").asText();
+            final long dateTime = personNode.get("dateTime").asLong();
+            final String extra = personNode.get("extra").asText();
+            final Person newPerson = new Person(id, name, emailAddress, creditCard, city, state, dateTime, extra);
             return new Event(newPerson, injTsMs);
         } else if (etype == 1) {
-            JsonNode auctionNode = node.get("newAuction");
+            final JsonNode auctionNode = node.get("newAuction");
             if (auctionNode == null) {
                 throw new RuntimeException("etype is 1; but no auction is enclosed");
             }
-            long id = auctionNode.get("id").asLong();
-            String itemName = auctionNode.get("itemName").asText();
-            String description = auctionNode.get("description").asText();
-            long initialBid = auctionNode.get("initialBid").asLong();
-            long reserve = auctionNode.get("reserve").asLong();
-            long dateTime = auctionNode.get("dateTime").asLong();
-            long expires = auctionNode.get("expires").asLong();
-            long seller = auctionNode.get("seller").asLong();
-            long category = auctionNode.get("category").asLong();
-            String extra = auctionNode.get("extra").asText();
-            Auction newAuction = new Auction(id, itemName, description, initialBid, reserve, dateTime,
-                    expires, seller, category, extra);
+            final long id = auctionNode.get("id").asLong();
+            final String itemName = auctionNode.get("itemName").asText();
+            final String description = auctionNode.get("description").asText();
+            final long initialBid = auctionNode.get("initialBid").asLong();
+            final long reserve = auctionNode.get("reserve").asLong();
+            final long dateTime = auctionNode.get("dateTime").asLong();
+            final long expires = auctionNode.get("expires").asLong();
+            final long seller = auctionNode.get("seller").asLong();
+            final long category = auctionNode.get("category").asLong();
+            final String extra = auctionNode.get("extra").asText();
+            final Auction newAuction = new Auction(id, itemName, description, initialBid, reserve, dateTime,
+                expires, seller, category, extra);
             return new Event(newAuction, injTsMs);
         } else if (etype == 2) {
-            JsonNode bidNode = node.get("bid");
+            final JsonNode bidNode = node.get("bid");
             if (bidNode == null) {
                 throw new RuntimeException("etype is 2; but no bid is enclosed");
             }
-            long auction = bidNode.get("auction").asLong();
-            long bidder = bidNode.get("bidder").asLong();
-            long price = bidNode.get("price").asLong();
-            String channel = bidNode.get("channel").asText();
-            String url = bidNode.get("url").asText();
-            long dateTime = bidNode.get("dateTime").asLong();
-            String extra = bidNode.get("extra").asText();
-            Bid bid = new Bid(auction, bidder, price, channel, url, dateTime, extra);
+            final long auction = bidNode.get("auction").asLong();
+            final long bidder = bidNode.get("bidder").asLong();
+            final long price = bidNode.get("price").asLong();
+            final String channel = bidNode.get("channel").asText();
+            final String url = bidNode.get("url").asText();
+            final long dateTime = bidNode.get("dateTime").asLong();
+            final String extra = bidNode.get("extra").asText();
+            final Bid bid = new Bid(auction, bidder, price, channel, url, dateTime, extra);
             return new Event(bid, injTsMs);
         } else {
             throw new RuntimeException("etype should be either 0, 1 or 2; got " + etype);

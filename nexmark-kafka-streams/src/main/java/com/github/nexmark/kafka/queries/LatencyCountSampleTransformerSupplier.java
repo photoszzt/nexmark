@@ -7,7 +7,7 @@ import org.apache.kafka.streams.kstream.ValueTransformer;
 import org.apache.kafka.streams.kstream.ValueTransformerSupplier;
 import org.apache.kafka.streams.processor.ProcessorContext;
 
-public class LatencyCountSampleTransformerSupplier<V> implements ValueTransformerSupplier<V, V>{
+public class LatencyCountSampleTransformerSupplier<V> implements ValueTransformerSupplier<V, V> {
 
     private final List<LatencySampleHolder> holders = new ArrayList<>();
     private final String tag;
@@ -19,13 +19,13 @@ public class LatencyCountSampleTransformerSupplier<V> implements ValueTransforme
 
     @Override
     public ValueTransformer<V, V> get() {
-        LatencySampleHolder holder = new LatencySampleHolder(tag+"-"+numHolders);
+        LatencySampleHolder holder = new LatencySampleHolder(tag + "-" + numHolders);
         holders.add(holder);
         numHolders += 1;
         return new LatencyCountTransformer<>(holder);
     }
 
-    public void SetAfterWarmup(){
+    public void SetAfterWarmup() {
         for (LatencySampleHolder lh : holders) {
             lh.SetAfterWarmup();
         }
@@ -36,15 +36,15 @@ public class LatencyCountSampleTransformerSupplier<V> implements ValueTransforme
             LatencySampleHolder holder = holders.get(0);
             System.out.println(holder.tag() + ": " + holder.getCount());
         } else {
-            for (LatencySampleHolder lh: holders) {
-               long count = lh.getCount();
-               System.out.println(lh.tag() + ": " + count);
+            for (LatencySampleHolder lh : holders) {
+                long count = lh.getCount();
+                System.out.println(lh.tag() + ": " + count);
             }
         }
     }
 
     public void printRemainingStats() {
-        for (LatencySampleHolder lh: holders) {
+        for (LatencySampleHolder lh : holders) {
             lh.printRemainingStats();
         }
     }
@@ -74,7 +74,7 @@ public class LatencyCountSampleTransformerSupplier<V> implements ValueTransforme
         @Override
         public void close() {
         }
-        
+
     }
-    
+
 }

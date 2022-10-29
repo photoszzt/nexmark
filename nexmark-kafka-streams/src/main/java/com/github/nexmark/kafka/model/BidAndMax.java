@@ -1,7 +1,5 @@
 package com.github.nexmark.kafka.model;
 
-import java.util.Objects;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -19,12 +17,12 @@ public class BidAndMax implements StartProcTs {
     private long startExecNano;
 
     @JsonCreator
-    public BidAndMax(@JsonProperty("auction") long auction,
-            @JsonProperty("price") long price,
-            @JsonProperty("bidder") long bidder,
-            @JsonProperty("dateTime") long dateTime,
-            @JsonProperty("wStartMs") long wStartMs,
-            @JsonProperty("wEndMs") long wEndMs) {
+    public BidAndMax(@JsonProperty("auction") final long auction,
+                     @JsonProperty("price") final long price,
+                     @JsonProperty("bidder") final long bidder,
+                     @JsonProperty("dateTime") final long dateTime,
+                     @JsonProperty("wStartMs") final long wStartMs,
+                     @JsonProperty("wEndMs") final long wEndMs) {
         this.auction = auction;
         this.price = price;
         this.bidder = bidder;
@@ -37,16 +35,11 @@ public class BidAndMax implements StartProcTs {
     @Override
     public String toString() {
         return "BidAndMax: {auction: " + auction +
-                ", price: " + price +
-                ", bidder: " + bidder +
-                ", dateTimeMs: " + dateTimeMs +
-                ", wStartMs: " + wStartMs +
-                ", wEndMs: " + wEndMs + "}";
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(auction, price, bidder, dateTimeMs, wStartMs, wEndMs);
+            ", price: " + price +
+            ", bidder: " + bidder +
+            ", dateTimeMs: " + dateTimeMs +
+            ", wStartMs: " + wStartMs +
+            ", wEndMs: " + wEndMs + "}";
     }
 
     @Override
@@ -55,7 +48,7 @@ public class BidAndMax implements StartProcTs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
+    public void setStartProcTsNano(final long ts) {
         startExecNano = ts;
     }
 }

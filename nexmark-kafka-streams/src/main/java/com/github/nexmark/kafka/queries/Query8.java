@@ -8,13 +8,24 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.*;
+import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.Repartitioned;
+import org.apache.kafka.streams.kstream.JoinWindows;
+import org.apache.kafka.streams.kstream.Branched;
+import org.apache.kafka.streams.kstream.StreamJoined;
+import org.apache.kafka.streams.kstream.Named;
+import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Properties;
 import java.io.IOException;
 import java.io.FileInputStream;
 import static com.github.nexmark.kafka.queries.Constants.REPLICATION_FACTOR;
@@ -33,7 +44,7 @@ public class Query8 implements NexmarkQuery {
     private static final String AUC_QUEUE_TAG = "auc_queue";
     private static final String PER_QUEUE_TAG = "per_queue";
 
-    public Query8(String baseDir) {
+    public Query8(final String baseDir) {
         // input = new CountAction<>();
         lcts = new LatencyCountTransformerSupplier<>("q8_sink_ets", baseDir, new IdentityValueMapper<PersonTime>());
         aucProcLat = new ArrayList<>(NUM_STATS);
@@ -43,59 +54,59 @@ public class Query8 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
-        Properties prop = new Properties();
-        FileInputStream fis = new FileInputStream(configFile);
+    public StreamsBuilder getStreamBuilder(final String bootstrapServer, final String serde, final String configFile) throws IOException {
+        final Properties prop = new Properties();
+        final FileInputStream fis = new FileInputStream(configFile);
         prop.load(fis);
 
-        String outTp = prop.getProperty("out.name");
-        int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
-        NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
+        final String outTp = prop.getProperty("out.name");
+        final int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
+        final NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
 
-        String aucBySellerIDTp = prop.getProperty("aucBySellerIDTp.name");
-        String aucBySellerIDTpRepar = prop.getProperty("aucBySellerIDTp.reparName");
-        int aucBySellerIDTpPar = Integer.parseInt(prop.getProperty("aucBySellerIDTp.numPar"));
-        NewTopic auctionRepar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, REPLICATION_FACTOR);
+        final String aucBySellerIDTp = prop.getProperty("aucBySellerIDTp.name");
+        final String aucBySellerIDTpRepar = prop.getProperty("aucBySellerIDTp.reparName");
+        final int aucBySellerIDTpPar = Integer.parseInt(prop.getProperty("aucBySellerIDTp.numPar"));
+        final NewTopic auctionRepar = new NewTopic(aucBySellerIDTp, aucBySellerIDTpPar, REPLICATION_FACTOR);
 
-        String personsByIDTp = prop.getProperty("personsByIDTp.name");
-        String personsByIDTpRepar = prop.getProperty("personsByIDTp.reparName");
-        int personsByIDTpPar = Integer.parseInt(prop.getProperty("personsByIDTp.numPar"));
-        NewTopic personRepar = new NewTopic(personsByIDTp, personsByIDTpPar, REPLICATION_FACTOR);
+        final String personsByIDTp = prop.getProperty("personsByIDTp.name");
+        final String personsByIDTpRepar = prop.getProperty("personsByIDTp.reparName");
+        final int personsByIDTpPar = Integer.parseInt(prop.getProperty("personsByIDTp.numPar"));
+        final NewTopic personRepar = new NewTopic(personsByIDTp, personsByIDTpPar, REPLICATION_FACTOR);
 
-        List<NewTopic> nps = new ArrayList<>(3);
+        final List<NewTopic> nps = new ArrayList<>(3);
         nps.add(out);
         nps.add(personRepar);
         nps.add(auctionRepar);
         StreamsUtils.createTopic(bootstrapServer, nps);
 
-        StreamsBuilder builder = new StreamsBuilder();
+        final StreamsBuilder builder = new StreamsBuilder();
 
-        Serde<Event> eSerde;
-        Serde<PersonTime> ptSerde;
+        final Serde<Event> eSerde;
+        final Serde<PersonTime> ptSerde;
         if (serde.equals("json")) {
-            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
+            final JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
             eSerdeJSON.setClass(Event.class);
             eSerde = eSerdeJSON;
 
-            JSONPOJOSerde<PersonTime> ptSerdeJSON = new JSONPOJOSerde<>();
+            final JSONPOJOSerde<PersonTime> ptSerdeJSON = new JSONPOJOSerde<>();
             ptSerdeJSON.setClass(PersonTime.class);
             ptSerde = ptSerdeJSON;
         } else if (serde.equals("msgp")) {
-            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            final MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
             eSerdeMsgp.setClass(Event.class);
             eSerde = eSerdeMsgp;
 
-            MsgpPOJOSerde<PersonTime> ptSerdeMsgp = new MsgpPOJOSerde<>();
+            final MsgpPOJOSerde<PersonTime> ptSerdeMsgp = new MsgpPOJOSerde<>();
             ptSerdeMsgp.setClass(PersonTime.class);
             ptSerde = ptSerdeMsgp;
         } else {
             throw new RuntimeException("serde expects to be either json or msgp; Got " + serde);
         }
 
-        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
+        final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
                 .withTimestampExtractor(new EventTimestampExtractor()));
         // .peek(input);
-        Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
+        final Map<String, KStream<String, Event>> ksMap = inputs.split(Named.as("Branch-"))
                 .branch((key, value) -> {
                     if (value != null) {
                         value.setStartProcTsNano(System.nanoTime());
@@ -116,8 +127,8 @@ public class Query8 implements NexmarkQuery {
                 }, Branched.as("auctions"))
                 .noDefaultBranch();
 
-        KStream<Long, Event> person = ksMap.get("Branch-persons").selectKey((key, value) -> {
-            long procLat = System.nanoTime() - value.startProcTsNano();
+        final KStream<Long, Event> person = ksMap.get("Branch-persons").selectKey((key, value) -> {
+            final long procLat = System.nanoTime() - value.startProcTsNano();
             StreamsUtils.appendLat(perProcLat, procLat, PER_PROC_TAG);
             return value.newPerson.id;
         }).repartition(Repartitioned.with(Serdes.Long(), eSerde)
@@ -125,14 +136,14 @@ public class Query8 implements NexmarkQuery {
                 .withNumberOfPartitions(personsByIDTpPar))
                 .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
-                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                     StreamsUtils.appendLat(perQueueTime, queueDelay, PER_QUEUE_TAG);
                     return value;
                 });
 
-        KStream<Long, Event> auction = ksMap.get("Branch-auctions")
+        final KStream<Long, Event> auction = ksMap.get("Branch-auctions")
                 .selectKey((key, value) -> {
-                    long procLat = System.nanoTime() - value.startProcTsNano();
+                    final long procLat = System.nanoTime() - value.startProcTsNano();
                     StreamsUtils.appendLat(aucProcLat, procLat, AUC_PROC_TAG);
                     return value.newAuction.seller;
                 })
@@ -141,27 +152,27 @@ public class Query8 implements NexmarkQuery {
                         .withNumberOfPartitions(aucBySellerIDTpPar))
                 .mapValues((key, value) -> {
                     value.setStartProcTsNano(System.nanoTime());
-                    long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                    final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                     StreamsUtils.appendLat(aucQueueTime, queueDelay, AUC_QUEUE_TAG);
                     return value;
                 });
 
-        long windowSizeMs = 10 * 1000;
-        JoinWindows jw = JoinWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5));
-        WindowBytesStoreSupplier auctionStoreSupplier = Stores.inMemoryWindowStore(
+        final long windowSizeMs = 10 * 1000;
+        final JoinWindows jw = JoinWindows.ofTimeDifferenceAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(5));
+        final WindowBytesStoreSupplier auctionStoreSupplier = Stores.inMemoryWindowStore(
                 "auction-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
                 Duration.ofMillis(jw.size()), true);
-        WindowBytesStoreSupplier personStoreSupplier = Stores.inMemoryWindowStore(
+        final WindowBytesStoreSupplier personStoreSupplier = Stores.inMemoryWindowStore(
                 "person-join-store", Duration.ofMillis(jw.size() + jw.gracePeriodMs()),
                 Duration.ofMillis(jw.size()), true);
-        StreamJoined<Long, Event, Event> sj = StreamJoined
+        final StreamJoined<Long, Event, Event> sj = StreamJoined
                 .<Long, Event, Event>with(auctionStoreSupplier, personStoreSupplier)
                 .withKeySerde(Serdes.Long())
                 .withValueSerde(eSerde)
                 .withOtherValueSerde(eSerde)
                 .withLoggingEnabled(new HashMap<>());
         auction.join(person, (left, right) -> {
-            long startExecNano = 0;
+            final long startExecNano;
             if (left.startProcTsNano() == 0) {
                 startExecNano = right.startProcTsNano();
             } else if (right.startProcTsNano() == 0) {
@@ -170,9 +181,9 @@ public class Query8 implements NexmarkQuery {
                 startExecNano = Math.min(left.startProcTsNano(), right.startProcTsNano());
             }
             assert startExecNano != 0;
-            long ts = right.newPerson.dateTime;
-            long windowStart = (Math.max(0, ts - windowSizeMs + windowSizeMs) / windowSizeMs) * windowSizeMs;
-            PersonTime pt = new PersonTime(right.newPerson.id, right.newPerson.name, windowStart);
+            final long ts = right.newPerson.dateTime;
+            final long windowStart = (Math.max(0, ts - windowSizeMs + windowSizeMs) / windowSizeMs) * windowSizeMs;
+            final PersonTime pt = new PersonTime(right.newPerson.id, right.newPerson.name, windowStart);
             pt.setStartProcTsNano(startExecNano);
             return pt;
         }, jw, sj)
@@ -182,18 +193,18 @@ public class Query8 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache, boolean disableBatching) {
-        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
+    public Properties getExactlyOnceProperties(final String bootstrapServer, final int duration, final int flushms,
+                                               final boolean disableCache, final boolean disableBatching) {
+        final Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
                 disableCache, disableBatching);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q8");
         return props;
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache, boolean disableBatching) {
-        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
+    public Properties getAtLeastOnceProperties(final String bootstrapServer, final int duration, final int flushms,
+                                               final boolean disableCache, final boolean disableBatching) {
+        final Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
                 disableCache, disableBatching);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q8");
         return props;

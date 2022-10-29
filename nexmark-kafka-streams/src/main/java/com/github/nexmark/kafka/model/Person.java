@@ -7,10 +7,14 @@ import java.io.Serializable;
 import java.util.Objects;
 
 public class Person implements Serializable {
-    /** Id of person. */
+    /**
+     * Id of person.
+     */
     public long id; // primary key
 
-    /** Extra person properties. */
+    /**
+     * Extra person properties.
+     */
     public String name;
 
     public String emailAddress;
@@ -23,19 +27,20 @@ public class Person implements Serializable {
 
     public long dateTime;
 
-    /** Additional arbitrary payload for performance testing. */
+    /**
+     * Additional arbitrary payload for performance testing.
+     */
     public String extra;
 
     @JsonCreator
-    public Person(
-            @JsonProperty("id") long id,
-            @JsonProperty("name") String name,
-            @JsonProperty("emailAddress") String emailAddress,
-            @JsonProperty("creditCard") String creditCard,
-            @JsonProperty("city") String city,
-            @JsonProperty("state") String state,
-            @JsonProperty("dateTime") long dateTime,
-            @JsonProperty("extra") String extra) {
+    public Person(@JsonProperty("id") final long id,
+                  @JsonProperty("name") final String name,
+                  @JsonProperty("emailAddress") final String emailAddress,
+                  @JsonProperty("creditCard") final String creditCard,
+                  @JsonProperty("city") final String city,
+                  @JsonProperty("state") final String state,
+                  @JsonProperty("dateTime") final long dateTime,
+                  @JsonProperty("extra") final String extra) {
         this.id = id;
         this.name = name;
         this.emailAddress = emailAddress;
@@ -49,19 +54,19 @@ public class Person implements Serializable {
     @Override
     public String toString() {
         return "Person{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", emailAddress='" + emailAddress + '\'' +
-                ", creditCard='" + creditCard + '\'' +
-                ", city='" + city + '\'' +
-                ", state='" + state + '\'' +
-                ", dateTime=" + dateTime +
-                ", extra='" + extra + '\'' +
-                '}';
+            "id=" + id +
+            ", name='" + name + '\'' +
+            ", emailAddress='" + emailAddress + '\'' +
+            ", creditCard='" + creditCard + '\'' +
+            ", city='" + city + '\'' +
+            ", state='" + state + '\'' +
+            ", dateTime=" + dateTime +
+            ", extra='" + extra + '\'' +
+            '}';
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) {
             return true;
         }
@@ -70,18 +75,18 @@ public class Person implements Serializable {
         }
         Person person = (Person) o;
         return id == person.id
-                &&dateTime == person.dateTime
-                && name.equals(person.name)
-                && emailAddress.equals(person.emailAddress)
-                && creditCard.equals(person.creditCard)
-                && city.equals(person.city)
-                && state.equals(person.state)
-                && extra.equals(person.extra);
+            && dateTime == person.dateTime
+            && name.equals(person.name)
+            && emailAddress.equals(person.emailAddress)
+            && creditCard.equals(person.creditCard)
+            && city.equals(person.city)
+            && state.equals(person.state)
+            && extra.equals(person.extra);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(id, name, emailAddress, creditCard, city, state, dateTime, extra);
     }
-    
+
 }

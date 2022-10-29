@@ -33,8 +33,8 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
 
     @Override
     public ValueTransformer<V, V1> get() {
-        String lhTag = tag + "-" + holders.size();
-        String path = baseDir + File.separator + lhTag;
+        final String lhTag = tag + "-" + holders.size();
+        final String path = baseDir + File.separator + lhTag;
         try {
             holders.add(new LatencyHolder(lhTag, path));
         } catch (IOException e) {
@@ -45,24 +45,24 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
 
     public void printCount() {
         if (holders.size() == 1) {
-            LatencyHolder holder = holders.get(0);
+            final LatencyHolder holder = holders.get(0);
             System.out.println(holder.tag() + ": " + holder.getCount());
         } else {
-            for (LatencyHolder lh : holders) {
-                long count = lh.getCount();
+            for (final LatencyHolder lh : holders) {
+                final long count = lh.getCount();
                 System.out.println(lh.tag() + ": " + count);
             }
         }
     }
 
     public void waitForFinish() {
-        for (LatencyHolder lh : holders) {
+        for (final LatencyHolder lh : holders) {
             lh.waitForFinish();
         }
     }
 
     public void outputRemainingStats() {
-        for (LatencyHolder lh : holders) {
+        for (final LatencyHolder lh : holders) {
             lh.outputRemainingStats();
         }
     }
@@ -73,7 +73,7 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
         ArrayList<Long> procLat = new ArrayList<>(NUM_STATS);
         ValueMapper<VV, VV1> mapper;
 
-        public LatencyCountTransformer(LatencyHolder lh, ValueMapper<VV, VV1> mapper) {
+        public LatencyCountTransformer(final LatencyHolder lh, final ValueMapper<VV, VV1> mapper) {
             this.lh = lh;
             this.mapper = mapper;
         }
@@ -86,11 +86,11 @@ public class LatencyCountTransformerSupplier<V extends StartProcTs, V1> implemen
 
         @Override
         public VV1 transform(VV value) {
-            long ts = ctx.timestamp();
-            long now = Instant.now().toEpochMilli();
-            long startProc = value.startProcTsNano();
+            final long ts = ctx.timestamp();
+            final long now = Instant.now().toEpochMilli();
+            final long startProc = value.startProcTsNano();
             assert (startProc != 0);
-            long lat = System.nanoTime() - startProc;
+            final long lat = System.nanoTime() - startProc;
             StreamsUtils.appendLat(procLat, lat, lh.tag() + "_proc");
             lh.appendLatency(now - ts);
             return mapper.apply(value);

@@ -27,30 +27,30 @@ public class Query1 implements NexmarkQuery {
 
     public Query1(File statsDir) {
         // input = new CountAction<>();
-        String tag = "q1_sink_ets";
-        String fileName = statsDir + File.separator + tag;
+        final String tag = "q1_sink_ets";
+        final String fileName = statsDir + File.separator + tag;
 
         latCount = new LatencyCount<>(tag, fileName);
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException {
-        Properties prop = new Properties();
-        FileInputStream fis = new FileInputStream(configFile);
+    public StreamsBuilder getStreamBuilder(final String bootstrapServer, final String serde, final String configFile) throws IOException {
+        final Properties prop = new Properties();
+        final FileInputStream fis = new FileInputStream(configFile);
         prop.load(fis);
-        String outTp = prop.getProperty("out.name");
-        int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
-        NewTopic np = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
+        final String outTp = prop.getProperty("out.name");
+        final int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
+        final NewTopic np = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
         StreamsUtils.createTopic(bootstrapServer, Collections.singleton(np));
 
-        Serde<Event> eSerde;
-        StreamsBuilder builder = new StreamsBuilder();
+        final Serde<Event> eSerde;
+        final StreamsBuilder builder = new StreamsBuilder();
         if (serde.equals("json")) {
-            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<>();
+            final JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<>();
             eSerdeJSON.setClass(Event.class);
             eSerde = eSerdeJSON;
         } else if (serde.equals("msgp")) {
-            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            final MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
             eSerdeMsgp.setClass(Event.class);
             eSerde = eSerdeMsgp;
         } else {
@@ -58,34 +58,33 @@ public class Query1 implements NexmarkQuery {
         }
 
         final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
-                .withTimestampExtractor(new EventTimestampExtractor()));
+            .withTimestampExtractor(new EventTimestampExtractor()));
 
-        inputs.filter((key, value) -> (value != null && value.etype == Event.EType.BID))
-                .mapValues(value -> {
-                    Bid b = value.bid;
-                    Event e = new Event(
-                            new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra),
-                            Instant.now().toEpochMilli());
-                    return e;
-                }).peek(latCount, Named.as("measure-latency")).to(outTp, Produced.valueSerde(eSerde));
+        inputs.filter((key, value) -> value != null && value.etype == Event.EType.BID)
+            .mapValues(value -> {
+                Bid b = value.bid;
+                return new Event(
+                    new Bid(b.auction, b.bidder, (b.price * 89) / 100, b.channel, b.url, b.dateTime, b.extra),
+                    Instant.now().toEpochMilli());
+            }).peek(latCount, Named.as("measure-latency")).to(outTp, Produced.valueSerde(eSerde));
         return builder;
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache, boolean disableBatching) {
+    public Properties getExactlyOnceProperties(final String bootstrapServer, final int duration, final int flushms,
+                                               final boolean disableCache, final boolean disableBatching) {
         Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
-                disableCache, disableBatching);
+            disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q1");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q1-client");
         return props;
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
-            boolean disableCache, boolean disableBatching) {
+    public Properties getAtLeastOnceProperties(final String bootstrapServer, final int duration, final int flushms,
+                                               final boolean disableCache, final boolean disableBatching) {
         Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
-                disableCache, disableBatching);
+            disableCache, disableBatching);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "q1");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "q1-client");
         return props;

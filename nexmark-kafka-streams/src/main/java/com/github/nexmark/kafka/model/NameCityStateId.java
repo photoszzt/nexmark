@@ -1,4 +1,5 @@
 package com.github.nexmark.kafka.model;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -18,10 +19,10 @@ public class NameCityStateId implements Serializable, StartProcTs {
     public long startExecNano;
 
     @JsonCreator
-    public NameCityStateId(@JsonProperty("name") String name,
-                           @JsonProperty("city") String city,
-                           @JsonProperty("state") String state,
-                           @JsonProperty("id") long id) {
+    public NameCityStateId(@JsonProperty("name") final String name,
+                           @JsonProperty("city") final String city,
+                           @JsonProperty("state") final String state,
+                           @JsonProperty("id") final long id) {
         this.name = name;
         this.city = city;
         this.state = state;
@@ -30,7 +31,7 @@ public class NameCityStateId implements Serializable, StartProcTs {
     }
 
     @Override
-    public boolean equals(@Nullable Object otherObject) {
+    public boolean equals(@Nullable final Object otherObject) {
         if (this == otherObject) {
             return true;
         }
@@ -40,9 +41,9 @@ public class NameCityStateId implements Serializable, StartProcTs {
 
         final NameCityStateId other = (NameCityStateId) otherObject;
         return name.equals(other.name)
-                && city.equals(other.city)
-                && state.equals(other.state)
-                && id == other.id;
+            && city.equals(other.city)
+            && state.equals(other.state)
+            && id == other.id;
     }
 
     @Override
@@ -56,7 +57,7 @@ public class NameCityStateId implements Serializable, StartProcTs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
-        startExecNano = ts; 
+    public void setStartProcTsNano(final long ts) {
+        startExecNano = ts;
     }
 }

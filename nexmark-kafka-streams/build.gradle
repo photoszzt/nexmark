@@ -16,6 +16,12 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.13.2'
 }
 
+apply plugin: 'checkstyle'
+
+checkstyle {
+    configFile = new File(rootDir, "nexmark-kafka-streams/checkstyle/checkstyle.xml")
+}
+
 tasks.register('uberJar', Jar) {
     archiveClassifier = 'uber'
 

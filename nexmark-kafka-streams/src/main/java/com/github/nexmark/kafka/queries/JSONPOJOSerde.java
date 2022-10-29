@@ -13,7 +13,7 @@ import java.time.Instant;
 import java.util.Map;
 
 public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T> {
-    private Gson gson;
+    private final Gson gson;
     private Class<T> cls;
 
     public JSONPOJOSerde() {
@@ -27,15 +27,15 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
     }
 
     @Override
-    public void configure(Map<String, ?> props, boolean isKey) {
+    public void configure(final Map<String, ?> props, final boolean isKey) {
     }
 
-    public void setClass(Class<T> cls) {
+    public void setClass(final Class<T> cls) {
         this.cls = cls;
     }
 
     @Override
-    public T deserialize(String topic, byte[] bytes) {
+    public T deserialize(final String topic, final byte[] bytes) {
         if (bytes == null) {
             return null;
         }
@@ -46,21 +46,21 @@ public class JSONPOJOSerde<T> implements Deserializer<T>, Serializer<T>, Serde<T
             if (this.cls == null) {
                 throw new SerializationException("need to call setClass to pass the type to JSONPOJOSerde");
             }
-            T desc = (T) this.gson.fromJson(bytes_str, this.cls);
+            return this.gson.fromJson(bytes_str, this.cls);
             // System.out.println("########### Desc out is " + desc.toString());
-            return desc;
+            // return desc;
         } catch (Exception err) {
             throw new SerializationException(err);
         }
     }
 
     @Override
-    public byte[] serialize(String topic, T data) {
+    public byte[] serialize(final String topic, final T data) {
         if (data == null) {
             return null;
         }
         try {
-            String ret = this.gson.toJson(data);
+            final String ret = this.gson.toJson(data);
             return ret.getBytes();
         } catch (Exception err) {
             throw new SerializationException("Error serializing JSON message", err);

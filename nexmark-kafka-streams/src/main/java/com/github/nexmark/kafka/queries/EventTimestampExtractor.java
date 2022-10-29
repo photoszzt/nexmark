@@ -8,7 +8,7 @@ import org.apache.kafka.streams.processor.TimestampExtractor;
 public class EventTimestampExtractor implements TimestampExtractor {
 
     @Override
-    public long extract(ConsumerRecord<Object, Object> record, final long partitionTime) {
+    public long extract(final ConsumerRecord<Object, Object> record, final long partitionTime) {
         if (record.value() instanceof Event) {
             Event e = (Event) record.value();
             if (e.etype == Event.EType.AUCTION) {

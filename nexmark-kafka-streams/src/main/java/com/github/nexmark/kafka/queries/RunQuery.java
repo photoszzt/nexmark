@@ -15,7 +15,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
@@ -80,33 +79,33 @@ public class RunQuery {
             System.err.println("Usage: --name <q1> --serde json --config <config_file>");
             System.exit(1);
         }
-        Options options = getOptions();
-        DefaultParser parser = new DefaultParser();
-        CommandLine line = parser.parse(options, args, true);
-        String appName = line.getOptionValue(APP_NAME.getOpt());
-        String serde = line.getOptionValue(SERDE.getOpt());
-        String configFile = line.getOptionValue(CONFIG_FILE.getOpt());
-        String durStr = line.getOptionValue(DURATION.getOpt());
-        String warmupTime = line.getOptionValue(WARMUP_TIME.getOpt());
-        String portStr = line.getOptionValue(PORT.getOpt());
-        String flushStr = line.getOptionValue(FLUSHMS.getOpt());
-        String guarantee = line.getOptionValue(GUARANTEE.getOpt());
-        String statsDirStr = line.getOptionValue(STATS_DIR.getOpt());
+        final Options options = getOptions();
+        final DefaultParser parser = new DefaultParser();
+        final CommandLine line = parser.parse(options, args, true);
+        final String appName = line.getOptionValue(APP_NAME.getOpt());
+        final String serde = line.getOptionValue(SERDE.getOpt());
+        final String configFile = line.getOptionValue(CONFIG_FILE.getOpt());
+        final String durStr = line.getOptionValue(DURATION.getOpt());
+        final String warmupTime = line.getOptionValue(WARMUP_TIME.getOpt());
+        final String portStr = line.getOptionValue(PORT.getOpt());
+        final String flushStr = line.getOptionValue(FLUSHMS.getOpt());
+        final String guarantee = line.getOptionValue(GUARANTEE.getOpt());
+        final String statsDirStr = line.getOptionValue(STATS_DIR.getOpt());
 
-        int durationMs = durStr == null ? 0 : Integer.parseInt(durStr) * 1000;
-        int warmupDuration = warmupTime == null ? 0 : Integer.parseInt(warmupTime) * 1000;
-        int warmupDurNano = warmupDuration * 1000_000;
-        int port = portStr == null ? 8090 : Integer.parseInt(portStr);
-        int flushms = flushStr == null ? 100 : Integer.parseInt(flushStr);
-        boolean disableCache = line.hasOption(DISABLE_CACHE.getOpt());
-        boolean disableBatching = line.hasOption(DISABLE_BATCHING.getOpt());
+        final int durationMs = durStr == null ? 0 : Integer.parseInt(durStr) * 1000;
+        final int warmupDuration = warmupTime == null ? 0 : Integer.parseInt(warmupTime) * 1000;
+        final int warmupDurNano = warmupDuration * 1000_000;
+        final int port = portStr == null ? 8090 : Integer.parseInt(portStr);
+        final int flushms = flushStr == null ? 100 : Integer.parseInt(flushStr);
+        final boolean disableCache = line.hasOption(DISABLE_CACHE.getOpt());
+        final boolean disableBatching = line.hasOption(DISABLE_BATCHING.getOpt());
         File statsDir = new File(statsDirStr);
         if (!statsDir.exists()) {
             statsDir.mkdirs();
         }
 
-        String srcEventStr = line.getOptionValue(NUM_SRC_EVENTS.getOpt());
-        int srcEvents = srcEventStr == null ? 0 : Integer.parseInt(srcEventStr);
+        final String srcEventStr = line.getOptionValue(NUM_SRC_EVENTS.getOpt());
+        final int srcEvents = srcEventStr == null ? 0 : Integer.parseInt(srcEventStr);
         System.out.println("appName: " + appName + " serde: " + serde +
                 " configFile: " + configFile + " duration(ms): "
                 + durationMs + " warmup(ms): " + warmupDuration +
@@ -120,7 +119,7 @@ public class RunQuery {
 
         final String bootstrapServers = getEnvValue("BOOTSTRAP_SERVER_CONFIG", "localhost:29092");
 
-        NexmarkQuery query = getNexmarkQuery(appName, statsDir);
+        final NexmarkQuery query = getNexmarkQuery(appName, statsDir);
         if (query == null) {
             System.exit(1);
         }
@@ -158,7 +157,6 @@ public class RunQuery {
             long timeStartNano = System.nanoTime();
             long afterWarmStartNano = 0;
             boolean afterWarmup = false;
-            long emitEveryNano = TEN_SEC_NANO;
             long emitMetricTimer = System.nanoTime();
             long durationNano = TimeUnit.NANOSECONDS.convert(durationMs, TimeUnit.MILLISECONDS);
             if (durationMs != 0 && srcEvents == 0) {
@@ -167,7 +165,7 @@ public class RunQuery {
                     long elapsedNano = now - timeStartNano;
 
                     long elapsedMetricNano = now - emitMetricTimer;
-                    if (elapsedMetricNano >= emitEveryNano) {
+                    if (elapsedMetricNano >= TEN_SEC_NANO) {
                         System.out.println("emit metrics at " + elapsedNano + " ns");
                         Map<MetricName, ? extends Metric> metric = streams.metrics();
                         metric.forEach((k, v) -> {
@@ -181,6 +179,7 @@ public class RunQuery {
                                                 + ";val:" + d);
                                     }
                                 } catch (ClassCastException e) {
+                                    e.printStackTrace();
                                 }
                             }
                         });
@@ -201,6 +200,7 @@ public class RunQuery {
                                                 + ";val:" + d);
                                     }
                                 } catch (ClassCastException e) {
+                                    e.printStackTrace();
                                 }
                             }
                         });
@@ -289,10 +289,10 @@ public class RunQuery {
 
     }
 
-    public static long percentile(List<Long> latencies, double percentile) {
-        int index = (int) Math.ceil(percentile / 100.0 * latencies.size());
-        return latencies.get(index - 1);
-    }
+    //public static long percentile(List<Long> latencies, double percentile) {
+    //    int index = (int) Math.ceil(percentile / 100.0 * latencies.size());
+    //    return latencies.get(index - 1);
+    //}
 
     private static Options getOptions() {
         Options options = new Options();

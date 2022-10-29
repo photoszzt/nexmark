@@ -7,7 +7,7 @@ public class ReportTimer {
     Instant lastTs;
     Duration duration;
 
-    public ReportTimer(Duration duration) {
+    public ReportTimer(final Duration duration) {
         this.duration = duration;
         this.lastTs = null;
     }

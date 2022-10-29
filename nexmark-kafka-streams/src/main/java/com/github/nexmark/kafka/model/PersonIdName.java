@@ -10,8 +10,8 @@ public class PersonIdName {
     public String name;
 
     @JsonCreator
-    public PersonIdName(@JsonProperty("id") long id,
-                        @JsonProperty("name") String name) {
+    public PersonIdName(@JsonProperty("id") final long id,
+                        @JsonProperty("name") final String name) {
         this.id = id;
         this.name = name;
     }
@@ -19,11 +19,11 @@ public class PersonIdName {
     @Override
     public String toString() {
         return "PersonIdName: {id: " + id +
-                ", name: " + name + "}";
+            ", name: " + name + "}";
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) {
             return true;
         }

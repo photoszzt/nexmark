@@ -10,7 +10,15 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.*;
+import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.Repartitioned;
+import org.apache.kafka.streams.kstream.TimeWindows;
+import org.apache.kafka.streams.kstream.Grouped;
+import org.apache.kafka.streams.kstream.Materialized;
+import org.apache.kafka.streams.kstream.Named;
+import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.state.WindowBytesStoreSupplier;
@@ -50,76 +58,76 @@ public class Query5 implements NexmarkQuery {
     }
 
     @Override
-    public StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile)
+    public StreamsBuilder getStreamBuilder(final String bootstrapServer, final String serde, final String configFile)
         throws IOException {
-        Properties prop = new Properties();
-        FileInputStream fis = new FileInputStream(configFile);
+        final Properties prop = new Properties();
+        final FileInputStream fis = new FileInputStream(configFile);
         prop.load(fis);
 
-        String outTp = prop.getProperty("out.name");
-        int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
-        NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
+        final String outTp = prop.getProperty("out.name");
+        final int numPar = Integer.parseInt(prop.getProperty("out.numPar"));
+        final NewTopic out = new NewTopic(outTp, numPar, REPLICATION_FACTOR);
 
-        String bidsTp = prop.getProperty("bids.name");
-        String bidsTpRepar = prop.getProperty("bids.reparName");
-        int bidsTpPar = Integer.parseInt(prop.getProperty("bids.numPar"));
-        NewTopic bidsRepar = new NewTopic(bidsTp, bidsTpPar, REPLICATION_FACTOR);
+        final String bidsTp = prop.getProperty("bids.name");
+        final String bidsTpRepar = prop.getProperty("bids.reparName");
+        final int bidsTpPar = Integer.parseInt(prop.getProperty("bids.numPar"));
+        final NewTopic bidsRepar = new NewTopic(bidsTp, bidsTpPar, REPLICATION_FACTOR);
 
-        String auctionBidsTp = prop.getProperty("auctionBids.name");
-        String auctionBidsTpRepar = prop.getProperty("auctionBids.reparName");
-        int auctionBidsTpPar = Integer.parseInt(prop.getProperty("auctionBids.numPar"));
-        NewTopic auctionBidsRepar = new NewTopic(auctionBidsTp, auctionBidsTpPar, REPLICATION_FACTOR);
+        final String auctionBidsTp = prop.getProperty("auctionBids.name");
+        final String auctionBidsTpRepar = prop.getProperty("auctionBids.reparName");
+        final int auctionBidsTpPar = Integer.parseInt(prop.getProperty("auctionBids.numPar"));
+        final NewTopic auctionBidsRepar = new NewTopic(auctionBidsTp, auctionBidsTpPar, REPLICATION_FACTOR);
 
-        List<NewTopic> nps = new ArrayList<>(3);
+        final List<NewTopic> nps = new ArrayList<>(3);
         nps.add(out);
         nps.add(bidsRepar);
         nps.add(auctionBidsRepar);
         StreamsUtils.createTopic(bootstrapServer, nps);
 
-        Serde<Event> eSerde;
-        Serde<StartEndTime> seSerde;
-        Serde<AuctionIdCntMax> aicmSerde;
-        Serde<AuctionIdCount> aicSerde;
-        Serde<LongAndTime> latSerde;
+        final Serde<Event> eSerde;
+        final Serde<StartEndTime> seSerde;
+        final Serde<AuctionIdCntMax> aicmSerde;
+        final Serde<AuctionIdCount> aicSerde;
+        final Serde<LongAndTime> latSerde;
 
         if (serde.equals("json")) {
-            JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
+            final JSONPOJOSerde<Event> eSerdeJSON = new JSONPOJOSerde<Event>();
             eSerdeJSON.setClass(Event.class);
             eSerde = eSerdeJSON;
 
-            JSONPOJOSerde<StartEndTime> seSerdeJSON = new JSONPOJOSerde<StartEndTime>();
+            final JSONPOJOSerde<StartEndTime> seSerdeJSON = new JSONPOJOSerde<StartEndTime>();
             seSerdeJSON.setClass(StartEndTime.class);
             seSerde = seSerdeJSON;
 
-            JSONPOJOSerde<AuctionIdCount> aicSerdeJSON = new JSONPOJOSerde<AuctionIdCount>();
+            final JSONPOJOSerde<AuctionIdCount> aicSerdeJSON = new JSONPOJOSerde<AuctionIdCount>();
             aicSerdeJSON.setClass(AuctionIdCount.class);
             aicSerde = aicSerdeJSON;
 
-            JSONPOJOSerde<AuctionIdCntMax> aicmSerdeJSON = new JSONPOJOSerde<AuctionIdCntMax>();
+            final JSONPOJOSerde<AuctionIdCntMax> aicmSerdeJSON = new JSONPOJOSerde<AuctionIdCntMax>();
             aicmSerdeJSON.setClass(AuctionIdCntMax.class);
             aicmSerde = aicmSerdeJSON;
 
-            JSONPOJOSerde<LongAndTime> latSerdeJSON = new JSONPOJOSerde<LongAndTime>();
+            final JSONPOJOSerde<LongAndTime> latSerdeJSON = new JSONPOJOSerde<LongAndTime>();
             latSerdeJSON.setClass(LongAndTime.class);
             latSerde = latSerdeJSON;
         } else if (serde.equals("msgp")) {
-            MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
+            final MsgpPOJOSerde<Event> eSerdeMsgp = new MsgpPOJOSerde<>();
             eSerdeMsgp.setClass(Event.class);
             eSerde = eSerdeMsgp;
 
-            MsgpPOJOSerde<StartEndTime> seSerdeMsgp = new MsgpPOJOSerde<>();
+            final MsgpPOJOSerde<StartEndTime> seSerdeMsgp = new MsgpPOJOSerde<>();
             seSerdeMsgp.setClass(StartEndTime.class);
             seSerde = seSerdeMsgp;
 
-            MsgpPOJOSerde<AuctionIdCount> aicSerdeMsgp = new MsgpPOJOSerde<>();
+            final MsgpPOJOSerde<AuctionIdCount> aicSerdeMsgp = new MsgpPOJOSerde<>();
             aicSerdeMsgp.setClass(AuctionIdCount.class);
             aicSerde = aicSerdeMsgp;
 
-            MsgpPOJOSerde<AuctionIdCntMax> aicmSerdeMsgp = new MsgpPOJOSerde<>();
+            final MsgpPOJOSerde<AuctionIdCntMax> aicmSerdeMsgp = new MsgpPOJOSerde<>();
             aicmSerdeMsgp.setClass(AuctionIdCntMax.class);
             aicmSerde = aicmSerdeMsgp;
 
-            MsgpPOJOSerde<LongAndTime> latSerdeMsgp = new MsgpPOJOSerde<>();
+            final MsgpPOJOSerde<LongAndTime> latSerdeMsgp = new MsgpPOJOSerde<>();
             latSerdeMsgp.setClass(LongAndTime.class);
             latSerde = latSerdeMsgp;
         } else {
@@ -128,10 +136,10 @@ public class Query5 implements NexmarkQuery {
 
         StreamsBuilder builder = new StreamsBuilder();
 
-        KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
+        final KStream<String, Event> inputs = builder.stream("nexmark_src", Consumed.with(Serdes.String(), eSerde)
             .withTimestampExtractor(new EventTimestampExtractor()));
         // .peek(input);
-        KStream<Long, Event> bid = inputs
+        final KStream<Long, Event> bid = inputs
             .filter((key, value) -> {
                 if (value != null) {
                     value.setStartProcTsNano(System.nanoTime());
@@ -142,24 +150,24 @@ public class Query5 implements NexmarkQuery {
                 }
             })
             .selectKey((key, value) -> {
-                long procLat = System.nanoTime() - value.startProcTsNano();
+                final long procLat = System.nanoTime() - value.startProcTsNano();
                 StreamsUtils.appendLat(topo1ProcLat, procLat, TOPO1PROC_TAG);
                 return value.bid.auction;
             });
 
-        TimeWindows tws = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(20))
+        final TimeWindows tws = TimeWindows.ofSizeAndGrace(Duration.ofSeconds(10), Duration.ofSeconds(20))
             .advanceBy(Duration.ofSeconds(2));
-        WindowBytesStoreSupplier auctionBidsWSSupplier = Stores.inMemoryWindowStore("auctionBidsCountStore",
+        final WindowBytesStoreSupplier auctionBidsWSSupplier = Stores.inMemoryWindowStore("auctionBidsCountStore",
             Duration.ofMillis(tws.gracePeriodMs() + tws.size()), Duration.ofMillis(tws.size()), false);
 
-        KStream<StartEndTime, AuctionIdCount> auctionBids = bid
+        final KStream<StartEndTime, AuctionIdCount> auctionBids = bid
             .repartition(Repartitioned.with(Serdes.Long(), eSerde)
                 .withName(bidsTpRepar)
                 .withNumberOfPartitions(bidsTpPar))
             .mapValues((key, value) -> {
                 value.setStartProcTsNano(System.nanoTime());
                 assert value.injTsMs() != 0;
-                long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                 StreamsUtils.appendLat(bidsQueueTime, queueDelay, BIDSQT_TAG);
                 return value;
             })
@@ -178,7 +186,7 @@ public class Query5 implements NexmarkQuery {
                     .withLoggingEnabled(new HashMap<>()))
             .toStream()
             .mapValues((key, value) -> {
-                AuctionIdCount aic = new AuctionIdCount(key.key(), value.val, Instant.now().toEpochMilli());
+                final AuctionIdCount aic = new AuctionIdCount(key.key(), value.val, Instant.now().toEpochMilli());
                 assert value.startExecNano != 0;
                 aic.startExecNano = value.startExecNano;
                 return aic;
@@ -186,7 +194,7 @@ public class Query5 implements NexmarkQuery {
             .selectKey((key, value) -> {
                 StartEndTime se = new StartEndTime(key.window().start(), key.window().end(), 0);
                 assert value.startExecNano != 0;
-                long procLat = System.nanoTime() - value.startExecNano;
+                final long procLat = System.nanoTime() - value.startExecNano;
                 StreamsUtils.appendLat(topo2ProcLat, procLat, TOPO2PROC_TAG);
                 return se;
             })
@@ -196,14 +204,14 @@ public class Query5 implements NexmarkQuery {
             .mapValues((key, value) -> {
                 value.setStartProcTsNano(System.nanoTime());
                 assert value.injTsMs() != 0;
-                long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
+                final long queueDelay = Instant.now().toEpochMilli() - value.injTsMs();
                 StreamsUtils.appendLat(auctionBidsQueueTime, queueDelay, AUCBIDSQT_TAG);
                 return value;
             });
 
-        KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
+        final KeyValueBytesStoreSupplier maxBidsKV = Stores.inMemoryKeyValueStore("maxBidsKVStore");
 
-        KTable<StartEndTime, LongAndTime> maxBids = auctionBids
+        final KTable<StartEndTime, LongAndTime> maxBids = auctionBids
             .groupByKey(Grouped.with(seSerde, aicSerde))
             .aggregate(() -> new LongAndTime(0, 0, 0),
                 (key, value, aggregate) -> {
@@ -224,7 +232,7 @@ public class Query5 implements NexmarkQuery {
                     .withValueSerde(latSerde));
         auctionBids
             .join(maxBids, (leftValue, rightValue) -> {
-                long startExecNano = 0;
+                final long startExecNano;
                 if (leftValue.startProcTsNano() == 0) {
                     startExecNano = rightValue.startProcTsNano();
                 } else if (rightValue.startProcTsNano() == 0) {
@@ -248,18 +256,18 @@ public class Query5 implements NexmarkQuery {
     }
 
     @Override
-    public Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms,
-                                               boolean disableCache, boolean disableBatching) {
-        Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
+    public Properties getExactlyOnceProperties(final String bootstrapServer, final int duration, final int flushms,
+                                               final boolean disableCache, final boolean disableBatching) {
+        final Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
             disableCache, disableBatching);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q5");
         return props;
     }
 
     @Override
-    public Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms,
-                                               boolean disableCache, boolean disableBatching) {
-        Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
+    public Properties getAtLeastOnceProperties(final String bootstrapServer, final int duration, final int flushms,
+                                               final boolean disableCache, final boolean disableBatching) {
+        final Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
             disableCache, disableBatching);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q5");
         return props;

@@ -16,9 +16,9 @@ public class PersonTime implements StartProcTs {
     public long startExecNano;
 
     @JsonCreator
-    public PersonTime(@JsonProperty("id") long id,
-                      @JsonProperty("name") String name,
-                      @JsonProperty("startTime") long startTime) {
+    public PersonTime(@JsonProperty("id") final long id,
+                      @JsonProperty("name") final String name,
+                      @JsonProperty("startTime") final long startTime) {
         this.id = id;
         this.name = name;
         this.startTime = startTime;
@@ -28,12 +28,12 @@ public class PersonTime implements StartProcTs {
     @Override
     public String toString() {
         return "PersonTime: {name: " + name +
-                ", id: " + id +
-                ", startTime: " + startTime + "}";
+            ", id: " + id +
+            ", startTime: " + startTime + "}";
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) {
             return true;
         }
@@ -42,7 +42,7 @@ public class PersonTime implements StartProcTs {
         }
         final PersonTime other = (PersonTime) o;
         return this.id == other.id && this.startTime == other.startTime &&
-                this.name.equals(other.name);
+            this.name.equals(other.name);
     }
 
     @Override
@@ -56,7 +56,7 @@ public class PersonTime implements StartProcTs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
-        startExecNano = ts; 
+    public void setStartProcTsNano(final long ts) {
+        startExecNano = ts;
     }
 }

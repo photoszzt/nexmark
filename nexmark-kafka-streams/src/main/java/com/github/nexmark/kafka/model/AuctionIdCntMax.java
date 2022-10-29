@@ -1,7 +1,5 @@
 package com.github.nexmark.kafka.model;
 
-import java.util.Objects;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -21,9 +19,9 @@ public class AuctionIdCntMax implements StartProcTs {
     public long startExecNano;
 
     @JsonCreator
-    public AuctionIdCntMax(long aucId,
-            long count,
-            long maxCnt) {
+    public AuctionIdCntMax(final long aucId,
+                           final long count,
+                           final long maxCnt) {
         this.aucId = aucId;
         this.count = count;
         this.maxCnt = maxCnt;
@@ -33,13 +31,8 @@ public class AuctionIdCntMax implements StartProcTs {
     @Override
     public String toString() {
         return "AuctionIdCntMax: {aucId: " + aucId +
-                ", count: " + count +
-                ", maxCnt: " + maxCnt + "}";
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(aucId, count, maxCnt);
+            ", count: " + count +
+            ", maxCnt: " + maxCnt + "}";
     }
 
     @Override
@@ -48,7 +41,7 @@ public class AuctionIdCntMax implements StartProcTs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
-        startExecNano = ts; 
+    public void setStartProcTsNano(final long ts) {
+        startExecNano = ts;
     }
 }

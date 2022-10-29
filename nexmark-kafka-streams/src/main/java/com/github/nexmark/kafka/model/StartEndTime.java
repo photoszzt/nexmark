@@ -19,9 +19,9 @@ public class StartEndTime implements InjTsMs, StartProcTs {
     private long startProcTsNano;
 
     @JsonCreator
-    public StartEndTime(@JsonProperty("startTime") long startTime,
-                        @JsonProperty("endTime") long endTime,
-                        @JsonProperty("injTsMs") long injTsMs) {
+    public StartEndTime(@JsonProperty("startTime") final long startTime,
+                        @JsonProperty("endTime") final long endTime,
+                        @JsonProperty("injTsMs") final long injTsMs) {
         this.startTime = startTime;
         this.endTime = endTime;
         this.injTsMs = injTsMs;
@@ -31,11 +31,11 @@ public class StartEndTime implements InjTsMs, StartProcTs {
     @Override
     public String toString() {
         return "StartEndTime: {startTime: " + startTime +
-                ", endTime: " + endTime + "}";
+            ", endTime: " + endTime + "}";
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) {
             return true;
         }
@@ -57,8 +57,8 @@ public class StartEndTime implements InjTsMs, StartProcTs {
     }
 
     @Override
-    public void setInjTsMs(long ts) {
-        this.injTsMs = ts; 
+    public void setInjTsMs(final long ts) {
+        this.injTsMs = ts;
     }
 
     @Override
@@ -67,7 +67,7 @@ public class StartEndTime implements InjTsMs, StartProcTs {
     }
 
     @Override
-    public void setStartProcTsNano(long ts) {
-       startProcTsNano = ts; 
+    public void setStartProcTsNano(final long ts) {
+        startProcTsNano = ts;
     }
 }
