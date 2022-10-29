@@ -61,6 +61,12 @@ public class RunQuery {
                 return new Query7(canStatsDir);
             case "q8":
                 return new Query8(canStatsDir);
+            case "twoEmpty":
+                return new TwoStageEmptyQuery(canStatsDir);
+            case "threeEmpty":
+                return new ThreeStageEmptyQuery(canStatsDir);
+            case "fourEmpty":
+                return new FourStageEmptyQuery(canStatsDir);
             default:
                 System.err.println("Unrecognized app name: " + appName);
                 return null;
