@@ -180,10 +180,12 @@ public class RunQuery {
                             if (!(g.equals("app-info") || g.startsWith("admin-client") ||
                                 g.equals("kafka-metrics-count"))) {
                                 try {
-                                    final Double d = ((Number) v.metricValue()).doubleValue();
-                                    if (!d.isNaN() && d != 0.0) {
-                                        System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
-                                            + ";val:" + d);
+                                    if (v.metricValue() instanceof Double) {
+                                        final Double d = ((Number) v.metricValue()).doubleValue();
+                                        if (!d.isNaN() && d != 0.0) {
+                                            System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
+                                                               + ";val:" + d);
+                                        }
                                     }
                                 } catch (final ClassCastException e) {
                                     e.printStackTrace();
@@ -201,10 +203,12 @@ public class RunQuery {
                             if (!(g.equals("app-info") || g.startsWith("admin-client") ||
                                 g.equals("kafka-metrics-count"))) {
                                 try {
-                                    final Double d = ((Number) v.metricValue()).doubleValue();
-                                    if (!d.isNaN() && d != 0.0) {
-                                        System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
-                                            + ";val:" + d);
+                                    if (v.metricValue() instanceof Double) {
+                                        final Double d = ((Number) v.metricValue()).doubleValue();
+                                        if (!d.isNaN() && d != 0.0) {
+                                            System.out.println(k.group() + " " + k.name() + ";tags:" + k.tags()
+                                                               + ";val:" + d);
+                                        }
                                     }
                                 } catch (final ClassCastException e) {
                                     e.printStackTrace();
