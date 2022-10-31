@@ -198,7 +198,7 @@ public class Query8 implements NexmarkQuery {
         final Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
                 disableCache, disableBatching);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q8");
-        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 3);
+        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 2);
         return props;
     }
 
@@ -208,7 +208,7 @@ public class Query8 implements NexmarkQuery {
         final Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
                 disableCache, disableBatching);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q8");
-        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 3);
+        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 2);
         return props;
     }
 
