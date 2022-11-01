@@ -37,7 +37,7 @@ public class StreamsUtils {
         props.put(StreamsConfig.producerPrefix(ProducerConfig.BATCH_SIZE_CONFIG), batchSize);
         props.put(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), flush);
         props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, Integer.toString(flushms));
-        props.put(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, 0);
+        props.put(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, 1);
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);
 
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
