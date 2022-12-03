@@ -39,23 +39,25 @@ public class LatencyCount<K, V extends TimestampFromValue<V>> implements Foreach
     @Override
     public void apply(final K key, final TimestampFromValue<V> value) {
         this.counter += 1;
-        final long ts = value.extract();
-        final long lat = Instant.now().toEpochMilli() - ts;
-        if (currentPos < latencies.length) {
-            latencies[currentPos] = lat;
-            currentPos++;
-        } else {
-            final String s = Arrays.toString(latencies);
-            latencies = new long[1024];
-            currentPos = 0;
-            es.submit(() -> {
-                try {
-                    bw.write(s);
-                    bw.newLine();
-                } catch (final IOException e) {
-                    e.printStackTrace();
-                }
-            });
+        if (afterWarmup.get()) {
+            final long ts = value.extract();
+            final long lat = Instant.now().toEpochMilli() - ts;
+            if (currentPos < latencies.length) {
+                latencies[currentPos] = lat;
+                currentPos++;
+            } else {
+                final String s = Arrays.toString(latencies);
+                latencies = new long[1024];
+                currentPos = 0;
+                es.submit(() -> {
+                    try {
+                        bw.write(s);
+                        bw.newLine();
+                    } catch (final IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
         }
     }
 

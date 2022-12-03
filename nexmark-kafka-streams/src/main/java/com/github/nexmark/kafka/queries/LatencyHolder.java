@@ -49,21 +49,23 @@ public class LatencyHolder {
 
     public void appendLatency(final long lat) {
         counter += 1;
-        if (currentPos < latencies.length) {
-            latencies[currentPos] = lat;
-            currentPos++;
-        } else {
-            final String s = Arrays.toString(latencies);
-            latencies = new long[1024];
-            currentPos = 0;
-            es.submit(() -> {
-                try {
-                    bw.write(s);
-                    bw.newLine();
-                } catch (final IOException e) {
-                    e.printStackTrace();
-                }
-            });
+        if (afterWarmup.get()) {
+            if (currentPos < latencies.length) {
+                latencies[currentPos] = lat;
+                currentPos++;
+            } else {
+                final String s = Arrays.toString(latencies);
+                latencies = new long[1024];
+                currentPos = 0;
+                es.submit(() -> {
+                    try {
+                        bw.write(s);
+                        bw.newLine();
+                    } catch (final IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
         }
     }
 
