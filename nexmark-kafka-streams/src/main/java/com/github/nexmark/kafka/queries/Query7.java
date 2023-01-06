@@ -268,7 +268,7 @@ public class Query7 implements NexmarkQuery {
         final Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
             disableCache, disableBatching, producerBatchSize);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q7");
-        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 2);
+        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 3);
         return props;
     }
 
