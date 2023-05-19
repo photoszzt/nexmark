@@ -263,9 +263,10 @@ public class Query7 implements NexmarkQuery {
 
     @Override
     public Properties getExactlyOnceProperties(final String bootstrapServer, final int duration, final int flushms,
-                                               final boolean disableCache, final boolean disableBatching) {
+                                               final boolean disableCache, final boolean disableBatching,
+                                               final int producerBatchSize) {
         final Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
-            disableCache, disableBatching);
+            disableCache, disableBatching, producerBatchSize);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q7");
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 2);
         return props;
@@ -273,9 +274,10 @@ public class Query7 implements NexmarkQuery {
 
     @Override
     public Properties getAtLeastOnceProperties(final String bootstrapServer, final int duration, final int flushms,
-                                               final boolean disableCache, final boolean disableBatching) {
+                                               final boolean disableCache, final boolean disableBatching,
+                                               final int producerBatchSize) {
         final Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
-            disableCache, disableBatching);
+            disableCache, disableBatching, producerBatchSize);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q7");
         return props;
     }

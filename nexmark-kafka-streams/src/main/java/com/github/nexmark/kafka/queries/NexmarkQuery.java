@@ -9,10 +9,10 @@ public interface NexmarkQuery {
     StreamsBuilder getStreamBuilder(String bootstrapServer, String serde, String configFile) throws IOException;
 
     Properties getExactlyOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache,
-            boolean disableBatching);
+            boolean disableBatching, final int producerBatchSize);
 
     Properties getAtLeastOnceProperties(String bootstrapServer, int duration, int flushms, boolean disableCache,
-            boolean disableBatching);
+            boolean disableBatching, final int producerBatchSize);
 
     void setAfterWarmup();
 

@@ -39,6 +39,8 @@ public class RunQuery {
     private static final Option DISABLE_BATCHING = new Option("xb", "disable_batching", false, "disable batching");
     private static final Option STATS_DIR = new Option("sd", "stats_dir", true, "stats dir");
 
+    private static final Option PRODUCER_BATCH_SIZE = new Option("mb", "batch_size", true, "producer max batch size");
+
     private static final long TEN_SEC_NANO = TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS);
 
     private static NexmarkQuery getNexmarkQuery(final String appName,
@@ -98,12 +100,14 @@ public class RunQuery {
         final String flushStr = line.getOptionValue(FLUSHMS.getOpt());
         final String guarantee = line.getOptionValue(GUARANTEE.getOpt());
         final String statsDirStr = line.getOptionValue(STATS_DIR.getOpt());
+        final String prodBatchSizeStr = line.getOptionValue(PRODUCER_BATCH_SIZE.getOpt());
 
         final int durationMs = durStr == null ? 0 : Integer.parseInt(durStr) * 1000;
         final int warmupDuration = warmupTime == null ? 0 : Integer.parseInt(warmupTime) * 1000;
         final int warmupDurNano = warmupDuration * 1000_000;
         final int port = portStr == null ? 8090 : Integer.parseInt(portStr);
         final int flushms = flushStr == null ? 100 : Integer.parseInt(flushStr);
+        final int prodBatchSize = prodBatchSizeStr == null ? 128*1024 : Integer.parseInt(prodBatchSizeStr);
         final boolean disableCache = line.hasOption(DISABLE_CACHE.getOpt());
         final boolean disableBatching = line.hasOption(DISABLE_BATCHING.getOpt());
         final File statsDir = new File(statsDirStr);
@@ -142,10 +146,10 @@ public class RunQuery {
         final Properties props;
         if (guarantee.equals("alo")) {
             props = query.getAtLeastOnceProperties(bootstrapServers, durationMs, flushms, disableCache,
-                disableBatching);
+                disableBatching, prodBatchSize);
         } else {
             props = query.getExactlyOnceProperties(bootstrapServers, durationMs, flushms, disableCache,
-                disableBatching);
+                disableBatching, prodBatchSize);
         }
         final Topology tp = builder.build();
         System.out.println(tp.describe());
@@ -317,6 +321,7 @@ public class RunQuery {
         options.addOption(DISABLE_CACHE);
         options.addOption(STATS_DIR);
         options.addOption(DISABLE_BATCHING);
+        options.addOption(PRODUCER_BATCH_SIZE);
         return options;
     }
 }

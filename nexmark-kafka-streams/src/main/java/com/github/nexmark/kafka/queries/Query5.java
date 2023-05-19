@@ -257,18 +257,20 @@ public class Query5 implements NexmarkQuery {
 
     @Override
     public Properties getExactlyOnceProperties(final String bootstrapServer, final int duration, final int flushms,
-                                               final boolean disableCache, final boolean disableBatching) {
+                                               final boolean disableCache, final boolean disableBatching,
+                                               final int producerBatchSize) {
         final Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
-            disableCache, disableBatching);
+            disableCache, disableBatching, producerBatchSize);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q5");
         return props;
     }
 
     @Override
     public Properties getAtLeastOnceProperties(final String bootstrapServer, final int duration, final int flushms,
-                                               final boolean disableCache, final boolean disableBatching) {
+                                               final boolean disableCache, final boolean disableBatching,
+                                               final int producerBatchSize) {
         final Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
-            disableCache, disableBatching);
+            disableCache, disableBatching, producerBatchSize);
         props.putIfAbsent(StreamsConfig.APPLICATION_ID_CONFIG, "q5");
         return props;
     }

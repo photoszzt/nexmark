@@ -72,9 +72,10 @@ public class TwoStageEmptyQuery implements NexmarkQuery {
 
     @Override
     public Properties getExactlyOnceProperties(final String bootstrapServer, final int duration,
-                                               final int flushms, final boolean disableCache, final boolean disableBatching) {
+                                               final int flushms, final boolean disableCache,
+                                               final boolean disableBatching, final int producerBatchSize) {
         final Properties props = StreamsUtils.getExactlyOnceStreamsConfig(bootstrapServer, duration, flushms,
-            disableCache, disableBatching);
+            disableCache, disableBatching, producerBatchSize);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "two-empty");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "two-empty-client");
         return props;
@@ -82,9 +83,10 @@ public class TwoStageEmptyQuery implements NexmarkQuery {
 
     @Override
     public Properties getAtLeastOnceProperties(final String bootstrapServer, final int duration, final int flushms,
-                                               final boolean disableCache, final boolean disableBatching) {
+                                               final boolean disableCache, final boolean disableBatching,
+                                               final int producerBatchSize) {
         final Properties props = StreamsUtils.getAtLeastOnceStreamsConfig(bootstrapServer, duration, flushms,
-            disableCache, disableBatching);
+            disableCache, disableBatching, producerBatchSize);
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "two-empty");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "two-empty-client");
         return props;
