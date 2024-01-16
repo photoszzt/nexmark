@@ -10,7 +10,7 @@ tasks:
   build:
     desc: "build nexmark kafka implementation"
     cmds:
-      - gradle uberJar
+      - gradle uberJar --warning-mode all
     sources:
       - src/main/java/com/github/nexmark/kafka/**/*.java
     generates:
