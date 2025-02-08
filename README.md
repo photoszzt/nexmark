@@ -1,3 +1,15 @@
+# Impeller fork of the Nexmark Benchmark
+Impeller implements nexmark benchmark on Kafka Streams. The code is in `nexmark-kafka-streams`.
+
+## Build
+- Install gradle version 8.5 via sdkman.
+- Install [task](https://github.com/go-task/task)
+- Install openjdk 11
+```bash
+cd ./nexmark-kafka-streams/ && task build
+```
+
+Below are the original README
 # Nexmark Benchmark
 
 ## What is Nexmark
